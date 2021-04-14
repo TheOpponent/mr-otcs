@@ -20,8 +20,10 @@ MEDIA_PLAYER_ARGUMENTS = "--play-and-exit"
 BASE_PATH = "/media/videos/"
 # This path will also contain play_index.txt and play_history.txt.
 
-# Video files, including subdirectories.
 MEDIA_PLAYLIST = ['video1.mp4','video2.mp4','Series/E01.mp4']
+# Video files, including subdirectories. This can be a Python list containing
+# strings with filenames in BASE_PATH or a string with a path to a text file
+# containing one filename in BASE_PATH per line.
 # Items starting with comment character # will be skipped.
 
 # Number of videos to keep in history log, saved in play_history.txt in
@@ -114,8 +116,15 @@ except FileNotFoundError:
         index_file.write("0")
         play_index = 0
 
+# If MEDIA_PLAYLIST is a file, open the file.
+if isinstance(MEDIA_PLAYLIST,str):
+    with open(MEDIA_PLAYLIST,"r") as media_playlist_file:
+        MEDIA_PLAYLIST = media_playlist_file.read().splitlines() 
+
 # Remove comment entries in MEDIA_PLAYLIST.
 MEDIA_PLAYLIST = [i for i in MEDIA_PLAYLIST if not i.startswith("#")]
+
+print(MEDIA_PLAYLIST)
 
 # Loop over playlist indefinitely.
 while True:
