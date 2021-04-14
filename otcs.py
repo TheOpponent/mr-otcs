@@ -52,6 +52,9 @@ def get_length(file):
                             "-show_entries","stream=duration","-of",
                             "default=noprint_wrappers=1:nokey=1",file],
                             capture_output=True,text=True).stdout
+    if result == "":
+        raise Exception("ffprobe was unable to read duration of: " + file)
+        
     return result
     
 
