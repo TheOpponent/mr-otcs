@@ -23,14 +23,15 @@ BASE_PATH = "/media/videos/"
 # Video files, including subdirectories. This can be a Python list containing
 # strings with filenames in BASE_PATH or a string with a path to a text file
 # containing one filename in BASE_PATH per line.
-# Items starting with comment character # will be skipped.
+# Items starting with comment characters ; # or // and blank lines will be
+# skipped.
 MEDIA_PLAYLIST = ['video1.mp4','video2.mp4','Series/E01.mp4']
 
 # Number of videos to keep in history log, saved in play_history.txt in
 # BASE_PATH. Set to 0 to disable.
 PLAY_HISTORY_LENGTH = 100
 
-# Path for HTML schedule written by write_schedule(). 
+# Path for HTML schedule. 
 # See template.html for the file to be read by this script.
 # Set to None to disable writing schedule.
 SCHEDULE_PATH = "/var/www/schedule.html"
@@ -121,8 +122,9 @@ if isinstance(MEDIA_PLAYLIST,str):
     with open(MEDIA_PLAYLIST,"r") as media_playlist_file:
         MEDIA_PLAYLIST = media_playlist_file.read().splitlines() 
 
-# Remove comment entries in MEDIA_PLAYLIST.
-MEDIA_PLAYLIST = [i for i in MEDIA_PLAYLIST if not i.startswith("#")]
+# Remove blank lines and comment entries in MEDIA_PLAYLIST.
+MEDIA_PLAYLIST = [i for i in MEDIA_PLAYLIST if i != "" and not i.startswith(";")
+                  and not i.startswith("#") and not i.startswith("//")]
 
 # Loop over playlist indefinitely.
 while True:
