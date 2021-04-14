@@ -51,7 +51,7 @@ def get_length(file):
     return result
     
 
-def write_schedule(file_list,previous_file = None):
+def write_schedule(file_list,previous_file = ""):
     """
     Write an HTML file containing file names and lengths read from a list
     containing video file paths. Optionally, include the most recently played
@@ -90,10 +90,11 @@ def write_schedule(file_list,previous_file = None):
     with open(os.path.join(sys.path[0],"template.html"),"r") as html_template:
         html_contents = html_template.read()
 
-    html_contents = html_contents.format(js_array=js_array)
+    html_contents = html_contents.format(js_array=js_array,previous_file=previous_file)
 
     with open(SCHEDULE_PATH,"w") as html_file:
         html_file.write(html_contents)
+
 
 ###############################################################################
 # Main loop.
