@@ -17,14 +17,14 @@ FFPROBE_PATH = "/usr/bin/ffprobe"
 MEDIA_PLAYER_ARGUMENTS = "--play-and-exit"
 
 # Base path for all video files, including trailing slash. 
-BASE_PATH = "/media/videos/"
 # This path will also contain play_index.txt and play_history.txt.
+BASE_PATH = "/media/videos/"
 
-MEDIA_PLAYLIST = ['video1.mp4','video2.mp4','Series/E01.mp4']
 # Video files, including subdirectories. This can be a Python list containing
 # strings with filenames in BASE_PATH or a string with a path to a text file
 # containing one filename in BASE_PATH per line.
 # Items starting with comment character # will be skipped.
+MEDIA_PLAYLIST = ['video1.mp4','video2.mp4','Series/E01.mp4']
 
 # Number of videos to keep in history log, saved in play_history.txt in
 # BASE_PATH. Set to 0 to disable.
