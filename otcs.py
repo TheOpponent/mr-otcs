@@ -104,12 +104,22 @@ except FileNotFoundError:
         index_file.write("0")
         play_index = 0
 
+# Remove comment entries in MEDIA_PLAYLIST.
+MEDIA_PLAYLIST = [i for i in MEDIA_PLAYLIST if not i.startswith("#")]
+
 # Loop over playlist indefinitely.
 while True:
     if play_index < len(MEDIA_PLAYLIST):
 
         video_time = datetime.datetime.now()
         video_file = MEDIA_PLAYLIST[play_index]
+
+        # If playlist entry starts with comment character #, skip to next line.
+        if video_file.startswith("#"):
+            print("Comment line skipped.")
+            play_index = play_index + 1
+            continue
+
         video_file_fullpath = os.path.join(BASE_PATH,video_file)
 
         # Check if video_file exists and raise exception if it does not.
