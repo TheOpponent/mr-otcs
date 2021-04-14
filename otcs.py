@@ -124,8 +124,6 @@ if isinstance(MEDIA_PLAYLIST,str):
 # Remove comment entries in MEDIA_PLAYLIST.
 MEDIA_PLAYLIST = [i for i in MEDIA_PLAYLIST if not i.startswith("#")]
 
-print(MEDIA_PLAYLIST)
-
 # Loop over playlist indefinitely.
 while True:
     if play_index < len(MEDIA_PLAYLIST):
