@@ -109,36 +109,35 @@ def write_schedule(file_list,previous_file = ""):
 
 ###############################################################################
 # Main loop.
-
-# Keep playlist index and store in file play_index.txt. Create it if it does 
-# not exist.
-try:
-    with open(os.path.join(BASE_PATH,"play_index.txt"),"r") as index_file:
-        play_index = int(index_file.read())
-        
-except FileNotFoundError:
-    with open(os.path.join(BASE_PATH,"play_index.txt"),"w") as index_file:
-        index_file.write("0")
-        play_index = 0
-
-# If MEDIA_PLAYLIST is a file, open the file.
-if isinstance(MEDIA_PLAYLIST,str):
-    with open(MEDIA_PLAYLIST,"r") as media_playlist_file:
-        media_playlist = media_playlist_file.read().splitlines() 
-
-elif isinstance(MEDIA_PLAYLIST,list):
-    media_playlist = MEDIA_PLAYLIST
-    
-else:
-    raise Exception("MEDIA_PLAYLIST is not a file or Python list.")
-
-# Remove blank lines and comment entries in media_playlist.
-media_playlist = [i for i in media_playlist if i != "" 
-                  and not i.startswith(";")
-                  and not i.startswith("#") 
-                  and not i.startswith("//")]
-
 if __name__ == "__main__":
+    
+    # Keep playlist index and store in file play_index.txt. Create it if it does 
+    # not exist.
+    try:
+        with open(os.path.join(BASE_PATH,"play_index.txt"),"r") as index_file:
+            play_index = int(index_file.read())
+            
+    except FileNotFoundError:
+        with open(os.path.join(BASE_PATH,"play_index.txt"),"w") as index_file:
+            index_file.write("0")
+            play_index = 0
+
+    # If MEDIA_PLAYLIST is a file, open the file.
+    if isinstance(MEDIA_PLAYLIST,str):
+        with open(MEDIA_PLAYLIST,"r") as media_playlist_file:
+            media_playlist = media_playlist_file.read().splitlines() 
+
+    elif isinstance(MEDIA_PLAYLIST,list):
+        media_playlist = MEDIA_PLAYLIST
+
+    else:
+        raise Exception("MEDIA_PLAYLIST is not a file or Python list.")
+
+    # Remove blank lines and comment entries in media_playlist.
+    media_playlist = [i for i in media_playlist if i != "" 
+                    and not i.startswith(";")
+                    and not i.startswith("#") 
+                    and not i.startswith("//")]
 
     # Loop over playlist indefinitely.
     while True:
