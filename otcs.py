@@ -38,6 +38,7 @@ SCHEDULE_PATH = "/var/www/schedule.html"
 # Setting too high can cause MemoryError.
 SCHEDULE_UPCOMING_LENGTH = 10
 
+
 ###############################################################################
 # Function definitions.
 
@@ -127,7 +128,7 @@ while True:
         # Check if video_file exists and raise exception if it does not.
         if not os.path.isfile(video_file_fullpath):
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), 
-                                   video_file_fullpath)
+                                    video_file_fullpath)
 
         # Write history of played video files and timestamps, limited to 
         # PLAY_HISTORY_LENGTH.
@@ -164,7 +165,8 @@ while True:
         # TODO: Delay playback for several seconds to account for window capture
         # delay.
         print("Now playing: " + video_file)
-        result = subprocess.run([MEDIA_PLAYER_PATH,video_file_fullpath,MEDIA_PLAYER_ARGUMENTS])
+        result = subprocess.run([MEDIA_PLAYER_PATH,video_file_fullpath,
+                                 MEDIA_PLAYER_ARGUMENTS])
 
         # Increment play_index and write play_index.txt in BASE_PATH.
         play_index = play_index + 1
