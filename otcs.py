@@ -12,6 +12,10 @@ import sys
 MEDIA_PLAYER_PATH = "/usr/bin/vlc"
 FFPROBE_PATH = "/usr/bin/ffprobe"
 
+# Arguments to pass to media player. This should be whatever is necessary
+# to immediately exit the player after playback is completed.
+MEDIA_PLAYER_ARGUMENTS = "--play-and-exit"
+
 # Base path for all video files, including trailing slash. 
 BASE_PATH = "/media/videos/"
 # This path will also contain play_index.txt and play_history.txt.
@@ -156,7 +160,7 @@ while True:
         # TODO: Delay playback for several seconds to account for window capture
         # delay.
         print("Now playing: " + video_file)
-        result = subprocess.run([MEDIA_PLAYER_PATH,video_file_fullpath,"--play-and-exit"])
+        result = subprocess.run([MEDIA_PLAYER_PATH,video_file_fullpath,MEDIA_PLAYER_ARGUMENTS])
 
         # Increment play_index and write play_index.txt in BASE_PATH.
         play_index = play_index + 1
