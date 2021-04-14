@@ -22,7 +22,7 @@ Coming up next: <br />
     var offset = dayjs().utcOffset();
     document.getElementById("timezone").innerHTML = timezone;
 
-    var previous_file = "{previous_file}";
+    var previous_file = "<strong>{previous_file}</strong>";
 
     // Array formatted from coming_up_next[][] in Python script.
     var imported_array = {js_array};
@@ -32,7 +32,7 @@ Coming up next: <br />
         var time = new dayjs.utc(i.time).utcOffset(offset).format('LT');
         return [
             '<div class="gridtime">', time, '</div>',
-            '<div class="gridname">', i.name, '</div>',
+            '<div class="gridname"><strong>', i.name, '</strong></div>',
             '<br />',
         ].join('')
     }});
