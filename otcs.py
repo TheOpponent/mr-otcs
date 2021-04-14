@@ -66,6 +66,9 @@ def write_schedule(file_list,previous_file = ""):
 
     coming_up_next = []
 
+    if previous_file != "":
+        previous_file = os.path.splitext(previous_file)[0]
+
     for filename in file_list:
 
         # Get length of next video in seconds from ffprobe.
