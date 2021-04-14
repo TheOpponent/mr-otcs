@@ -18,6 +18,7 @@ BASE_PATH = "/media/videos/"
 
 # Video files, including subdirectories.
 MEDIA_PLAYLIST = ['video1.mp4','video2.mp4','Series/E01.mp4']
+# Items starting with comment character # will be skipped.
 
 # Number of videos to keep in history log, saved in play_history.txt in
 # BASE_PATH. Set to 0 to disable.
@@ -113,13 +114,6 @@ while True:
 
         video_time = datetime.datetime.now()
         video_file = MEDIA_PLAYLIST[play_index]
-
-        # If playlist entry starts with comment character #, skip to next line.
-        if video_file.startswith("#"):
-            print("Comment line skipped.")
-            play_index = play_index + 1
-            continue
-
         video_file_fullpath = os.path.join(BASE_PATH,video_file)
 
         # Check if video_file exists and raise exception if it does not.
