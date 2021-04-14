@@ -68,7 +68,7 @@ def write_schedule(file_list,previous_file = ""):
     coming_up_next = []
 
     if previous_file != "":
-        previous_file = os.path.splitext(previous_file)[0]
+        previous_file = os.path.splitext(previous_file)[0].replace("\\","/")
 
     for filename in file_list:
 
