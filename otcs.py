@@ -24,7 +24,7 @@ MEDIA_PLAYER_AFTER_ARGUMENTS = "-filter_complex \"tpad=stop_duration=2;apad=pad_
 
 # Base path for all video files, including trailing slash.
 # This path will also contain play_index.txt and play_history.txt.
-BASE_PATH = "/media/videos"
+BASE_PATH = "/media/videos/"
 
 # Video files, including subdirectories. This can be a Python list
 # containing strings with filenames in BASE_PATH or a string with a
@@ -39,7 +39,7 @@ MEDIA_PLAYLIST = "/home/pi/list.txt"
 # video file cannot be found.
 # Set RETRY_ATTEMPTS to -1 to retry infinitely.
 # RETRY_PERIOD is the delay in seconds between each retry attempt.
-RETRY_ATTEMPTS = -1
+RETRY_ATTEMPTS = 0
 RETRY_PERIOD = 5
 
 # Number of videos to keep in history log, saved in play_history.txt in
