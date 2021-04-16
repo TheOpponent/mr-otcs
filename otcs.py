@@ -158,18 +158,12 @@ def write_schedule(file_list,previous_file=""):
 def loop(media_playlist):
     """Loop over playlist indefinitely."""
 
-    # Keep playlist index and store in file play_index.txt. Create it
-    # if it does not exist.
-    try:
-        with open(os.path.join(BASE_PATH,"play_index.txt"),"r") as index_file:
-            play_index = int(index_file.read())
+    def play():
+        """Play a single entry in the playlist."""
 
-    except FileNotFoundError:
-        with open(os.path.join(BASE_PATH,"play_index.txt"),"w") as index_file:
-            index_file.write("0")
-            play_index = 0
-
-    if play_index < len(media_playlist):
+        # Skip comment entries and exit loop immediately.
+        if media_playlist[play_index] == None:
+            return
 
         video_time = datetime.datetime.now()
         video_file = media_playlist[play_index]
@@ -204,22 +198,33 @@ def loop(media_playlist):
         if SCHEDULE_PATH != None:
 
             # Copy of media list sliced from current video to the end.
-            media_progress = media_playlist[play_index:]
+            media_progress = (i for i in media_playlist[play_index:])
+            media_copy = []
 
-            # Pass sliced list to write_schedule.
-            if len(media_progress) >= SCHEDULE_UPCOMING_LENGTH:
-                media_copy = media_progress[:SCHEDULE_UPCOMING_LENGTH + 1]
+            # Generate list of filenames for schedule.
+            while len(media_copy) < SCHEDULE_UPCOMING_LENGTH:
+                try:
+                    next_media = next(media_progress)
+                    # Skip comment entries.
+                    if next_media != None:
+                        media_copy.append(next_media)
 
-            # If media_progress is shorter than
-            # SCHEDULE_UPCOMING_LENGTH, copy full media playlist until
-            # the correct length is reached.
-            else:
-                media_copy = (media_progress + list(
-                              itertools.islice(itertools.cycle(media_playlist),
-                              SCHEDULE_UPCOMING_LENGTH - len(media_progress) + 1)))
+                # Produce cycled list when generator runs out.
+                except StopIteration:
+                    media_progress = itertools.cycle(media_playlist)
+
+            # Get previous file by iterating media_playlist in reverse
+            # until a non-comment line is reached.
+            prev_index = play_index - 1
+            while True:
+                if media_playlist[prev_index] != None:
+                    previous_file = media_playlist[prev_index]
+                    break
+                else:
+                    prev_index = prev_index - 1
 
             schedule_p = Process(target=write_schedule,args=(media_copy,),
-                                 kwargs={"previous_file":media_playlist[play_index - 1]})
+                                 kwargs={"previous_file":previous_file})
 
             player_p = Process(target=subprocess.run,kwargs={"args":"\"{}\" {} \"{}\" {}".format(MEDIA_PLAYER_PATH,MEDIA_PLAYER_BEFORE_ARGUMENTS,video_file_fullpath,MEDIA_PLAYER_AFTER_ARGUMENTS),"shell":True})
 
@@ -232,6 +237,22 @@ def loop(media_playlist):
         # process.
         else:
             result = subprocess.run("\"{}\" {} \"{}\" {}".format(MEDIA_PLAYER_PATH,MEDIA_PLAYER_BEFORE_ARGUMENTS,video_file_fullpath,MEDIA_PLAYER_AFTER_ARGUMENTS),shell=True)
+
+    # Keep playlist index and store in file play_index.txt. Create it
+    # if it does not exist.
+    try:
+        with open(os.path.join(BASE_PATH,"play_index.txt"),"r") as index_file:
+            play_index = int(index_file.read())
+
+    except FileNotFoundError:
+        with open(os.path.join(BASE_PATH,"play_index.txt"),"w") as index_file:
+            index_file.write("0")
+            play_index = 0
+
+    # Play file.
+    play()
+
+    if play_index < len(media_playlist):
 
         # Increment play_index and write play_index.txt in BASE_PATH.
         play_index = play_index + 1
@@ -260,11 +281,8 @@ if __name__ == "__main__":
     else:
         raise Exception("MEDIA_PLAYLIST is not a file or Python list.")
 
-    # Remove blank lines and comment entries in media_playlist.
-    media_playlist = [i for i in media_playlist if i != ""
-                      and not i.startswith(";")
-                      and not i.startswith("#")
-                      and not i.startswith("//")]
+    # Change blank lines and comment entries in media_playlist to None.
+    media_playlist = [i if i != "" and not i.startswith(";") and not i.startswith("#") and not i.startswith("//") else None for i in media_playlist]
 
     while True:
         loop(media_playlist)
