@@ -12,23 +12,26 @@ from multiprocessing import Process
 
 # Program paths. Use absolute paths.
 # ffprobe is optional if HTML schedule will not be used.
-MEDIA_PLAYER_PATH = "/usr/bin/vlc"
+MEDIA_PLAYER_PATH = "/usr/bin/ffmpeg"
 FFPROBE_PATH = "/usr/bin/ffprobe"
 
 # Arguments to pass to media player. This should be whatever is
 # necessary to immediately exit the player after playback is completed.
-MEDIA_PLAYER_ARGUMENTS = "--play-and-exit"
+# MEDIA_PLAYER_BEFORE_ARGUMENTS are passed before the input file.
+# MEDIA_PLAYER_AFTER_ARGUMENTS are passed after the input file.
+MEDIA_PLAYER_BEFORE_ARGUMENTS = "-hide_banner -re -i"
+MEDIA_PLAYER_AFTER_ARGUMENTS = "-filter_complex \"tpad=stop_duration=2;apad=pad_dur=2\" -vcodec libx264 -b:v 1100k -acodec aac -b:a 128k -f flv -framerate 30 -g 60 rtmp://{rtmp_address}"
 
 # Base path for all video files, including trailing slash.
 # This path will also contain play_index.txt and play_history.txt.
-BASE_PATH = "/media/videos/"
+BASE_PATH = "/media/videos"
 
 # Video files, including subdirectories. This can be a Python list
 # containing strings with filenames in BASE_PATH or a string with a
 # path to a text file containing one filename in BASE_PATH per line.
 # Items starting with comment characters ; # or // and blank lines will
 # be skipped.
-MEDIA_PLAYLIST = ['video1.mp4','video2.mp4','Series/E01.mp4']
+MEDIA_PLAYLIST = "/home/pi/list.txt"
 
 # Allow retrying file access if next video file cannot be opened.
 # This can be useful if BASE_PATH is a network share.
@@ -36,12 +39,12 @@ MEDIA_PLAYLIST = ['video1.mp4','video2.mp4','Series/E01.mp4']
 # video file cannot be found.
 # Set RETRY_ATTEMPTS to -1 to retry infinitely.
 # RETRY_PERIOD is the delay in seconds between each retry attempt.
-RETRY_ATTEMPTS = 0
+RETRY_ATTEMPTS = -1
 RETRY_PERIOD = 5
 
 # Number of videos to keep in history log, saved in play_history.txt in
 # BASE_PATH. Set to 0 to disable.
-PLAY_HISTORY_LENGTH = 100
+PLAY_HISTORY_LENGTH = 10
 
 # Path for HTML schedule.
 # See template.html for the file to be read by this script.
@@ -138,7 +141,7 @@ def write_schedule(file_list,previous_file=""):
 
     # Format coming_up_next list into string suitable for assigning as
     # JavaScript array of objects.
-    js_array = "[" + ",".join(["{{time:'{}',name:'{}'}}".format(i,n) for i,n in coming_up_next]) + "]"
+    js_array = "[" + ",".join(["{{time:'{}',name:'{}'}}".format(i,n.replace("'",r"\'")) for i,n in coming_up_next]) + "]"
 
     # Generate HTML contents.
     with open(os.path.join(sys.path[0],"template.html"),"r") as html_template:
@@ -149,6 +152,8 @@ def write_schedule(file_list,previous_file=""):
     with open(SCHEDULE_PATH,"w") as html_file:
         html_file.write(html_contents)
 
+    # Upload html_file to a publicly accessible location
+    # using pysftp or something similar if necessary.
 
 def loop(media_playlist):
     """Loop over playlist indefinitely."""
@@ -177,17 +182,21 @@ def loop(media_playlist):
         # Write history of played video files and timestamps,
         # limited to PLAY_HISTORY_LENGTH.
         if PLAY_HISTORY_LENGTH > 0:
-            with open(os.path.join(BASE_PATH,"play_history.txt"),"r") as play_history:
-                play_history_buffer = play_history.readlines()
+            try:
+                with open(os.path.join(BASE_PATH,"play_history.txt"),"r") as play_history:
+                    play_history_buffer = play_history.readlines()
 
-            with open(os.path.join(BASE_PATH,"play_history.txt"),"w+") as play_history:
-                play_history_buffer.append("{},{}\n".format(video_time,video_file))
-                play_history.writelines(play_history_buffer[-PLAY_HISTORY_LENGTH:])
+            except FileNotFoundError:
+                with open(os.path.join(BASE_PATH,"play_history.txt"),"w+") as play_history:
+                    play_history_buffer = []
+                    play_history.close()
+
+            finally:
+                with open(os.path.join(BASE_PATH,"play_history.txt"),"w+") as play_history:
+                    play_history_buffer.append("{},{}\n".format(video_time,video_file))
+                    play_history.writelines(play_history_buffer[-PLAY_HISTORY_LENGTH:])
 
         print("Now playing: " + video_file)
-
-        # TODO: Delay playback for several seconds to account for
-        # window capture delay.
 
         # If HTML schedule writing is enabled, retrieve next videos in
         # list up to SCHEDULE_UPCOMING_LENGTH and write_schedule in
@@ -211,9 +220,8 @@ def loop(media_playlist):
 
             schedule_p = Process(target=write_schedule,args=(media_copy,),
                                  kwargs={"previous_file":media_playlist[play_index - 1]})
-            player_p = Process(target=subprocess.run,args=(
-                              [MEDIA_PLAYER_PATH,video_file_fullpath,
-                               MEDIA_PLAYER_ARGUMENTS],))
+
+            player_p = Process(target=subprocess.run,kwargs={"args":"{} {} \"{}\" {}".format(MEDIA_PLAYER_PATH,MEDIA_PLAYER_BEFORE_ARGUMENTS,video_file_fullpath,MEDIA_PLAYER_AFTER_ARGUMENTS),"shell":True})
 
             player_p.start()
             schedule_p.start()
@@ -223,9 +231,7 @@ def loop(media_playlist):
         # If scheduling is disabled, simply play files in single
         # process.
         else:
-            result = subprocess.run([MEDIA_PLAYER_PATH,
-                                     video_file_fullpath,
-                                     MEDIA_PLAYER_ARGUMENTS])
+            result = subprocess.run("{} {} \"{}\" {}".format(MEDIA_PLAYER_PATH,MEDIA_PLAYER_BEFORE_ARGUMENTS,video_file_fullpath,MEDIA_PLAYER_AFTER_ARGUMENTS),shell=True)
 
         # Increment play_index and write play_index.txt in BASE_PATH.
         play_index = play_index + 1
