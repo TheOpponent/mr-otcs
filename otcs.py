@@ -221,7 +221,7 @@ def loop(media_playlist):
             schedule_p = Process(target=write_schedule,args=(media_copy,),
                                  kwargs={"previous_file":media_playlist[play_index - 1]})
 
-            player_p = Process(target=subprocess.run,kwargs={"args":"{} {} \"{}\" {}".format(MEDIA_PLAYER_PATH,MEDIA_PLAYER_BEFORE_ARGUMENTS,video_file_fullpath,MEDIA_PLAYER_AFTER_ARGUMENTS),"shell":True})
+            player_p = Process(target=subprocess.run,kwargs={"args":"\"{}\" {} \"{}\" {}".format(MEDIA_PLAYER_PATH,MEDIA_PLAYER_BEFORE_ARGUMENTS,video_file_fullpath,MEDIA_PLAYER_AFTER_ARGUMENTS),"shell":True})
 
             player_p.start()
             schedule_p.start()
@@ -231,7 +231,7 @@ def loop(media_playlist):
         # If scheduling is disabled, simply play files in single
         # process.
         else:
-            result = subprocess.run("{} {} \"{}\" {}".format(MEDIA_PLAYER_PATH,MEDIA_PLAYER_BEFORE_ARGUMENTS,video_file_fullpath,MEDIA_PLAYER_AFTER_ARGUMENTS),shell=True)
+            result = subprocess.run("\"{}\" {} \"{}\" {}".format(MEDIA_PLAYER_PATH,MEDIA_PLAYER_BEFORE_ARGUMENTS,video_file_fullpath,MEDIA_PLAYER_AFTER_ARGUMENTS),shell=True)
 
         # Increment play_index and write play_index.txt in BASE_PATH.
         play_index = play_index + 1
