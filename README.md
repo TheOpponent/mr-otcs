@@ -20,5 +20,7 @@ A Movie.mp4
 ```
 
 The generated schedule runs up to a user-defined combined length of upcoming videos and/or any number of videos. The example HTML template in this project is intentionally very simplistic, but it uses [Day.js](https://day.js.org) for automatic timezone conversion. The script writes an array of JavaScript objects that contain video names and timestamps for their scheduled start times.
+
+## Example schedule
 ![Schedule example](https://user-images.githubusercontent.com/8432212/115261634-c6f64680-a101-11eb-89aa-0c382597583f.png)
 
