@@ -8,35 +8,75 @@ import time
 from multiprocessing import Process
 
 #######################################################################
-# Configuration.
+# Paths configuration.
+# Windows users need to use two backslashes \\ for paths.
 
 # Program paths. Use absolute paths.
 # ffprobe is optional if HTML schedule will not be used.
 MEDIA_PLAYER_PATH = "/usr/bin/ffmpeg"
 FFPROBE_PATH = "/usr/bin/ffprobe"
 
+# Base path for all video files, including trailing slash.
+# This path will also contain play_index.txt and play_history.txt.
+BASE_PATH = "/media/videos/"
+
 # Number of seconds of black video to add between each video.
 # This is added to schedule durations for each video.
-# This can be ignored if not using ffmpeg.
-FFMPEG_PADDING = 2
+# Set to 0 if not using ffmpeg.
+VIDEO_PADDING = 2
 
 # Arguments to pass to media player. This should be whatever is
 # necessary to immediately exit the player after playback is completed.
 # MEDIA_PLAYER_BEFORE_ARGUMENTS are passed before the input file.
 # MEDIA_PLAYER_AFTER_ARGUMENTS are passed after the input file.
-MEDIA_PLAYER_BEFORE_ARGUMENTS = "-hide_banner -re -i"
-MEDIA_PLAYER_AFTER_ARGUMENTS = f"-filter_complex \"tpad=stop_duration={FFMPEG_PADDING};apad=pad_dur={FFMPEG_PADDING}\" -vcodec libx264 -b:v 1100k -acodec aac -b:a 128k -f flv -framerate 30 -g 60 rtmp://{rtmp_address}"
-
-# Base path for all video files, including trailing slash.
-# This path will also contain play_index.txt and play_history.txt.
-BASE_PATH = "/media/videos/"
+# To save playback position, add "{}" as a parameter
+# for the corresponding media player argument to set start time.
+MEDIA_PLAYER_BEFORE_ARGUMENTS = "-hide_banner -re -ss {} -i"
+MEDIA_PLAYER_AFTER_ARGUMENTS = f"-filter_complex \"tpad=stop_duration={VIDEO_PADDING};apad=pad_dur={VIDEO_PADDING}\" -vcodec libx264 -b:v 1100k -acodec aac -b:a 128k -f flv -framerate 30 -g 60 rtmp://localhost:1935/live/"
 
 # Video files, including subdirectories. This can be a Python list
 # containing strings with filenames in BASE_PATH or a string with a
 # path to a text file containing one filename in BASE_PATH per line.
 # Items starting with comment characters ; # or // and blank lines will
 # be skipped.
+# List example:
+# MEDIA_PLAYLIST = ["video1.mp4","video2.mp4","Series/S01E01.mp4"]
 MEDIA_PLAYLIST = "/home/pi/list.txt"
+
+#######################################################################
+# Playback info file configuration.
+# To save playback progress, this script saves a file named
+# play_index.txt to BASE_PATH.
+# The first line contains the index of the playlist starting at 0.
+# The second line contains the elapsed time of the current
+# video playback in seconds.
+
+# Interval to save playback position in seconds.
+# Lower intervals are more precise in resuming when the script is
+# unexpectedly terminated, but if BASE_PATH is on flash media like
+# USB drive or SD card, higher intervals are recommended to reduce
+# disk writes.
+TIME_RECORD_INTERVAL = 30
+
+# When resuming video with a saved time in play_index.txt, rewind this
+# many seconds. Recommended when streaming to RTMP.
+REWIND_LENGTH = 0
+
+#######################################################################
+# HTML schedule configuration.
+
+# Path for HTML schedule.
+# See template.html for the file to be read by this script.
+# Set to None to disable writing schedule.
+SCHEDULE_PATH = "/var/www/schedule.html"
+
+# Number of upcoming shows to write in schedule.
+# Set SCHEDULE_UPCOMING_LENGTH to the total number of minutes of
+# video to add to the schedule, and SCHEDULE_MAX_VIDEOS to limit
+# the number of videos.
+# Setting too high can cause MemoryError.
+SCHEDULE_UPCOMING_LENGTH = 240
+SCHEDULE_MAX_VIDEOS = 15
 
 # Filename pattern to exclude in schedules. This can be used to exclude
 # categories of videos such as station idents or commercials from the
@@ -49,6 +89,9 @@ MEDIA_PLAYLIST = "/home/pi/list.txt"
 # starting with "Commercial".
 # Set to None to disable.
 SCHEDULE_EXCLUDE_FILE_PATTERN = "Station Breaks/"
+
+#######################################################################
+# Miscellaneous configuration.
 
 # Allow retrying file access if next video file cannot be opened.
 # This can be useful if BASE_PATH is a network share.
@@ -63,18 +106,6 @@ RETRY_PERIOD = 5
 # BASE_PATH. Set to 0 to disable.
 PLAY_HISTORY_LENGTH = 10
 
-# Path for HTML schedule.
-# See template.html for the file to be read by this script.
-# Set to None to disable writing schedule.
-SCHEDULE_PATH = "/var/www/schedule.html"
-
-# Number of upcoming shows to write in schedule.
-# Set SCHEDULE_UPCOMING_LENGTH to the total number of minutes of
-# video to add to the schedule, and SCHEDULE_MAX_VIDEOS to limit
-# the number of videos.
-# Setting too high can cause MemoryError.
-SCHEDULE_UPCOMING_LENGTH = 240
-SCHEDULE_MAX_VIDEOS = 15
 
 
 #######################################################################
@@ -113,25 +144,26 @@ def check_file(path):
         return
 
 
-def write_schedule(file_list,index,str_pattern):
+def get_length(file):
+    """Run ffprobe and retrieve length of file."""
+
+    result = subprocess.run([FFPROBE_PATH,"-v","error","-select_streams","v:0",
+                            "-show_entries","stream=duration","-of",
+                            "default=noprint_wrappers=1:nokey=1",file],
+                            capture_output=True,text=True).stdout
+
+    if result == "":
+        raise Exception("ffprobe was unable to read duration of: " + file)
+
+    return result
+
+
+def write_schedule(file_list,index,str_pattern,time_rewind = 0):
     """
     Write an HTML file containing file names and lengths read from a list
     containing video file paths. Optionally, include the most recently played
     file as well.
     """
-
-    def get_length(file):
-        """Run ffprobe and retrieve length of file."""
-
-        result = subprocess.run([FFPROBE_PATH,"-v","error","-select_streams","v:0",
-                                "-show_entries","stream=duration","-of",
-                                "default=noprint_wrappers=1:nokey=1",file],
-                                capture_output=True,text=True).stdout
-
-        if result == "":
-            raise Exception("ffprobe was unable to read duration of: " + file)
-
-        return result
 
     def get_next_file(list_sub,index_sub):
         """Get next file from list, looping the list around when it
@@ -150,12 +182,15 @@ def write_schedule(file_list,index,str_pattern):
     # SCHEDULE_EXCLUDE_FILE_PATTERN is reached.
     prev_index = index - 1
     while True:
+        # Remove extension from filenames and convert backslashes
+        # to forward slashes.
         if file_list[prev_index] is not None:
-            if not file_list[prev_index].casefold().startswith(str_pattern):
-                previous_file = file_list[prev_index]
+            filename = os.path.splitext(file_list[prev_index])[0].replace("\\","/")
+            if not filename.casefold().startswith(str_pattern):
+                previous_file = filename
                 break
-        else:
-            prev_index -= 1
+
+        prev_index -= 1
 
     # next_time contains start times of upcoming videos.
     # For the first file in file_list, this is the current system time.
@@ -163,12 +198,12 @@ def write_schedule(file_list,index,str_pattern):
     # when they load the schedule in their browser.
     next_time = datetime.datetime.utcnow()
 
-    if previous_file != "":
-        previous_file = os.path.splitext(previous_file)[0].replace("\\","/")
+    # Offset first program timing by elapsed_time read in the
+    # second line of play_index.txt.
+    duration = -time_rewind
+    total_duration = -time_rewind
 
     coming_up_next = []
-    duration = 0
-    total_duration = 0
 
     # Calculate video file length and add to coming_up_next.
     for filename in get_next_file(file_list,index):
@@ -183,7 +218,7 @@ def write_schedule(file_list,index,str_pattern):
 
         # Get length of next video in seconds from ffprobe, plus
         # ffmpeg padding.
-        duration += int(float(get_length(os.path.join(BASE_PATH,filename)))) + FFMPEG_PADDING
+        duration += int(float(get_length(os.path.join(BASE_PATH,filename)))) + VIDEO_PADDING
         total_duration += duration
 
         # Remove extension from filenames and convert backslashes
@@ -201,7 +236,6 @@ def write_schedule(file_list,index,str_pattern):
         next_time += datetime.timedelta(seconds=duration)
         duration = 0
 
-
     # Format coming_up_next list into string suitable for assigning as
     # JavaScript array of objects.
     js_array = "[" + ",".join(["{{time:'{}',name:'{}'}}".format(i,n.replace("'",r"\'")) for i,n in coming_up_next]) + "]"
@@ -210,6 +244,7 @@ def write_schedule(file_list,index,str_pattern):
     with open(os.path.join(sys.path[0],"template.html"),"r") as html_template:
         html_contents = html_template.read()
 
+    # TODO: Pass script version number to schedule.
     html_contents = html_contents.format(js_array=js_array,previous_file=previous_file)
 
     with open(SCHEDULE_PATH,"w") as html_file:
@@ -218,12 +253,27 @@ def write_schedule(file_list,index,str_pattern):
     # Upload html_file to a publicly accessible location
     # using pysftp or something similar if necessary.
 
+
+def write_index(play_index, elapsed_time):
+    """Write play_index and elapsed time to play_index.txt
+    at the period set by TIME_RECORD_INTERVAL.
+    """
+
+    while True:
+        with open(os.path.join(BASE_PATH,"play_index.txt"),"w") as index_file:
+            index_file.write(f"{play_index}\n{elapsed_time}")
+
+        elapsed_time += TIME_RECORD_INTERVAL
+        time.sleep(TIME_RECORD_INTERVAL)
+
+
 def loop(media_playlist,str_pattern):
     """Loop over playlist indefinitely."""
 
     def play():
         """Play a single entry in the playlist."""
 
+        nonlocal elapsed_time
         # Skip comment entries and exit loop immediately.
         if media_playlist[play_index] == None:
             return
@@ -235,6 +285,13 @@ def loop(media_playlist,str_pattern):
         # Check if video_file exists and raise exception if it does
         # not.
         check_file(video_file_fullpath)
+
+        # If the second line of play_index.txt is greater than
+        # REWIND_LENGTH, pass it to media player arguments.
+        if elapsed_time < REWIND_LENGTH:
+            elapsed_time = 0
+        else:
+            elapsed_time -= REWIND_LENGTH
 
         # Write history of played video files and timestamps,
         # limited to PLAY_HISTORY_LENGTH.
@@ -255,41 +312,47 @@ def loop(media_playlist,str_pattern):
 
         print("Now playing: " + video_file)
 
-        # If HTML schedule writing is enabled, retrieve next videos in
-        # list up to SCHEDULE_UPCOMING_LENGTH and write_schedule in
-        # second process.
+        schedule_p = Process(target=write_schedule,args=(media_playlist,play_index,str_pattern,elapsed_time))
+        player_p = Process(target=subprocess.run,kwargs={"args":f"\"{MEDIA_PLAYER_PATH}\" {MEDIA_PLAYER_BEFORE_ARGUMENTS} \"{video_file_fullpath}\" {MEDIA_PLAYER_AFTER_ARGUMENTS}".format(elapsed_time),"shell":True})
+        write_p = Process(target=write_index,args=(play_index,elapsed_time))
+
+        player_p.start()
         if SCHEDULE_PATH != None:
-
-            schedule_p = Process(target=write_schedule,args=(media_playlist,play_index,str_pattern))
-            player_p = Process(target=subprocess.run,kwargs={"args":"\"{}\" {} \"{}\" {}".format(MEDIA_PLAYER_PATH,MEDIA_PLAYER_BEFORE_ARGUMENTS,video_file_fullpath,MEDIA_PLAYER_AFTER_ARGUMENTS),"shell":True})
-
-            player_p.start()
             schedule_p.start()
-            player_p.join()
-            schedule_p.join()
+        write_p.start()
+        player_p.join()
+        schedule_p.join()
+        write_p.terminate()
 
-        # If scheduling is disabled, simply play files in single
-        # process.
-        else:
-            result = subprocess.run("\"{}\" {} \"{}\" {}".format(MEDIA_PLAYER_PATH,MEDIA_PLAYER_BEFORE_ARGUMENTS,video_file_fullpath,MEDIA_PLAYER_AFTER_ARGUMENTS),shell=True)
+    # Keep playlist index and elapsed time of current video and store
+    # in file play_index.txt. Create it if it does not exist.
+    contents = []
 
-    # Keep playlist index and store in file play_index.txt. Create it
-    # if it does not exist. Reset index to 0 if it overruns the list.
     try:
         with open(os.path.join(BASE_PATH,"play_index.txt"),"r") as index_file:
-            play_index = int(index_file.read())
-            media_playlist[play_index]
+            contents = index_file.readlines()
 
-    except (FileNotFoundError, IndexError) as e:
+    except FileNotFoundError:
         with open(os.path.join(BASE_PATH,"play_index.txt"),"w") as index_file:
-            index_file.write("0")
+            index_file.write("0\n0")
             play_index = 0
+            elapsed_time = 0
 
-    # Play file.
+    # Reset index to 0 if it overruns the playlist.
+    try:
+        play_index = int(contents[0])
+        media_playlist[play_index]
+    except IndexError:
+        play_index = 0
+
+    try:
+        elapsed_time = int(contents[1])
+    except IndexError:
+        elapsed_time = 0
+
     play()
 
     if play_index < len(media_playlist):
-
         # Increment play_index and write play_index.txt in BASE_PATH.
         play_index = play_index + 1
 
@@ -298,11 +361,11 @@ def loop(media_playlist,str_pattern):
         play_index = 0
 
     with open(os.path.join(BASE_PATH,"play_index.txt"),"w") as index_file:
-        index_file.write(str(play_index))
+        index_file.write(str(play_index) + "\n0")
 
 
 #######################################################################
-# Main loop.
+# Verify playlist and begin playback.
 
 if __name__ == "__main__":
 
