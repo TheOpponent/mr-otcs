@@ -158,7 +158,7 @@ def get_length(file):
     return result
 
 
-def write_schedule(file_list,index,str_pattern,time_rewind = 0):
+def write_schedule(file_list,index,str_pattern,script_version,time_rewind = 0):
     """
     Write an HTML file containing file names and lengths read from a list
     containing video file paths. Optionally, include the most recently played
@@ -245,7 +245,7 @@ def write_schedule(file_list,index,str_pattern,time_rewind = 0):
         html_contents = html_template.read()
 
     # TODO: Pass script version number to schedule.
-    html_contents = html_contents.format(js_array=js_array,previous_file=previous_file)
+    html_contents = html_contents.format(js_array=js_array,previous_file=previous_file,script_version=script_version)
 
     with open(SCHEDULE_PATH,"w") as html_file:
         html_file.write(html_contents)
@@ -267,7 +267,7 @@ def write_index(play_index, elapsed_time):
         time.sleep(TIME_RECORD_INTERVAL)
 
 
-def loop(media_playlist,str_pattern):
+def loop(media_playlist,str_pattern,script_version):
     """Loop over playlist indefinitely."""
 
     def play():
@@ -312,7 +312,7 @@ def loop(media_playlist,str_pattern):
 
         print("Now playing: " + video_file)
 
-        schedule_p = Process(target=write_schedule,args=(media_playlist,play_index,str_pattern,elapsed_time))
+        schedule_p = Process(target=write_schedule,args=(media_playlist,play_index,str_pattern,script_version,elapsed_time))
         player_p = Process(target=subprocess.run,kwargs={"args":f"\"{MEDIA_PLAYER_PATH}\" {MEDIA_PLAYER_BEFORE_ARGUMENTS} \"{video_file_fullpath}\" {MEDIA_PLAYER_AFTER_ARGUMENTS}".format(elapsed_time),"shell":True})
         write_p = Process(target=write_index,args=(play_index,elapsed_time))
 
@@ -370,6 +370,8 @@ def loop(media_playlist,str_pattern):
 
 if __name__ == "__main__":
 
+    script_version = "1.0.0"
+
     # If MEDIA_PLAYLIST is a file, open the file.
     if isinstance(MEDIA_PLAYLIST,str):
         with open(MEDIA_PLAYLIST,"r") as media_playlist_file:
@@ -394,4 +396,4 @@ if __name__ == "__main__":
     media_playlist = [i if i != "" and not i.startswith(";") and not i.startswith("#") and not i.startswith("//") else None for i in media_playlist]
 
     while True:
-        loop(media_playlist,exclude_pattern)
+        loop(media_playlist,exclude_pattern,script_version)
