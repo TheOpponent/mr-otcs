@@ -321,7 +321,8 @@ def loop(media_playlist,str_pattern):
             schedule_p.start()
         write_p.start()
         player_p.join()
-        schedule_p.join()
+        if schedule_p.is_alive():
+            schedule_p.join()
         write_p.terminate()
 
     # Keep playlist index and elapsed time of current video and store
