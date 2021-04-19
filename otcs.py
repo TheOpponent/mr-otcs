@@ -13,8 +13,8 @@ from multiprocessing import Process
 
 # Program paths. Use absolute paths.
 # ffprobe is optional if HTML schedule will not be used.
-MEDIA_PLAYER_PATH = "/usr/bin/ffmpeg"
-FFPROBE_PATH = "/usr/bin/ffprobe"
+MEDIA_PLAYER_PATH = "/home/pi/ffmpeg-hls-pts-discontinuity-reclock/ffmpeg"
+FFPROBE_PATH = "/usr/local/bin/ffprobe"
 
 # Base path for all video files, including trailing slash.
 # This path will also contain play_index.txt and play_history.txt.
