@@ -94,7 +94,7 @@ def check_file(path):
         # Print number of attempts remaining.
         if retry_attempts_remaining > 0:
             if retry_attempts_remaining > 1:
-                retry_attempts_string = "{} attempts remaining.\n".format(retry_attempts_remaining)
+                retry_attempts_string = f"{retry_attempts_remaining} attempts remaining.\n"
             else:
                 retry_attempts_string = "1 attempt remaining.\n"
             retry_attempts_remaining -= 1
@@ -104,7 +104,7 @@ def check_file(path):
         elif retry_attempts_remaining == 0:
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT),path)
 
-        print("File not found: {}.\nRetrying in {} seconds...\n{}".format(path,RETRY_PERIOD,retry_attempts_string))
+        print(f"File not found: {path}.\nRetrying in {RETRY_PERIOD} seconds...\n{retry_attempts_string}")
 
         time.sleep(RETRY_PERIOD)
         continue
