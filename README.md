@@ -1,7 +1,7 @@
 # Mr. OTCS
 A script to play a list of video files in a continuous loop and produce schedules based on upcoming videos in the playlist. Requires Python 3.7 or later. 
 
-See the [wiki](https://github.com/TheOpponent/mr-otcs/wiki) for installation instructions on Raspberry Pi and Windows.
+See the [wiki](https://github.com/TheOpponent/mr-otcs/wiki) for installation instructions on Raspberry Pi.
 
 The playlist is either a Python list or a text file with filenames:
 ```
