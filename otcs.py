@@ -106,15 +106,13 @@ RETRY_PERIOD = 5
 # BASE_PATH. Set to 0 to disable.
 PLAY_HISTORY_LENGTH = 10
 
-
-
 #######################################################################
 # Configuration ends here.
 
 SCRIPT_VERSION = "1.0.0"
 
 def check_file(path):
-    """Retry opening nonexistant files up to RETRY_ATTEMPTS."""
+    """Retry opening nonexistent files up to RETRY_ATTEMPTS."""
 
     retry_attempts_remaining = RETRY_ATTEMPTS
 
@@ -271,7 +269,6 @@ def write_index(play_index, elapsed_time):
 
 def main():
 
-    # Verify playlist.
     # If MEDIA_PLAYLIST is a file, open the file.
     if isinstance(MEDIA_PLAYLIST,str):
         with open(MEDIA_PLAYLIST,"r") as media_playlist_file:
@@ -373,8 +370,7 @@ def main():
             write_p.terminate()
 
         if play_index < len(media_playlist):
-            # Increment play_index and write play_index.txt in BASE_PATH.
-            play_index = play_index + 1
+            play_index += 1
 
         else:
             # Reset index at end of playlist.
