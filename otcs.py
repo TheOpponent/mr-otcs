@@ -29,10 +29,10 @@ VIDEO_PADDING = 2
 # necessary to immediately exit the player after playback is completed.
 # MEDIA_PLAYER_BEFORE_ARGUMENTS are passed before the input file.
 # MEDIA_PLAYER_AFTER_ARGUMENTS are passed after the input file.
-# To save playback position, add "{}" as a parameter
-# for the corresponding media player argument to set start time.
+# To save playback position, add "{}" as a parameter for the
+# corresponding media player argument to set start time.
 MEDIA_PLAYER_BEFORE_ARGUMENTS = "-hide_banner -re -ss {} -i"
-MEDIA_PLAYER_AFTER_ARGUMENTS = f"-filter_complex \"tpad=stop_duration={VIDEO_PADDING};apad=pad_dur={VIDEO_PADDING}\" -vcodec libx264 -b:v 1100k -acodec aac -b:a 128k -f flv -framerate 30 -g 60 rtmp://localhost:1935/live/"
+MEDIA_PLAYER_AFTER_ARGUMENTS = f"-filter_complex \"tpad=stop_duration={VIDEO_PADDING};apad=pad_dur={VIDEO_PADDING}\" -vcodec libx264 -b:v 1200k -acodec aac -b:a 128k -f flv -framerate 30 -g 60 rtmp://localhost:1935/live/"
 
 # Video files, including subdirectories. This can be a Python list
 # containing strings with filenames in BASE_PATH or a string with a
@@ -60,7 +60,7 @@ TIME_RECORD_INTERVAL = 30
 
 # When resuming video with a saved time in play_index.txt, rewind this
 # many seconds. Recommended when streaming to RTMP.
-REWIND_LENGTH = 0
+REWIND_LENGTH = 30
 
 #######################################################################
 # HTML schedule configuration.
@@ -74,7 +74,6 @@ SCHEDULE_PATH = "/var/www/schedule.html"
 # Set SCHEDULE_UPCOMING_LENGTH to the total number of minutes of
 # video to add to the schedule, and SCHEDULE_MAX_VIDEOS to limit
 # the number of videos.
-# Setting too high can cause MemoryError.
 SCHEDULE_UPCOMING_LENGTH = 240
 SCHEDULE_MAX_VIDEOS = 15
 
@@ -95,8 +94,9 @@ SCHEDULE_EXCLUDE_FILE_PATTERN = "Station Breaks/"
 
 # Allow retrying file access if next video file cannot be opened.
 # This can be useful if BASE_PATH is a network share.
-# If RETRY_ATTEMPTS is set to 0, the script will abort if the next
-# video file cannot be found.
+# When RETRY_ATTEMPTS runs out, the script will abort if the next
+# video file cannot be found. Set to 0 to not attempt to reopen
+# missing files.
 # Set RETRY_ATTEMPTS to -1 to retry infinitely.
 # RETRY_PERIOD is the delay in seconds between each retry attempt.
 RETRY_ATTEMPTS = 0
@@ -109,7 +109,9 @@ PLAY_HISTORY_LENGTH = 10
 
 
 #######################################################################
-# Function definitions.
+# Configuration ends here.
+
+SCRIPT_VERSION = "1.0.0"
 
 def check_file(path):
     """Retry opening nonexistant files up to RETRY_ATTEMPTS."""
@@ -158,15 +160,16 @@ def get_length(file):
     return result
 
 
-def write_schedule(file_list,index,str_pattern,script_version,time_rewind = 0):
+def write_schedule(file_list,index,str_pattern,time_rewind = 0):
     """
-    Write an HTML file containing file names and lengths read from a list
-    containing video file paths. Optionally, include the most recently played
-    file as well.
+    Write an HTML file containing file names and lengths read from a
+    list containing video file paths. Optionally, include the most
+    recently played file as well.
     """
 
     def get_next_file(list_sub,index_sub):
-        """Get next file from list, looping the list around when it
+        """
+        Get next file from list, looping the list around when it
         runs out.
         """
         list_iter = (i for i in list_sub[index_sub:])
@@ -240,18 +243,17 @@ def write_schedule(file_list,index,str_pattern,script_version,time_rewind = 0):
     # JavaScript array of objects.
     js_array = "[" + ",".join(["{{time:'{}',name:'{}'}}".format(i,n.replace("'",r"\'")) for i,n in coming_up_next]) + "]"
 
-    # Generate HTML contents.
+    # Generate HTML play_index_contents.
     with open(os.path.join(sys.path[0],"template.html"),"r") as html_template:
-        html_contents = html_template.read()
+        html_play_index_contents = html_template.read()
 
-    # TODO: Pass script version number to schedule.
-    html_contents = html_contents.format(js_array=js_array,previous_file=previous_file,script_version=script_version)
+    html_play_index_contents = html_play_index_contents.format(js_array=js_array,previous_file=previous_file,script_version=SCRIPT_VERSION)
 
     with open(SCHEDULE_PATH,"w") as html_file:
-        html_file.write(html_contents)
+        html_file.write(html_play_index_contents)
 
     # Upload html_file to a publicly accessible location
-    # using pysftp or something similar if necessary.
+    # using pysftp or something similar if necessary here.
 
 
 def write_index(play_index, elapsed_time):
@@ -267,111 +269,9 @@ def write_index(play_index, elapsed_time):
         time.sleep(TIME_RECORD_INTERVAL)
 
 
-def loop(media_playlist,str_pattern,script_version):
-    """Loop over playlist indefinitely."""
+def main():
 
-    def play():
-        """Play a single entry in the playlist."""
-
-        nonlocal elapsed_time
-        # Skip comment entries and exit loop immediately.
-        if media_playlist[play_index] == None:
-            return
-
-        video_time = datetime.datetime.now()
-        video_file = media_playlist[play_index]
-        video_file_fullpath = os.path.join(BASE_PATH,video_file)
-
-        # Check if video_file exists and raise exception if it does
-        # not.
-        check_file(video_file_fullpath)
-
-        # If the second line of play_index.txt is greater than
-        # REWIND_LENGTH, pass it to media player arguments.
-        if elapsed_time < REWIND_LENGTH:
-            elapsed_time = 0
-        else:
-            elapsed_time -= REWIND_LENGTH
-
-        # Write history of played video files and timestamps,
-        # limited to PLAY_HISTORY_LENGTH.
-        if PLAY_HISTORY_LENGTH > 0:
-            try:
-                with open(os.path.join(BASE_PATH,"play_history.txt"),"r") as play_history:
-                    play_history_buffer = play_history.readlines()
-
-            except FileNotFoundError:
-                with open(os.path.join(BASE_PATH,"play_history.txt"),"w+") as play_history:
-                    play_history_buffer = []
-                    play_history.close()
-
-            finally:
-                with open(os.path.join(BASE_PATH,"play_history.txt"),"w+") as play_history:
-                    play_history_buffer.append("{},{}\n".format(video_time,video_file))
-                    play_history.writelines(play_history_buffer[-PLAY_HISTORY_LENGTH:])
-
-        print("Now playing: " + video_file)
-
-        schedule_p = Process(target=write_schedule,args=(media_playlist,play_index,str_pattern,script_version,elapsed_time))
-        player_p = Process(target=subprocess.run,kwargs={"args":f"\"{MEDIA_PLAYER_PATH}\" {MEDIA_PLAYER_BEFORE_ARGUMENTS} \"{video_file_fullpath}\" {MEDIA_PLAYER_AFTER_ARGUMENTS}".format(elapsed_time),"shell":True})
-        write_p = Process(target=write_index,args=(play_index,elapsed_time))
-
-        player_p.start()
-        if SCHEDULE_PATH != None:
-            schedule_p.start()
-        write_p.start()
-        player_p.join()
-        if schedule_p.is_alive():
-            schedule_p.join()
-        write_p.terminate()
-
-    # Keep playlist index and elapsed time of current video and store
-    # in file play_index.txt. Create it if it does not exist.
-    contents = []
-
-    try:
-        with open(os.path.join(BASE_PATH,"play_index.txt"),"r") as index_file:
-            contents = index_file.readlines()
-
-    except FileNotFoundError:
-        with open(os.path.join(BASE_PATH,"play_index.txt"),"w") as index_file:
-            index_file.write("0\n0")
-            play_index = 0
-            elapsed_time = 0
-
-    # Reset index to 0 if it overruns the playlist.
-    try:
-        play_index = int(contents[0])
-        media_playlist[play_index]
-    except IndexError:
-        play_index = 0
-
-    try:
-        elapsed_time = int(contents[1])
-    except IndexError:
-        elapsed_time = 0
-
-    play()
-
-    if play_index < len(media_playlist):
-        # Increment play_index and write play_index.txt in BASE_PATH.
-        play_index = play_index + 1
-
-    else:
-        # Reset index at end of playlist.
-        play_index = 0
-
-    with open(os.path.join(BASE_PATH,"play_index.txt"),"w") as index_file:
-        index_file.write(str(play_index) + "\n0")
-
-
-#######################################################################
-# Verify playlist and begin playback.
-
-if __name__ == "__main__":
-
-    script_version = "1.0.0"
-
+    # Verify playlist.
     # If MEDIA_PLAYLIST is a file, open the file.
     if isinstance(MEDIA_PLAYLIST,str):
         with open(MEDIA_PLAYLIST,"r") as media_playlist_file:
@@ -396,4 +296,93 @@ if __name__ == "__main__":
     media_playlist = [i if i != "" and not i.startswith(";") and not i.startswith("#") and not i.startswith("//") else None for i in media_playlist]
 
     while True:
-        loop(media_playlist,exclude_pattern,script_version)
+        # Keep playlist index and elapsed time of current video and store
+        # in file play_index.txt. Create it if it does not exist.
+        play_index_contents = []
+
+        try:
+            with open(os.path.join(BASE_PATH,"play_index.txt"),"r") as index_file:
+                play_index_contents = index_file.readlines()
+
+        except FileNotFoundError:
+            with open(os.path.join(BASE_PATH,"play_index.txt"),"w") as index_file:
+                index_file.write("0\n0")
+                play_index = 0
+                elapsed_time = 0
+
+        # Reset index to 0 if it overruns the playlist.
+        try:
+            play_index = int(play_index_contents[0])
+            media_playlist[play_index]
+        except IndexError:
+            play_index = 0
+
+        try:
+            elapsed_time = int(play_index_contents[1])
+        except IndexError:
+            elapsed_time = 0
+
+        # Play next video file, unless it is a comment entry.
+        if media_playlist[play_index] is not None:
+
+            video_time = datetime.datetime.now()
+            video_file = media_playlist[play_index]
+            video_file_fullpath = os.path.join(BASE_PATH,video_file)
+
+            # Check if video_file exists and raise exception if it does
+            # not.
+            check_file(video_file_fullpath)
+
+            # If the second line of play_index.txt is greater than
+            # REWIND_LENGTH, pass it to media player arguments.
+            if elapsed_time < REWIND_LENGTH:
+                elapsed_time = 0
+            else:
+                elapsed_time -= REWIND_LENGTH
+
+            # Write history of played video files and timestamps,
+            # limited to PLAY_HISTORY_LENGTH.
+            if PLAY_HISTORY_LENGTH > 0:
+                try:
+                    with open(os.path.join(BASE_PATH,"play_history.txt"),"r") as play_history:
+                        play_history_buffer = play_history.readlines()
+
+                except FileNotFoundError:
+                    with open(os.path.join(BASE_PATH,"play_history.txt"),"w+") as play_history:
+                        play_history_buffer = []
+                        play_history.close()
+
+                finally:
+                    with open(os.path.join(BASE_PATH,"play_history.txt"),"w+") as play_history:
+                        play_history_buffer.append("{},{}\n".format(video_time,video_file))
+                        play_history.writelines(play_history_buffer[-PLAY_HISTORY_LENGTH:])
+
+            print("Now playing: " + video_file)
+
+            schedule_p = Process(target=write_schedule,args=(media_playlist,play_index,exclude_pattern,elapsed_time))
+            player_p = Process(target=subprocess.run,kwargs={"args":f"\"{MEDIA_PLAYER_PATH}\" {MEDIA_PLAYER_BEFORE_ARGUMENTS} \"{video_file_fullpath}\" {MEDIA_PLAYER_AFTER_ARGUMENTS}".format(elapsed_time),"shell":True})
+            write_p = Process(target=write_index,args=(play_index,elapsed_time))
+
+            player_p.start()
+            if SCHEDULE_PATH != None:
+                schedule_p.start()
+            write_p.start()
+            player_p.join()
+            if schedule_p.is_alive():
+                schedule_p.join()
+            write_p.terminate()
+
+        if play_index < len(media_playlist):
+            # Increment play_index and write play_index.txt in BASE_PATH.
+            play_index = play_index + 1
+
+        else:
+            # Reset index at end of playlist.
+            play_index = 0
+
+        with open(os.path.join(BASE_PATH,"play_index.txt"),"w") as index_file:
+            index_file.write(str(play_index) + "\n0")
+
+
+if __name__ == "__main__":
+    main()
