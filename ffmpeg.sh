@@ -8,7 +8,7 @@ pgrep -x nginx >/dev/null
 
 if [ $? -eq 1 ]
 then
-    $NGINX_PATH
+    sudo $NGINX_PATH
 fi
 
 while :
