@@ -1,7 +1,7 @@
 #!/bin/bash
 
 FFMPEG_OUTPUT=""
-FFMPEG_PATH="/home/pi/ffmpeg-hls-pts-discontinuity-reclock/ffmpeg"
+FFMPEG_PATH="/usr/local/bin/ffmpeg"
 NGINX_PATH="/usr/local/nginx/sbin/nginx"
 
 pgrep -x nginx >/dev/null
