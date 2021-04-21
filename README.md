@@ -1,5 +1,5 @@
 # Mr. OTCS
-A script to play a list of video files in a continuous loop and produce schedules based on upcoming videos in the playlist. Requires Python 3.7 or later and ffprobe. 
+A script to play a list of video files in a continuous loop, transcode it to RTMP, and produce schedules based on upcoming videos in the playlist. Requires Python 3.7 or later and ffprobe. 
 
 See the [wiki](https://github.com/TheOpponent/mr-otcs/wiki) for installation instructions on Raspberry Pi.
 
