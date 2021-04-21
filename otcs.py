@@ -13,7 +13,7 @@ from multiprocessing import Process
 
 # Program paths. Use absolute paths.
 # ffprobe is optional if HTML schedule will not be used.
-MEDIA_PLAYER_PATH = "/home/pi/ffmpeg-hls-pts-discontinuity-reclock/ffmpeg"
+MEDIA_PLAYER_PATH = "/usr/local/bin/ffmpeg"
 FFPROBE_PATH = "/usr/local/bin/ffprobe"
 
 # Base path for all video files, including trailing slash.
@@ -32,7 +32,7 @@ VIDEO_PADDING = 2
 # To save playback position, add "{}" as a parameter for the
 # corresponding media player argument to set start time.
 MEDIA_PLAYER_BEFORE_ARGUMENTS = "-hide_banner -re -ss {} -i"
-MEDIA_PLAYER_AFTER_ARGUMENTS = f"-filter_complex \"tpad=stop_duration={VIDEO_PADDING};apad=pad_dur={VIDEO_PADDING}\" -vcodec libx264 -b:v 1200k -acodec aac -b:a 128k -f flv -framerate 30 -g 60 rtmp://localhost:1935/live/"
+MEDIA_PLAYER_AFTER_ARGUMENTS = f"-filter_complex \"[0:v]scale=1280x720,fps=30[scaled];[scaled]tpad=stop_duration={VIDEO_PADDING};apad=pad_dur={VIDEO_PADDING}\" -c:v h264_omx -b:v 4000k -acodec aac -b:a 192k -f flv -r 30 -g 60 rtmp://localhost:1935/live/"
 
 # Video files, including subdirectories. This can be a Python list
 # containing strings with filenames in BASE_PATH or a string with a
@@ -41,7 +41,7 @@ MEDIA_PLAYER_AFTER_ARGUMENTS = f"-filter_complex \"tpad=stop_duration={VIDEO_PAD
 # be skipped.
 # List example:
 # MEDIA_PLAYLIST = ["video1.mp4","video2.mp4","Series/S01E01.mp4"]
-MEDIA_PLAYLIST = "/home/pi/list.txt"
+MEDIA_PLAYLIST = "~/playlist.txt"
 
 #######################################################################
 # Playback info file configuration.
@@ -68,7 +68,7 @@ REWIND_LENGTH = 30
 # Path for HTML schedule.
 # See template.html for the file to be read by this script.
 # Set to None to disable writing schedule.
-SCHEDULE_PATH = "/var/www/schedule.html"
+SCHEDULE_PATH = "/usr/local/nginx/html/schedule.html"
 
 # Number of upcoming shows to write in schedule.
 # Set SCHEDULE_UPCOMING_LENGTH to the total number of minutes of
@@ -109,7 +109,7 @@ PLAY_HISTORY_LENGTH = 10
 #######################################################################
 # Configuration ends here.
 
-SCRIPT_VERSION = "1.0.0"
+SCRIPT_VERSION = "1.1.0"
 
 def check_file(path):
     """Retry opening nonexistent files up to RETRY_ATTEMPTS."""
@@ -302,7 +302,7 @@ def main():
                 play_index_contents = index_file.readlines()
 
         except FileNotFoundError:
-            with open(os.path.join(BASE_PATH,"play_index.txt"),"w") as index_file:
+            with open(os.path.join(BASE_PATH,"play_index.txt"),"w+") as index_file:
                 index_file.write("0\n0")
                 play_index = 0
                 elapsed_time = 0
