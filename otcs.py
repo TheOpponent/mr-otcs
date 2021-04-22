@@ -1,6 +1,7 @@
 import datetime
 import errno
 import itertools
+import json
 import os
 import subprocess
 import sys
@@ -63,12 +64,10 @@ TIME_RECORD_INTERVAL = 30
 REWIND_LENGTH = 30
 
 #######################################################################
-# HTML schedule configuration.
+# Schedule configuration.
 
-# Path for HTML schedule.
-# See template.html for the file to be read by this script.
-# Set to None to disable writing schedule.
-SCHEDULE_PATH = "/usr/local/nginx/html/schedule.html"
+# Enable JSON schedule generation. Set to False to disable.
+SCHEDULE_ENABLE = True
 
 # Number of upcoming shows to write in schedule.
 # Set SCHEDULE_UPCOMING_LENGTH to the total number of minutes of
@@ -110,6 +109,7 @@ PLAY_HISTORY_LENGTH = 10
 # Configuration ends here.
 
 SCRIPT_VERSION = "1.1.0"
+SCRIPT_VERSION = "1.2.0"
 
 def check_file(path):
     """Retry opening nonexistent files up to RETRY_ATTEMPTS."""
@@ -230,27 +230,19 @@ def write_schedule(file_list,index,str_pattern,time_rewind = 0):
         # Skip files matching SCHEDULE_EXCLUDE_FILE_PATTERN, but keep
         # their durations.
         if not filename.casefold().startswith(str_pattern):
-            coming_up_next.append((next_time,filename))
+            coming_up_next.append({"name":filename,"time":next_time.strftime("%Y-%m-%d %H:%M:%S")})
 
         # Add length of current video to current time and use as
         # starting time for next video.
         next_time += datetime.timedelta(seconds=duration)
         duration = 0
 
-    # Format coming_up_next list into string suitable for assigning as
-    # JavaScript array of objects.
-    js_array = "[" + ",".join(["{{time:'{}',name:'{}'}}".format(i,n.replace("'",r"\'")) for i,n in coming_up_next]) + "]"
+    json_out = {"coming_up_next":coming_up_next,"previous_file":previous_file,"script_version":SCRIPT_VERSION}
 
-    # Generate HTML play_index_contents.
-    with open(os.path.join(sys.path[0],"template.html"),"r") as html_template:
-        html_play_index_contents = html_template.read()
+    with open(os.path.join(sys.path[0],"schedule.js"),"w+") as schedule_json:
+        schedule_json.write("var json_import = " + json.dumps(json_out))
 
-    html_play_index_contents = html_play_index_contents.format(js_array=js_array,previous_file=previous_file,script_version=SCRIPT_VERSION)
-
-    with open(SCHEDULE_PATH,"w") as html_file:
-        html_file.write(html_play_index_contents)
-
-    # Upload html_file to a publicly accessible location
+    # Upload JS file to a publicly accessible location
     # using pysftp or something similar if necessary here.
 
 
@@ -361,7 +353,7 @@ def main():
             write_p = Process(target=write_index,args=(play_index,elapsed_time))
 
             player_p.start()
-            if SCHEDULE_PATH != None:
+            if SCHEDULE_ENABLE:
                 schedule_p.start()
             write_p.start()
             player_p.join()
