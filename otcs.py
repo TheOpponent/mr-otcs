@@ -108,7 +108,6 @@ PLAY_HISTORY_LENGTH = 10
 #######################################################################
 # Configuration ends here.
 
-SCRIPT_VERSION = "1.1.0"
 SCRIPT_VERSION = "1.2.0"
 
 def check_file(path):
@@ -240,7 +239,7 @@ def write_schedule(file_list,index,str_pattern,time_rewind = 0):
     json_out = {"coming_up_next":coming_up_next,"previous_file":previous_file,"script_version":SCRIPT_VERSION}
 
     with open(os.path.join(sys.path[0],"schedule.js"),"w+") as schedule_json:
-        schedule_json.write("var json_import = " + json.dumps(json_out))
+        schedule_json.write("var json_exported = " + json.dumps(json_out) + ";")
 
     # Upload JS file to a publicly accessible location
     # using pysftp or something similar if necessary here.
@@ -343,7 +342,7 @@ def main():
 
                 finally:
                     with open(os.path.join(BASE_PATH,"play_history.txt"),"w+") as play_history:
-                        play_history_buffer.append("{},{}\n".format(video_time,video_file))
+                        play_history_buffer.append(f"{video_time} - {video_file}\n")
                         play_history.writelines(play_history_buffer[-PLAY_HISTORY_LENGTH:])
 
             print("Now playing: " + video_file)
