@@ -108,7 +108,7 @@ PLAY_HISTORY_LENGTH = 10
 #######################################################################
 # Configuration ends here.
 
-SCRIPT_VERSION = "1.2.0"
+SCRIPT_VERSION = "1.2.1"
 
 def check_file(path):
     """Retry opening nonexistent files up to RETRY_ATTEMPTS."""
