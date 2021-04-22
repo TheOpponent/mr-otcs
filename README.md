@@ -24,3 +24,5 @@ The generated schedule runs up to a user-defined combined length of upcoming vid
 ## Example schedule
 ![Schedule example](https://user-images.githubusercontent.com/8432212/115261634-c6f64680-a101-11eb-89aa-0c382597583f.png)
 
+# Disclaimer
+Use this script at your own risk. The authors assume no responsibility for any administrative action taken on streaming accounts as a result of this script.
