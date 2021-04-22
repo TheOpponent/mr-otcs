@@ -236,10 +236,11 @@ def write_schedule(file_list,index,str_pattern,time_rewind = 0):
         next_time += datetime.timedelta(seconds=duration)
         duration = 0
 
-    json_out = {"coming_up_next":coming_up_next,"previous_file":previous_file,"script_version":SCRIPT_VERSION}
+    schedule_json_out = {"coming_up_next":coming_up_next,"previous_file":previous_file,"script_version":SCRIPT_VERSION}
+    schedule_json_path = os.path.join(sys.path[0],"schedule.js")
 
-    with open(os.path.join(sys.path[0],"schedule.js"),"w+") as schedule_json:
-        schedule_json.write("var json_exported = " + json.dumps(json_out) + ";")
+    with open(schedule_json_path,"w+") as schedule_json:
+        schedule_json.write("var json_exported = " + json.dumps(schedule_json_out) + ";")
 
     # Upload JS file to a publicly accessible location
     # using pysftp or something similar if necessary here.
