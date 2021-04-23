@@ -108,7 +108,7 @@ PLAY_HISTORY_LENGTH = 10
 #######################################################################
 # Configuration ends here.
 
-SCRIPT_VERSION = "1.2.1"
+SCRIPT_VERSION = "1.2.2"
 
 def check_file(path):
     """Retry opening nonexistent files up to RETRY_ATTEMPTS."""
@@ -237,12 +237,12 @@ def write_schedule(file_list,index,str_pattern,time_rewind = 0):
         duration = 0
 
     schedule_json_out = {"coming_up_next":coming_up_next,"previous_file":previous_file,"script_version":SCRIPT_VERSION}
-    schedule_json_path = os.path.join(sys.path[0],"schedule.js")
+    schedule_json_path = os.path.join(sys.path[0],"schedule.json")
 
     with open(schedule_json_path,"w+") as schedule_json:
-        schedule_json.write("var json_exported = " + json.dumps(schedule_json_out) + ";")
+        schedule_json.write(json.dumps(schedule_json_out))
 
-    # Upload JS file to a publicly accessible location
+    # Upload JSON file to a publicly accessible location
     # using pysftp or something similar if necessary here.
 
 

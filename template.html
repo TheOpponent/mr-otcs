@@ -30,28 +30,38 @@ Coming up next: <br />
     var offset = dayjs().utcOffset();
     document.getElementById("timezone").innerHTML = timezone;
 
-    var previous_file = json_exported["previous_file"];
+    var request = new XMLHttpRequest();
+    var json_exported = "";
 
-    var names = json_exported["coming_up_next"];
+    request.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200) {
+            json_exported = JSON.parse(request.responseText);
+                var previous_file = json_exported["previous_file"];
+                var names = json_exported["coming_up_next"];
 
-    // Populate times with starting times and names of upcoming videos.
-    var times = names.map(function(i) {
-        var time = new dayjs.utc(i.time).tz(timezone).format('LT');
-        return [
-            '<div class="gridtime">', time, '</div>',
-            '<div class="gridname"><strong>', i.name, '</strong></div>',
-            '<br />',
-        ].join('');
-    });
+                // Populate times with starting times and names of upcoming videos.
+                var times = names.map(function(i) {
+                var time = new dayjs.utc(i.time).tz(timezone).format('LT');
+                return [
+                    '<div class="gridtime">', time, '</div>',
+                    '<div class="gridname"><strong>', i.name, '</strong></div>',
+                    '<br />',
+                ].join('');
+                });
 
-    // Only write "Previously" line if previous_file information was passed in.
-    if (previous_file != "") {
-        document.getElementById("previouslyon").innerHTML = "Previously: <strong>" + previous_file + "</strong><br /><br />";
+                // Only write "Previously" line if previous_file information was passed in.
+                if (previous_file != "") {
+                        document.getElementById("previouslyon").innerHTML = "Previously: <strong>" + previous_file + "</strong><br /><br />";
+                };
+
+                document.getElementById("nowplaying").innerHTML = times[0];
+                document.getElementById("comingupnext").innerHTML = times.slice(1).join("");
+                document.getElementById("scriptversion").innerHTML = json_exported["script_version"];
+        }
     };
+    request.open("GET", "./schedule.json", true);
+    request.send();
 
-    document.getElementById("nowplaying").innerHTML = times[0];
-    document.getElementById("comingupnext").innerHTML = times.slice(1).join("");
-    document.getElementById("scriptversion").innerHTML = json_exported["script_version"];
 </script>
 </body>
 </html>
