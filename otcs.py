@@ -42,7 +42,7 @@ MEDIA_PLAYER_AFTER_ARGUMENTS = f"-filter_complex \"[0:v]scale=1280x720,fps=30[sc
 # be skipped.
 # List example:
 # MEDIA_PLAYLIST = ["video1.mp4","video2.mp4","Series/S01E01.mp4"]
-MEDIA_PLAYLIST = "~/playlist.txt"
+MEDIA_PLAYLIST = "/home/pi/playlist.txt"
 
 #######################################################################
 # Playback info file configuration.
