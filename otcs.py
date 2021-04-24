@@ -108,7 +108,7 @@ PLAY_HISTORY_LENGTH = 10
 #######################################################################
 # Configuration ends here.
 
-SCRIPT_VERSION = "1.2.2"
+SCRIPT_VERSION = "1.3.0"
 
 def check_file(path):
     """Retry opening nonexistent files up to RETRY_ATTEMPTS."""
@@ -157,6 +157,18 @@ def get_length(file):
     return result
 
 
+def get_extra_info(entry):
+    """Split file name at delimiter : and return a 2-element list.
+    If the delimiter is not found, second element returned is an empty
+    string.
+    """
+    entry = entry.split(" :",1)
+    if len(entry) > 1:
+        return entry
+    else:
+        return [entry[0],""]
+
+
 def write_schedule(file_list,index,str_pattern,time_rewind = 0):
     """
     Write an HTML file containing file names and lengths read from a
@@ -185,9 +197,11 @@ def write_schedule(file_list,index,str_pattern,time_rewind = 0):
         # Remove extension from filenames and convert backslashes
         # to forward slashes.
         if file_list[prev_index] is not None:
-            filename = os.path.splitext(file_list[prev_index])[0].replace("\\","/")
-            if not filename.casefold().startswith(str_pattern):
-                previous_file = filename
+            filename = get_extra_info(file_list[prev_index])
+
+            filename[0] = os.path.splitext(filename[0])[0].replace("\\","/")
+            if not filename[0].casefold().startswith(str_pattern):
+                previous_file = {"name":filename[0],"extra_info":filename[1]}
                 break
 
         prev_index -= 1
@@ -216,20 +230,23 @@ def write_schedule(file_list,index,str_pattern,time_rewind = 0):
 
         # TODO: Use check_file() for schedule generation.
 
+        # Extract extra info from playlist entry.
+        filename = get_extra_info(filename)
+
         # Get length of next video in seconds from ffprobe, plus
         # ffmpeg padding.
-        duration += int(float(get_length(os.path.join(BASE_PATH,filename)))) + VIDEO_PADDING
+        duration += int(float(get_length(os.path.join(BASE_PATH,filename[0])))) + VIDEO_PADDING
         total_duration += duration
 
         # Remove extension from filenames and convert backslashes
         # to forward slashes.
-        filename = os.path.splitext(filename)[0].replace("\\","/")
+        filename[0] = os.path.splitext(filename[0])[0].replace("\\","/")
 
         # Append duration and stripped filename to list as tuple.
         # Skip files matching SCHEDULE_EXCLUDE_FILE_PATTERN, but keep
         # their durations.
-        if not filename.casefold().startswith(str_pattern):
-            coming_up_next.append({"name":filename,"time":next_time.strftime("%Y-%m-%d %H:%M:%S")})
+        if not filename[0].casefold().startswith(str_pattern):
+            coming_up_next.append({"name":filename[0],"time":next_time.strftime("%Y-%m-%d %H:%M:%S"),"extra_info":filename[1]})
 
         # Add length of current video to current time and use as
         # starting time for next video.
@@ -315,8 +332,8 @@ def main():
         if media_playlist[play_index] is not None:
 
             video_time = datetime.datetime.now()
-            video_file = media_playlist[play_index]
-            video_file_fullpath = os.path.join(BASE_PATH,video_file)
+            video_file = get_extra_info(media_playlist[play_index])
+            video_file_fullpath = os.path.join(BASE_PATH,video_file[0])
 
             # Check if video_file exists and raise exception if it does
             # not.
@@ -346,7 +363,7 @@ def main():
                         play_history_buffer.append(f"{video_time} - {video_file}\n")
                         play_history.writelines(play_history_buffer[-PLAY_HISTORY_LENGTH:])
 
-            print("Now playing: " + video_file)
+            print("Now playing: " + video_file[0])
 
             schedule_p = Process(target=write_schedule,args=(media_playlist,play_index,exclude_pattern,elapsed_time))
             player_p = Process(target=subprocess.run,kwargs={"args":f"\"{MEDIA_PLAYER_PATH}\" {MEDIA_PLAYER_BEFORE_ARGUMENTS} \"{video_file_fullpath}\" {MEDIA_PLAYER_AFTER_ARGUMENTS}".format(elapsed_time),"shell":True})

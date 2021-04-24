@@ -40,18 +40,19 @@ Coming up next: <br />
                 var names = json_exported["coming_up_next"];
 
                 // Populate times with starting times and names of upcoming videos.
+                // Default extra_info handling appends entire string in <i> tag.
                 var times = names.map(function(i) {
                 var time = new dayjs.utc(i.time).tz(timezone).format('LT');
                 return [
                     '<div class="gridtime">', time, '</div>',
-                    '<div class="gridname"><strong>', i.name, '</strong></div>',
+                    '<div class="gridname"><strong>', i.name, '</strong> <i>', i.extra_info, '</i></div>',
                     '<br />',
                 ].join('');
                 });
 
                 // Only write "Previously" line if previous_file information was passed in.
-                if (previous_file != "") {
-                        document.getElementById("previouslyon").innerHTML = "Previously: <strong>" + previous_file + "</strong><br /><br />";
+                if ("previous_file" in json_exported) {
+                        document.getElementById("previouslyon").innerHTML = "Previously: <strong>" + previous_file.name + "</strong> <i>" + previous_file.extra_info + "</i><br /><br />";
                 };
 
                 document.getElementById("nowplaying").innerHTML = times[0];
