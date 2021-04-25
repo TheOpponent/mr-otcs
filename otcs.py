@@ -209,12 +209,12 @@ def write_schedule(file_list,index,str_pattern,time_rewind = 0):
     while True:
         # Remove extension from filenames and convert backslashes
         # to forward slashes.
-        if file_list[prev_index] is not None:
+        if file_list[prev_index] is not None and not file_list[prev_index].startswith(":"):
             filename = get_extra_info(file_list[prev_index])
 
             filename[0] = os.path.splitext(filename[0])[0].replace("\\","/")
             if not filename[0].casefold().startswith(str_pattern):
-                previous_file = {"name":filename[0],"extra_info":filename[1]}
+                previous_file = {"type":"normal","name":filename[0],"extra_info":filename[1]}
                 break
 
         prev_index -= 1
@@ -234,14 +234,20 @@ def write_schedule(file_list,index,str_pattern,time_rewind = 0):
 
     # Calculate video file length and add to coming_up_next.
     for filename in get_next_file(file_list,index):
-        if len(coming_up_next) > SCHEDULE_MAX_VIDEOS or total_duration > (SCHEDULE_UPCOMING_LENGTH * 60):
+        if len([i for i in coming_up_next if i["type"] != "extra"]) > SCHEDULE_MAX_VIDEOS or total_duration > (SCHEDULE_UPCOMING_LENGTH * 60):
             break
 
         # Skip comment entries.
         if filename is None:
             continue
 
-        # Extract extra info from playlist entry.
+        # Special case for extra lines. This creates a JSON entry of
+        # type "extra" that has only an "extra_info" value.
+        if filename.startswith(":"):
+            coming_up_next.append({"type":"extra","name":"","time":"","extra_info":filename[1:]})
+            continue
+
+        # Extract extra info from normal playlist entry.
         filename = get_extra_info(filename)
 
         # Check file, and if entry cannot be found, skip the entry.
@@ -262,7 +268,7 @@ def write_schedule(file_list,index,str_pattern,time_rewind = 0):
         # Skip files matching SCHEDULE_EXCLUDE_FILE_PATTERN, but keep
         # their durations.
         if not filename[0].casefold().startswith(str_pattern):
-            coming_up_next.append({"name":filename[0],"time":next_time.strftime("%Y-%m-%d %H:%M:%S"),"extra_info":filename[1]})
+            coming_up_next.append({"type":"normal","name":filename[0],"time":next_time.strftime("%Y-%m-%d %H:%M:%S"),"extra_info":filename[1]})
 
         # Add length of current video to current time and use as
         # starting time for next video.
@@ -348,7 +354,9 @@ def main():
             elapsed_time = 0
 
         # Play next video file, unless it is a comment entry.
-        if media_playlist[play_index] is not None:
+        # Entries beginning with : are comments to be printed into
+        # the schedule.
+        if media_playlist[play_index] is not None and not media_playlist[play_index].startswith(":"):
 
             video_time = datetime.datetime.now()
             video_file = get_extra_info(media_playlist[play_index])

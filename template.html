@@ -43,12 +43,19 @@ Coming up next: <br />
                 // Default extra_info handling appends entire string in <i> tag.
                 var times = names.map(function(i) {
                 var time = new dayjs.utc(i.time).tz(timezone).format('LT');
+                if (i.type == "normal") {
                 return [
                     '<div class="gridtime">', time, '</div>',
                     '<div class="gridname"><strong>', i.name, '</strong> <i>', i.extra_info, '</i></div>',
                     '<br />',
                 ].join('');
-                });
+                // Default extra line type handling creates a header row in the table.
+                } else if (i.type == "extra") {
+                    return [
+                    '<div class="gridname"><hr /><i>', i.extra_info, '</i><hr /></div>',
+                    '<br />',
+                ].join('');
+                }});
 
                 // Only write "Previously" line if previous_file information was passed in.
                 if ("previous_file" in json_exported) {
