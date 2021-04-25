@@ -101,6 +101,13 @@ SCHEDULE_EXCLUDE_FILE_PATTERN = "Station Breaks/"
 RETRY_ATTEMPTS = 0
 RETRY_PERIOD = 5
 
+# Abort script if a file in the playlist cannot be found after retrying
+# according to the settings above.
+# Set to False to allow script to continue and skip the entry in the
+# playlist. This allows the file to be included in future iterations
+# of the playlist if it is found later.
+EXIT_ON_FILE_NOT_FOUND = True
+
 # Number of videos to keep in history log, saved in play_history.txt in
 # BASE_PATH. Set to 0 to disable.
 PLAY_HISTORY_LENGTH = 10
@@ -111,7 +118,11 @@ PLAY_HISTORY_LENGTH = 10
 SCRIPT_VERSION = "1.3.0"
 
 def check_file(path):
-    """Retry opening nonexistent files up to RETRY_ATTEMPTS."""
+    """Retry opening nonexistent files up to RETRY_ATTEMPTS.
+    If file is found, returns True.
+    If EXIT_ON_FILE_NOT_FOUND is True, throw exception if retry
+    attempts don't succeed. If False, return False and continue.
+    """
 
     retry_attempts_remaining = RETRY_ATTEMPTS
 
@@ -124,23 +135,37 @@ def check_file(path):
         # Print number of attempts remaining.
         if retry_attempts_remaining > 0:
             if retry_attempts_remaining > 1:
-                retry_attempts_string = f"{retry_attempts_remaining} attempts remaining.\n"
+                retry_attempts_string = f"{retry_attempts_remaining} attempts remaining."
             else:
-                retry_attempts_string = "1 attempt remaining.\n"
+                retry_attempts_string = "1 attempt remaining."
             retry_attempts_remaining -= 1
 
-        # If retry_attempts_remaining is 0 and file is not found,
-        # raise exception.
         elif retry_attempts_remaining == 0:
-            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT),path)
+            if EXIT_ON_FILE_NOT_FOUND:
+                raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT),path)
+
+            else:
+                print(f"{path} not found. Continuing.")
+                return False
 
         print(f"File not found: {path}.\nRetrying in {RETRY_PERIOD} seconds...\n{retry_attempts_string}")
 
         time.sleep(RETRY_PERIOD)
-        continue
 
     else:
-        return
+        return True
+
+
+def get_extra_info(entry):
+    """Split entry string at delimiter : and return a 2-element list.
+    If the delimiter is not found, second element returned is an empty
+    string.
+    """
+    entry = entry.split(" :",1)
+    if len(entry) > 1:
+        return entry
+    else:
+        return [entry[0],""]
 
 
 def get_length(file):
@@ -155,18 +180,6 @@ def get_length(file):
         raise Exception("ffprobe was unable to read duration of: " + file)
 
     return result
-
-
-def get_extra_info(entry):
-    """Split file name at delimiter : and return a 2-element list.
-    If the delimiter is not found, second element returned is an empty
-    string.
-    """
-    entry = entry.split(" :",1)
-    if len(entry) > 1:
-        return entry
-    else:
-        return [entry[0],""]
 
 
 def write_schedule(file_list,index,str_pattern,time_rewind = 0):
@@ -228,10 +241,13 @@ def write_schedule(file_list,index,str_pattern,time_rewind = 0):
         if filename is None:
             continue
 
-        # TODO: Use check_file() for schedule generation.
-
         # Extract extra info from playlist entry.
         filename = get_extra_info(filename)
+
+        # Check file, and if entry cannot be found, skip the entry.
+        result = check_file(os.path.join(BASE_PATH,filename[0]))
+        if result is False:
+            continue
 
         # Get length of next video in seconds from ffprobe, plus
         # ffmpeg padding.
@@ -299,7 +315,10 @@ def main():
         exclude_pattern = None
 
     # Change blank lines and comment entries in media_playlist to None.
-    media_playlist = [i if i != "" and not i.startswith(";") and not i.startswith("#") and not i.startswith("//") else None for i in media_playlist]
+    media_playlist = [i if i != "" and not i.startswith(";")
+                      and not i.startswith("#")
+                      and not i.startswith("//")
+                      else None for i in media_playlist]
 
     while True:
         # Keep playlist index and elapsed time of current video and store
@@ -335,48 +354,49 @@ def main():
             video_file = get_extra_info(media_playlist[play_index])
             video_file_fullpath = os.path.join(BASE_PATH,video_file[0])
 
-            # Check if video_file exists and raise exception if it does
-            # not.
-            check_file(video_file_fullpath)
+            # Check if video_file exists. If EXIT_ON_FILE_NOT_FOUND is
+            # True and file is not found, skip the entry and continue.
+            result = check_file(video_file_fullpath)
 
-            # If the second line of play_index.txt is greater than
-            # REWIND_LENGTH, pass it to media player arguments.
-            if elapsed_time < REWIND_LENGTH:
-                elapsed_time = 0
-            else:
-                elapsed_time -= REWIND_LENGTH
+            if result:
+                # If the second line of play_index.txt is greater than
+                # REWIND_LENGTH, pass it to media player arguments.
+                if elapsed_time < REWIND_LENGTH:
+                    elapsed_time = 0
+                else:
+                    elapsed_time -= REWIND_LENGTH
 
-            # Write history of played video files and timestamps,
-            # limited to PLAY_HISTORY_LENGTH.
-            if PLAY_HISTORY_LENGTH > 0:
-                try:
-                    with open(os.path.join(BASE_PATH,"play_history.txt"),"r") as play_history:
-                        play_history_buffer = play_history.readlines()
+                # Write history of played video files and timestamps,
+                # limited to PLAY_HISTORY_LENGTH.
+                if PLAY_HISTORY_LENGTH > 0:
+                    try:
+                        with open(os.path.join(BASE_PATH,"play_history.txt"),"r") as play_history:
+                            play_history_buffer = play_history.readlines()
 
-                except FileNotFoundError:
-                    with open(os.path.join(BASE_PATH,"play_history.txt"),"w+") as play_history:
-                        play_history_buffer = []
-                        play_history.close()
+                    except FileNotFoundError:
+                        with open(os.path.join(BASE_PATH,"play_history.txt"),"w+") as play_history:
+                            play_history_buffer = []
+                            play_history.close()
 
-                finally:
-                    with open(os.path.join(BASE_PATH,"play_history.txt"),"w+") as play_history:
-                        play_history_buffer.append(f"{video_time} - {video_file}\n")
-                        play_history.writelines(play_history_buffer[-PLAY_HISTORY_LENGTH:])
+                    finally:
+                        with open(os.path.join(BASE_PATH,"play_history.txt"),"w+") as play_history:
+                            play_history_buffer.append(f"{video_time} - {video_file}\n")
+                            play_history.writelines(play_history_buffer[-PLAY_HISTORY_LENGTH:])
 
-            print("Now playing: " + video_file[0])
+                print("Now playing: " + video_file[0])
 
-            schedule_p = Process(target=write_schedule,args=(media_playlist,play_index,exclude_pattern,elapsed_time))
-            player_p = Process(target=subprocess.run,kwargs={"args":f"\"{MEDIA_PLAYER_PATH}\" {MEDIA_PLAYER_BEFORE_ARGUMENTS} \"{video_file_fullpath}\" {MEDIA_PLAYER_AFTER_ARGUMENTS}".format(elapsed_time),"shell":True})
-            write_p = Process(target=write_index,args=(play_index,elapsed_time))
+                schedule_p = Process(target=write_schedule,args=(media_playlist,play_index,exclude_pattern,elapsed_time))
+                player_p = Process(target=subprocess.run,kwargs={"args":f"\"{MEDIA_PLAYER_PATH}\" {MEDIA_PLAYER_BEFORE_ARGUMENTS} \"{video_file_fullpath}\" {MEDIA_PLAYER_AFTER_ARGUMENTS}".format(elapsed_time),"shell":True})
+                write_p = Process(target=write_index,args=(play_index,elapsed_time))
 
-            player_p.start()
-            if SCHEDULE_ENABLE:
-                schedule_p.start()
-            write_p.start()
-            player_p.join()
-            if schedule_p.is_alive():
-                schedule_p.join()
-            write_p.terminate()
+                player_p.start()
+                if SCHEDULE_ENABLE:
+                    schedule_p.start()
+                write_p.start()
+                player_p.join()
+                if schedule_p.is_alive():
+                    schedule_p.join()
+                write_p.terminate()
 
         if play_index < len(media_playlist):
             play_index += 1
