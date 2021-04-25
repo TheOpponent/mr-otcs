@@ -354,8 +354,6 @@ def main():
             video_file = get_extra_info(media_playlist[play_index])
             video_file_fullpath = os.path.join(BASE_PATH,video_file[0])
 
-            # Check if video_file exists. If EXIT_ON_FILE_NOT_FOUND is
-            # True and file is not found, skip the entry and continue.
             result = check_file(video_file_fullpath)
 
             if result:
