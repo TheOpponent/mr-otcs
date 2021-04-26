@@ -43,7 +43,7 @@ VIDEO_PADDING = 2
 MEDIA_PLAYER_BEFORE_ARGUMENTS = "-hide_banner -re -ss {} -i"
 MEDIA_PLAYER_AFTER_ARGUMENTS = f"-filter_complex \"[0:v]scale=1280x720,\
 fps=30[scaled];[scaled]tpad=stop_duration={VIDEO_PADDING};apad=pad_dur=\
-{VIDEO_PADDING}\" -c:v h264_omx -b:v 4000k -acodec aac -b:a 192k -f flv\
+{VIDEO_PADDING}\" -c:v h264_omx -b:v 4000k -acodec aac -b:a 192k -f flv \
 -g 60 rtmp://localhost:1935/live/"
 
 # Video files, including subdirectories. This can be a Python list
