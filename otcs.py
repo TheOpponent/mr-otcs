@@ -10,7 +10,6 @@ import itertools
 import json
 import os
 import subprocess
-import sys
 import time
 from multiprocessing import Process
 
