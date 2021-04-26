@@ -5,9 +5,9 @@ See the [wiki](https://github.com/TheOpponent/mr-otcs/wiki) for installation ins
 
 The playlist is either a Python list or a text file with filenames:
 ```
-Video 1.mp4
-Video 2.mp4
-Video 3.mp4
+Video Name 1.mp4
+Video Name 2.mp4
+Video Name 3.mp4
 
 # Comments are supported, and blank lines are ignored
 Series Name/Episode 1.mp4
@@ -18,9 +18,9 @@ Series Name/Episode 3.mp4 :Entries can have metadata that will display different
 Commercial 1.mp4
 
 :Lines beginning with a colon are treated as special lines that act as separators
-Video 4.mp4 :(Rerun)
+Video Name 4.mp4 :(Rerun)
 A Movie.mp4 :(Premiere)
-Video 5.mp4
+Video Name 5.mp4
 ```
 
 In its default configuration, Mr. OTCS consists of a Python script that reads this file and starts a video player (ffmpeg by default) for each video in turn, streaming it to a local RTMP server. A shell script run alongside launches an nginx server and another ffmpeg process that relays the transcoded video a third-party service. This is made possible with [ffmpeg-hls-pts-discontinuity-reclock](https://github.com/jjustman/ffmpeg-hls-pts-discontinuity-reclock), a fork of ffmpeg with support for repairing HLS discontinuities.
