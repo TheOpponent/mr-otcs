@@ -473,7 +473,8 @@ def main():
                         f"{MEDIA_PLAYER_BEFORE_ARGUMENTS} "
                         .format(elapsed_time) +
                         f"\"{video_file_fullpath}\" "
-                        f"{MEDIA_PLAYER_AFTER_ARGUMENTS}","shell":True
+                        f"{MEDIA_PLAYER_AFTER_ARGUMENTS}","shell":True,
+                        "check":True
                         }
                     )
                 write_p = Process(target=write_index,
@@ -488,15 +489,20 @@ def main():
                     schedule_p.join()
                 write_p.terminate()
 
-        if play_index < len(media_playlist):
-            play_index += 1
+        if player_p.exitcode == 0:
+            # Advance play_index and set resume point to 0
+            # only if media player exits normally.
+            if play_index < len(media_playlist):
+                play_index += 1
 
-        else:
-            # Reset index at end of playlist.
-            play_index = 0
+            else:
+                # Reset index at end of playlist.
+                play_index = 0
 
-        with open(os.path.join(BASE_PATH,"play_index.txt"),"w") as index_file:
-            index_file.write(str(play_index) + "\n0")
+            with open(os.path.join(BASE_PATH,"play_index.txt"),
+                "w") as index_file:
+
+                index_file.write(str(play_index) + "\n0")
 
 
 SCRIPT_VERSION = "1.3.1"
