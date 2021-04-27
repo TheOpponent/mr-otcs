@@ -499,7 +499,7 @@ def main():
             index_file.write(str(play_index) + "\n0")
 
 
-SCRIPT_VERSION = "1.3.0"
+SCRIPT_VERSION = "1.3.1"
 
 if __name__ == "__main__":
     main()
