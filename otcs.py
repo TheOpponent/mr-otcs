@@ -381,6 +381,11 @@ def main():
         else None for i in media_playlist
         ]
 
+    # Set initial exit_time. exit_time is set to elapsed time since
+    # playback began and compared to start time stored in video_time in
+    # next loop.
+    exit_time = datetime.datetime.now()
+
     while True:
         # Keep playlist index and elapsed time of current video and store
         # in file play_index.txt. Create it if it does not exist.
@@ -430,7 +435,11 @@ def main():
                 if elapsed_time < REWIND_LENGTH:
                     elapsed_time = 0
                 else:
-                    elapsed_time -= REWIND_LENGTH
+                    # If video took less than REWIND_LENGTH to play
+                    # (e.g. repeatedly failing to start or first loop
+                    # of script), do not rewind.
+                    if (exit_time - video_time).seconds > REWIND_LENGTH:
+                        elapsed_time -= REWIND_LENGTH
 
                 # Write history of played video files and timestamps,
                 # limited to PLAY_HISTORY_LENGTH.
@@ -488,6 +497,8 @@ def main():
                 if schedule_p.is_alive():
                     schedule_p.join()
                 write_p.terminate()
+
+        exit_time = datetime.datetime.now()
 
         if player_p.exitcode == 0:
             # Advance play_index and set resume point to 0
