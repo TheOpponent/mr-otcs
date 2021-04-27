@@ -208,7 +208,7 @@ def get_length(file):
 
 def write_schedule(file_list,index,str_pattern,time_rewind = 0):
     """
-    Write an HTML file containing file names and lengths read from a
+    Write a JSON file containing file names and lengths read from a
     list containing video file paths. Optionally, include the most
     recently played file as well.
     """
