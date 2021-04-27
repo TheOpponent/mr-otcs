@@ -13,7 +13,7 @@ fi
 
 while :
 do
-    $FFMPEG_PATH -i rtmp://localhost:1935/live -loglevel error -vcodec copy -acodec copy -f flv $FFMPEG_OUTPUT 2>&1 | tee -a >(ts "%b %d %Y %H:%M:%S" >> ffmpeg_error.log)
+    $FFMPEG_PATH -i rtmp://localhost:1935/live -loglevel error -vcodec copy -acodec copy -f flv -xerror $FFMPEG_OUTPUT 2>&1 | tee -a >(ts "%b %d %Y %H:%M:%S" >> ffmpeg_error.log)
 
     echo -e "ffmpeg terminated. Restarting..." >&2
     sleep 1
