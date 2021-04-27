@@ -264,7 +264,7 @@ def write_schedule(file_list,index,str_pattern,time_rewind = 0):
 
     # Calculate video file length and add to coming_up_next.
     for filename in get_next_file(file_list,index):
-        if (len([i for i in coming_up_next if i["type"] != "extra"])
+        if (len([i for i in coming_up_next if i["type"] == "normal"])
             > SCHEDULE_MAX_VIDEOS or
             total_duration > (SCHEDULE_UPCOMING_LENGTH * 60)):
 
@@ -418,13 +418,23 @@ def main():
             elapsed_time = 0
 
         # Play next video file, unless it is a comment entry.
-        # Entries beginning with : are comments to be printed into
+        # Entries beginning with : are extra lines to be printed into
         # the schedule.
-        if (media_playlist[play_index] is not None
-            and not media_playlist[play_index].startswith(":")):
+        if media_playlist[play_index] is not None:
+
+            # Set an extra_offset equal to the number of extra and
+            # comment lines before the next video file entry. This
+            # allows extra lines to be passed to write_schedule in
+            # the first element of the coming_up_next array.
+            extra_offset = 0
+            while (media_playlist[play_index + extra_offset] is None
+                or media_playlist[play_index + extra_offset].startswith(":")):
+
+                extra_offset += 1
 
             video_time = datetime.datetime.now()
-            video_file = get_extra_info(media_playlist[play_index])
+            video_file = get_extra_info(
+                             media_playlist[play_index + extra_offset])
             video_file_fullpath = os.path.join(BASE_PATH,video_file[0])
 
             result = check_file(video_file_fullpath)
@@ -504,7 +514,7 @@ def main():
             # Advance play_index and set resume point to 0
             # only if media player exits normally.
             if play_index < len(media_playlist):
-                play_index += 1
+                play_index += 1 + extra_offset
 
             else:
                 # Reset index at end of playlist.
