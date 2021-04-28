@@ -10,119 +10,86 @@ import itertools
 import json
 import os
 import subprocess
+import sys
 import time
+from configparser import ConfigParser
 from multiprocessing import Process
 
-#######################################################################
-# Paths configuration. Use absolute paths.
-# Windows users need to use two backslashes \\ for paths.
+config_defaults = {
+    "Paths":{
+        "MEDIA_PLAYER_PATH":"/usr/local/bin/ffmpeg",
+        "FFPROBE_PATH":"/usr/local/bin/ffprobe",
+        "BASE_PATH":"/media/videos/",
+        "MEDIA_PLAYLIST":"playlist.txt",
+        "SCHEDULE_PATH":"schedule.json"
+        },
+    "VideoOptions":{
+        "VIDEO_PADDING":2,
+        "MEDIA_PLAYER_BEFORE_ARGUMENTS":
+            "-hide_banner -re -ss {elapsed_time} -i",
+        "MEDIA_PLAYER_AFTER_ARGUMENTS":
+            "-filter_complex \"[0:v]scale=1280x720,fps=30[scaled];"\
+            "[scaled]tpad=stop_duration=%(VIDEO_PADDING)s;"\
+            "apad=pad_dur=%(VIDEO_PADDING)s\" -c:v h264_omx -b:v 4000k"\
+            "-acodec aac -b:a 192k -f flv -g 60 rtmp://localhost:1935/live/",
+        },
+    "PlayIndex":{
+        "TIME_RECORD_INTERVAL":30,
+        "REWIND_LENGTH":30,
+        "SCHEDULE_UPCOMING_LENGTH":240,
+        "SCHEDULE_MAX_VIDEOS":15,
+        "SCHEDULE_EXCLUDE_FILE_PATTERN":"",
+        },
+    "Misc":{
+        "RETRY_ATTEMPTS":0,
+        "RETRY_PERIOD":5,
+        "EXIT_ON_FILE_NOT_FOUND":False,
+        "PLAY_HISTORY_LENGTH":10
+        }
+    }
 
-# Program paths.
-# ffprobe is optional if HTML schedule will not be used.
-MEDIA_PLAYER_PATH = "/usr/local/bin/ffmpeg"
-FFPROBE_PATH = "/usr/local/bin/ffprobe"
+config = ConfigParser(defaults=config_defaults)
+if len(sys.argv) > 1:
+    config.read(["config.ini",sys.argv[1]])
+else:
+    config.read("config.ini")
 
-# JSON schedule generation. Set to None to disable JSON file output.
-SCHEDULE_PATH = "/home/pi/schedule.json"
+MEDIA_PLAYER_PATH = config.get("Paths","MEDIA_PLAYER_PATH")
+FFPROBE_PATH = config.get("Paths","FFPROBE_PATH")
+BASE_PATH = os.path.expanduser(config.get("Paths","BASE_PATH"))
+if config.get("Paths","SCHEDULE_PATH") != "":
+    SCHEDULE_PATH = os.path.expanduser(config.get("Paths","SCHEDULE_PATH"))
+else:
+    SCHEDULE_PATH = None
 
-# Base path for all video files, including trailing slash.
-# This path will also contain play_index.txt and play_history.txt.
-BASE_PATH = "/media/videos/"
+MEDIA_PLAYLIST =  os.path.expanduser(config.get("Paths","MEDIA_PLAYLIST"))
 
-# Number of seconds of black video to add between each video.
-# This is added to schedule durations for each video.
-# Set to 0 if not using ffmpeg.
-VIDEO_PADDING = 2
+MEDIA_PLAYER_BEFORE_ARGUMENTS = config.get("VideoOptions",
+                                           "MEDIA_PLAYER_BEFORE_ARGUMENTS")
+MEDIA_PLAYER_AFTER_ARGUMENTS = config.get("VideoOptions",
+                                          "MEDIA_PLAYER_AFTER_ARGUMENTS")
+VIDEO_PADDING = config.getint("VideoOptions","VIDEO_PADDING")
 
-# Arguments to pass to media player. This should be whatever is
-# necessary to immediately exit the player after playback is completed.
-# MEDIA_PLAYER_BEFORE_ARGUMENTS are passed before the input file.
-# MEDIA_PLAYER_AFTER_ARGUMENTS are passed after the input file.
-# To save playback position, add "{}" as a parameter for the
-# corresponding media player argument to set start time.
-MEDIA_PLAYER_BEFORE_ARGUMENTS = "-hide_banner -re -ss {} -i"
-MEDIA_PLAYER_AFTER_ARGUMENTS = f"-filter_complex \"[0:v]scale=1280x720,\
-fps=30[scaled];[scaled]tpad=stop_duration={VIDEO_PADDING};apad=pad_dur=\
-{VIDEO_PADDING}\" -c:v h264_omx -b:v 4000k -acodec aac -b:a 192k -f flv \
--g 60 rtmp://localhost:1935/live/"
+TIME_RECORD_INTERVAL = config.getint("PlayIndex","TIME_RECORD_INTERVAL")
+REWIND_LENGTH = config.getint("PlayIndex","REWIND_LENGTH")
 
-# Video files, including subdirectories. This can be a Python list
-# containing strings with filenames in BASE_PATH or a string with a
-# path to a text file containing one filename in BASE_PATH per line.
-# Items starting with comment characters ; # or // and blank lines will
-# be skipped.
-# List example:
-# MEDIA_PLAYLIST = ["video1.mp4","video2.mp4","Series/S01E01.mp4"]
-MEDIA_PLAYLIST = "/home/pi/playlist.txt"
+SCHEDULE_UPCOMING_LENGTH = config.getint("Schedule",
+                                         "SCHEDULE_UPCOMING_LENGTH")
+SCHEDULE_MAX_VIDEOS = config.getint("Schedule","SCHEDULE_MAX_VIDEOS")
 
-#######################################################################
-# Playback info file configuration.
-# To save playback progress, this script saves a file named
-# play_index.txt to BASE_PATH.
-# The first line contains the index of the playlist starting at 0.
-# The second line contains the elapsed time of the current
-# video playback in seconds.
+if config.get("Schedule","SCHEDULE_EXCLUDE_FILE_PATTERN") != "":
+    SCHEDULE_EXCLUDE_FILE_PATTERN = tuple([i.strip().casefold()
+                                        .replace("\\","/")
+                                        for i in config.get("Schedule",
+                                        "SCHEDULE_EXCLUDE_FILE_PATTERN")
+                                        .split(",")])
+else:
+    SCHEDULE_EXCLUDE_FILE_PATTERN = None
 
-# Interval to save playback position in seconds.
-# Lower intervals are more precise in resuming when the script is
-# unexpectedly terminated, but if BASE_PATH is on flash media like
-# USB drive or SD card, higher intervals are recommended to reduce
-# disk writes.
-TIME_RECORD_INTERVAL = 30
-
-# When resuming video with a saved time in play_index.txt, rewind this
-# many seconds. Recommended when streaming to RTMP.
-REWIND_LENGTH = 30
-
-#######################################################################
-# Schedule configuration. These options have no effect if
-# SCHEDULE_PATH is set to None.
-
-# Number of upcoming shows to write in schedule.
-# Set SCHEDULE_UPCOMING_LENGTH to the total number of minutes of
-# video to add to the schedule, and SCHEDULE_MAX_VIDEOS to limit
-# the number of videos.
-SCHEDULE_UPCOMING_LENGTH = 240
-SCHEDULE_MAX_VIDEOS = 15
-
-# Filename pattern to exclude in schedules. This can be used to exclude
-# categories of videos such as station idents or commercials from the
-# schedule. Their durations will still be calculated and added to
-# the durations of preceding videos to keep the times aligned.
-# Set to a single string or a Python list with strings; paths
-# beginning with these strings (case insensitive) will be ignored.
-# e.g. ["Station Breaks/","Commercial"] will exclude all files in
-# the Station Breaks directory and all files and paths in BASE_PATH
-# starting with "Commercial".
-# Set to None to disable.
-SCHEDULE_EXCLUDE_FILE_PATTERN = "Station Breaks/"
-
-#######################################################################
-# Miscellaneous configuration.
-
-# Allow retrying file access if next video file cannot be opened.
-# This can be useful if BASE_PATH is a network share.
-# When RETRY_ATTEMPTS runs out, the script will abort if the next
-# video file cannot be found. Set to 0 to not attempt to reopen
-# missing files.
-# Set RETRY_ATTEMPTS to -1 to retry infinitely.
-# RETRY_PERIOD is the delay in seconds between each retry attempt.
-RETRY_ATTEMPTS = 0
-RETRY_PERIOD = 5
-
-# Abort script if a file in the playlist cannot be found after retrying
-# according to the settings above.
-# Set to False to allow script to continue and skip the entry in the
-# playlist. This allows the file to be included in future iterations
-# of the playlist if it is found later.
-EXIT_ON_FILE_NOT_FOUND = True
-
-# Number of videos to keep in history log, saved in play_history.txt in
-# BASE_PATH. Set to 0 to disable.
-PLAY_HISTORY_LENGTH = 10
-
-#######################################################################
-# Configuration ends here.
+RETRY_ATTEMPTS = config.getint("Misc","RETRY_ATTEMPTS")
+RETRY_PERIOD = config.getint("Misc","RETRY_PERIOD")
+EXIT_ON_FILE_NOT_FOUND = config.getboolean("Misc","EXIT_ON_FILE_NOT_FOUND")
+PLAY_HISTORY_LENGTH = config.getint("Misc","PLAY_HISTORY_LENGTH")
 
 
 def check_file(path):
@@ -229,25 +196,29 @@ def write_schedule(file_list,index,str_pattern,time_rewind = 0):
     # Get previous file by iterating file_list in reverse
     # until a non-comment line that does not match
     # SCHEDULE_EXCLUDE_FILE_PATTERN is reached.
-    prev_index = index - 1
+    prev_index = index
     while True:
+        prev_index -= 1
+
         if (file_list[prev_index] is not None and
             not file_list[prev_index].startswith(":")):
 
             filename = get_extra_info(file_list[prev_index])
-            if not filename[0].casefold().startswith(str_pattern):
-                result = check_file(os.path.join(BASE_PATH,filename[0]))
-                if result:
-                    filename[0] = (os.path.splitext(filename[0])[0]
-                        .replace("\\","/"))
-                    previous_file = {
-                        "type":"normal",
-                        "name":filename[0],
-                        "extra_info":filename[1]
-                        }
-                    break
 
-        prev_index -= 1
+            if str_pattern is not None:
+                if filename[0].casefold().startswith(str_pattern):
+                    continue
+
+            result = check_file(os.path.join(BASE_PATH,filename[0]))
+            if result:
+                filename[0] = (os.path.splitext(filename[0])[0]
+                    .replace("\\","/"))
+                previous_file = {
+                    "type":"normal",
+                    "name":filename[0],
+                    "extra_info":filename[1]
+                    }
+                break
 
     # next_time contains start times of upcoming videos.
     # For the first file in file_list, this is the current system time.
@@ -279,7 +250,8 @@ def write_schedule(file_list,index,str_pattern,time_rewind = 0):
         if filename.startswith(":"):
             coming_up_next.append({
                 "type":"extra",
-                "name":"","time":"",
+                "name":"",
+                "time":"",
                 "extra_info":filename[1:]
                 }
             )
@@ -307,14 +279,17 @@ def write_schedule(file_list,index,str_pattern,time_rewind = 0):
         # Append duration and stripped filename to list as tuple.
         # Skip files matching SCHEDULE_EXCLUDE_FILE_PATTERN, but keep
         # their durations.
-        if not filename[0].casefold().startswith(str_pattern):
-            coming_up_next.append({
-                "type":"normal",
-                "name":filename[0],
-                "time":next_time.strftime("%Y-%m-%d %H:%M:%S"),
-                "extra_info":filename[1]
-                }
-            )
+        if str_pattern is not None:
+            if filename[0].casefold().startswith(str_pattern):
+                continue
+
+        coming_up_next.append({
+            "type":"normal",
+            "name":filename[0],
+            "time":next_time.strftime("%Y-%m-%d %H:%M:%S"),
+            "extra_info":filename[1]
+            }
+        )
 
         # Add length of current video to current time and use as
         # starting time for next video.
@@ -358,20 +333,6 @@ def main():
 
     else:
         raise Exception("MEDIA_PLAYLIST is not a file or Python list.")
-
-    # exclude_pattern is used in case-insensitive string comparison.
-    if SCHEDULE_EXCLUDE_FILE_PATTERN is not None:
-        if isinstance(SCHEDULE_EXCLUDE_FILE_PATTERN,str):
-            exclude_pattern = (
-                SCHEDULE_EXCLUDE_FILE_PATTERN
-                .casefold().replace("\\","/"),
-                )
-
-        elif isinstance(SCHEDULE_EXCLUDE_FILE_PATTERN,list):
-            exclude_pattern = tuple([i.casefold().replace("\\","/")
-                for i in SCHEDULE_EXCLUDE_FILE_PATTERN])
-    else:
-        exclude_pattern = None
 
     # Change blank lines and comment entries in media_playlist to None.
     media_playlist = [
@@ -482,7 +443,7 @@ def main():
                     args=(
                         media_playlist,
                         play_index,
-                        exclude_pattern,
+                        SCHEDULE_EXCLUDE_FILE_PATTERN,
                         elapsed_time
                         )
                     )
@@ -490,7 +451,7 @@ def main():
                     kwargs={
                         "args":f"\"{MEDIA_PLAYER_PATH}\" "
                         f"{MEDIA_PLAYER_BEFORE_ARGUMENTS} "
-                        .format(elapsed_time) +
+                        .format(elapsed_time=elapsed_time) +
                         f"\"{video_file_fullpath}\" "
                         f"{MEDIA_PLAYER_AFTER_ARGUMENTS}","shell":True,
                         "check":True
@@ -526,7 +487,7 @@ def main():
                 index_file.write(str(play_index) + "\n0")
 
 
-SCRIPT_VERSION = "1.3.1"
+SCRIPT_VERSION = "1.4.0"
 
 if __name__ == "__main__":
     main()
