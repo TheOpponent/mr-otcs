@@ -43,10 +43,12 @@ config_defaults = {
         "SCHEDULE_UPCOMING_LENGTH":30,
         "SCHEDULE_EXCLUDE_FILE_PATTERN":""
         },
-    "Misc":{
+    "Retry":{
         "RETRY_ATTEMPTS":0,
         "RETRY_PERIOD":5,
-        "EXIT_ON_FILE_NOT_FOUND":False,
+        "EXIT_ON_FILE_NOT_FOUND":False
+    },
+    "Misc":{
         "PLAY_HISTORY_LENGTH":10
         }
     }
