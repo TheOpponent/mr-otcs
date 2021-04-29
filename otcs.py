@@ -12,6 +12,7 @@ import os
 import subprocess
 import sys
 import time
+from collections import deque
 from configparser import ConfigParser
 from multiprocessing import Process
 
@@ -31,14 +32,16 @@ config_defaults = {
             "-filter_complex \"[0:v]scale=1280x720,fps=30[scaled];"\
             "[scaled]tpad=stop_duration=%(VIDEO_PADDING)s;"\
             "apad=pad_dur=%(VIDEO_PADDING)s\" -c:v h264_omx -b:v 4000k"\
-            "-acodec aac -b:a 192k -f flv -g 60 rtmp://localhost:1935/live/",
+            "-acodec aac -b:a 192k -f flv -g 60 rtmp://localhost:1935/live/"
         },
     "PlayIndex":{
         "TIME_RECORD_INTERVAL":30,
         "REWIND_LENGTH":30,
-        "SCHEDULE_UPCOMING_LENGTH":240,
         "SCHEDULE_MAX_VIDEOS":15,
-        "SCHEDULE_EXCLUDE_FILE_PATTERN":"",
+        "SCHEDULE_UPCOMING_LENGTH":240,
+        "SCHEDULE_PREVIOUS_MAX_VIDEOS":3,
+        "SCHEDULE_UPCOMING_LENGTH":30,
+        "SCHEDULE_EXCLUDE_FILE_PATTERN":""
         },
     "Misc":{
         "RETRY_ATTEMPTS":0,
@@ -73,9 +76,14 @@ VIDEO_PADDING = config.getint("VideoOptions","VIDEO_PADDING")
 TIME_RECORD_INTERVAL = config.getint("PlayIndex","TIME_RECORD_INTERVAL")
 REWIND_LENGTH = config.getint("PlayIndex","REWIND_LENGTH")
 
+SCHEDULE_MAX_VIDEOS = config.getint("Schedule","SCHEDULE_MAX_VIDEOS")
 SCHEDULE_UPCOMING_LENGTH = config.getint("Schedule",
                                          "SCHEDULE_UPCOMING_LENGTH")
-SCHEDULE_MAX_VIDEOS = config.getint("Schedule","SCHEDULE_MAX_VIDEOS")
+SCHEDULE_PREVIOUS_MAX_VIDEOS = config.getint("Schedule",
+                                             "SCHEDULE_PREVIOUS_MAX_VIDEOS")
+SCHEDULE_PREVIOUS_LENGTH = config.getint("Schedule",
+                                         "SCHEDULE_PREVIOUS_LENGTH")
+
 
 if config.get("Schedule","SCHEDULE_EXCLUDE_FILE_PATTERN") != "":
     SCHEDULE_EXCLUDE_FILE_PATTERN = tuple([i.strip().casefold()
@@ -92,11 +100,12 @@ EXIT_ON_FILE_NOT_FOUND = config.getboolean("Misc","EXIT_ON_FILE_NOT_FOUND")
 PLAY_HISTORY_LENGTH = config.getint("Misc","PLAY_HISTORY_LENGTH")
 
 
-def check_file(path):
+def check_file(path,no_exit=False):
     """Retry opening nonexistent files up to RETRY_ATTEMPTS.
     If file is found, returns True.
     If EXIT_ON_FILE_NOT_FOUND is True, throw exception if retry
     attempts don't succeed. If False, return False and continue.
+    no_exit overrides EXIT_ON_FILE_NOT_FOUND.
     """
 
     retry_attempts_remaining = RETRY_ATTEMPTS
@@ -120,7 +129,7 @@ def check_file(path):
             retry_attempts_remaining -= 1
 
         elif retry_attempts_remaining == 0:
-            if EXIT_ON_FILE_NOT_FOUND:
+            if EXIT_ON_FILE_NOT_FOUND and not no_exit:
                 raise (
                     FileNotFoundError(errno.ENOENT,
                     os.strerror(errno.ENOENT),path)
@@ -144,10 +153,13 @@ def check_file(path):
 
 def get_extra_info(entry):
     """Split entry string at delimiter : and return a 2-element list.
+    First element is tuple containing a filename split by extension.
     If the delimiter is not found, second element returned is an empty
     string.
     """
     entry = entry.split(" :",1)
+    # Split filename by extension.
+    entry[0] = os.path.splitext(entry[0].replace("\\","/"))
     if len(entry) > 1:
         return entry
     else:
@@ -170,10 +182,10 @@ def get_length(file):
     if result == "":
         raise Exception("ffprobe was unable to read duration of: " + file)
 
-    return result
+    return int(float(result))
 
 
-def write_schedule(file_list,index,str_pattern,time_rewind = 0):
+def write_schedule(file_list,index,str_pattern,time_rewind=0):
     """
     Write a JSON file containing file names and lengths read from a
     list containing video file paths. Optionally, include the most
@@ -181,11 +193,12 @@ def write_schedule(file_list,index,str_pattern,time_rewind = 0):
     """
 
     def get_next_file(list_sub,index_sub):
-        """
-        Get next file from list, looping the list around when it
+        """Get next file from list, looping the list around when it
         runs out.
         """
+
         list_iter = (i for i in list_sub[index_sub:])
+
         while True:
             try:
                 yield next(list_iter)
@@ -193,34 +206,49 @@ def write_schedule(file_list,index,str_pattern,time_rewind = 0):
             except StopIteration:
                 list_iter = itertools.cycle(list_sub)
 
-    # Get previous file by iterating file_list in reverse
-    # until a non-comment line that does not match
-    # SCHEDULE_EXCLUDE_FILE_PATTERN is reached.
-    prev_index = index
-    while True:
-        prev_index -= 1
+    def get_prev_file(list_sub,index_sub):
+        """Get previous file from list, looping the list around when it
+        runs out. This is done by slicing the list passed in, then
+        reversing the original and sliced lists.
+        """
 
-        if (file_list[prev_index] is not None and
-            not file_list[prev_index].startswith(":")):
+        list_sub_reverse = list_sub[:index_sub]
+        list_sub_reverse.reverse()
+        list_sub.reverse()
+        list_iter = (i for i in list_sub_reverse)
 
-            filename = get_extra_info(file_list[prev_index])
+        while True:
+            try:
+                yield next(list_iter)
+            # Produce cycled list when generator runs out.
+            except StopIteration:
+                list_iter = itertools.cycle(list_sub)
 
-            if str_pattern is not None:
-                if filename[0].casefold().startswith(str_pattern):
-                    continue
+    def create_entry(element,type="normal",time=""):
+        """Return a dictionary for JSON based on information
+        parsed from string element in list.
+        If type is "normal", element should be a 2-element list
+        split by get_extra_info().
+        """
 
-            result = check_file(os.path.join(BASE_PATH,filename[0]))
-            if result:
-                filename[0] = (os.path.splitext(filename[0])[0]
-                    .replace("\\","/"))
-                previous_file = {
-                    "type":"normal",
-                    "name":filename[0],
-                    "extra_info":filename[1]
-                    }
-                break
+        if type == "normal":
+            return {
+                "type":"normal",
+                "name":element[0][0],
+                "time":time,
+                "extra_info":element[1]
+                }
 
-    # next_time contains start times of upcoming videos.
+        elif type == "extra":
+            return {
+                "type":"extra",
+                "name":"",
+                "time":"",
+                "extra_info":element[1:]
+                }
+
+    # Get names and start times of upcoming videos.
+
     # For the first file in file_list, this is the current system time.
     # Time is retrieved in UTC, to be converted to user's local time
     # when they load the schedule in their browser.
@@ -231,75 +259,112 @@ def write_schedule(file_list,index,str_pattern,time_rewind = 0):
     duration = -time_rewind
     total_duration = -time_rewind
 
-    coming_up_next = []
+    coming_up_next = deque()
 
-    # Calculate video file length and add to coming_up_next.
     for filename in get_next_file(file_list,index):
+
+        # Break when either limit is reached.
         if (len([i for i in coming_up_next if i["type"] == "normal"])
             > SCHEDULE_MAX_VIDEOS or
             total_duration > (SCHEDULE_UPCOMING_LENGTH * 60)):
 
             break
 
-        # Skip comment entries.
+        # Skip comment lines.
         if filename is None:
             continue
 
-        # Special case for extra lines. This creates a JSON entry of
-        # type "extra" that has only an "extra_info" value.
+        # Add extra lines and continue.
         if filename.startswith(":"):
-            coming_up_next.append({
-                "type":"extra",
-                "name":"",
-                "time":"",
-                "extra_info":filename[1:]
-                }
-            )
+            coming_up_next.append(create_entry(filename,type="extra"))
             continue
 
-        # Extract extra info from normal playlist entry.
         filename = get_extra_info(filename)
 
         # Check file, and if entry cannot be found, skip the entry.
-        result = check_file(os.path.join(BASE_PATH,filename[0]))
+        result = check_file(os.path.join(BASE_PATH,''.join(filename[0])),
+                            no_exit=True)
         if result is False:
             continue
 
         # Get length of next video in seconds from ffprobe, plus
         # ffmpeg padding.
-        duration += (int(float(get_length(
-            os.path.join(BASE_PATH,filename[0]))))
-            + VIDEO_PADDING)
+        duration += (get_length(os.path.join(BASE_PATH,''.join(filename[0])))
+                     + VIDEO_PADDING)
         total_duration += duration
-
-        # Remove extension from filenames and convert backslashes
-        # to forward slashes.
-        filename[0] = os.path.splitext(filename[0])[0].replace("\\","/")
 
         # Append duration and stripped filename to list as tuple.
         # Skip files matching SCHEDULE_EXCLUDE_FILE_PATTERN, but keep
         # their durations.
-        if str_pattern is not None:
-            if filename[0].casefold().startswith(str_pattern):
-                continue
+        if (str_pattern is not None and
+            filename[0][0].casefold().startswith(str_pattern)):
 
-        coming_up_next.append({
-            "type":"normal",
-            "name":filename[0],
-            "time":next_time.strftime("%Y-%m-%d %H:%M:%S"),
-            "extra_info":filename[1]
-            }
-        )
+            continue
+
+        coming_up_next.append(create_entry(filename,
+                              time=next_time.strftime("%Y-%m-%d %H:%M:%S")))
 
         # Add length of current video to current time and use as
         # starting time for next video.
         next_time += datetime.timedelta(seconds=duration)
         duration = 0
 
+    # Get names and start times of previous videos.
+    # Process is similar to adding upcoming videos but some steps
+    # run in opposite order.
+    if SCHEDULE_PREVIOUS_MAX_VIDEOS > 0:
+
+        prev_time = datetime.datetime.utcnow()
+        duration = 0
+        total_duration = 0
+        previous_files = deque()
+
+        for filename in get_prev_file(file_list,index):
+            if (len([i for i in previous_files if i["type"] == "normal"])
+                > SCHEDULE_PREVIOUS_MAX_VIDEOS or
+                total_duration > (SCHEDULE_PREVIOUS_LENGTH * 60)):
+                break
+
+            if filename is None:
+                continue
+
+            if filename.startswith(":"):
+                previous_files.appendleft(create_entry(filename,type="extra"))
+                continue
+
+            filename = get_extra_info(filename)
+
+            result = check_file(os.path.join(BASE_PATH,''.join(filename[0])),
+                                no_exit=True)
+            if result is False:
+                continue
+
+            duration += (get_length(
+                         os.path.join(BASE_PATH,''.join(filename[0])))
+                         + VIDEO_PADDING)
+            total_duration += duration
+
+            if (str_pattern is not None and
+                filename[0][0].casefold().startswith(str_pattern)):
+
+                continue
+
+            # Subtract duration from current time before appending.
+            prev_time -= datetime.timedelta(seconds=duration)
+
+            previous_files.appendleft(create_entry(filename,
+                                time=prev_time.strftime("%Y-%m-%d %H:%M:%S")))
+
+            duration = 0
+
+    else:
+        previous_files = []
+
     schedule_json_out = {
-        "coming_up_next":coming_up_next,
-        "previous_file":previous_file,
-        "script_version":SCRIPT_VERSION}
+        "coming_up_next":list(coming_up_next),
+        "previous_files":list(previous_files),
+        "script_version":SCRIPT_VERSION
+        }
 
     with open(SCHEDULE_PATH,"w+") as schedule_json:
         schedule_json.write(json.dumps(schedule_json_out))
@@ -336,9 +401,7 @@ def main():
 
     # Change blank lines and comment entries in media_playlist to None.
     media_playlist = [
-        i if i != "" and not i.startswith(";")
-        and not i.startswith("#")
-        and not i.startswith("//")
+        i if i != "" and not i.startswith((";","#","//"))
         else None for i in media_playlist
         ]
 
@@ -378,102 +441,100 @@ def main():
         except IndexError:
             elapsed_time = 0
 
+        # Set an extra_offset equal to the number of extra and
+        # comment lines before the next video file entry. This offset
+        # is not passed to write_schedule(), allowing for extra lines
+        # to be written into the first element of coming_up_next.
+        extra_offset = 0
+
         # Play next video file, unless it is a comment entry.
         # Entries beginning with : are extra lines to be printed into
         # the schedule.
-        if media_playlist[play_index] is not None:
+        while (media_playlist[play_index + extra_offset] is None
+            or media_playlist[play_index + extra_offset].startswith(":")):
 
-            # Set an extra_offset equal to the number of extra and
-            # comment lines before the next video file entry. This
-            # allows extra lines to be passed to write_schedule in
-            # the first element of the coming_up_next array.
-            extra_offset = 0
-            while (media_playlist[play_index + extra_offset] is None
-                or media_playlist[play_index + extra_offset].startswith(":")):
+            extra_offset += 1
 
-                extra_offset += 1
+        video_time = datetime.datetime.now()
+        video_file = get_extra_info(
+                            media_playlist[play_index + extra_offset])
+        video_file_fullpath = os.path.join(BASE_PATH,
+                                            ''.join(video_file[0]))
 
-            video_time = datetime.datetime.now()
-            video_file = get_extra_info(
-                             media_playlist[play_index + extra_offset])
-            video_file_fullpath = os.path.join(BASE_PATH,video_file[0])
+        result = check_file(video_file_fullpath)
 
-            result = check_file(video_file_fullpath)
+        if result:
+            # If the second line of play_index.txt is greater than
+            # REWIND_LENGTH, pass it to media player arguments.
+            if elapsed_time < REWIND_LENGTH:
+                elapsed_time = 0
+            else:
+                # If video took less than REWIND_LENGTH to play
+                # (e.g. repeatedly failing to start or first loop
+                # of script), do not rewind.
+                if (exit_time - video_time).seconds > REWIND_LENGTH:
+                    elapsed_time -= REWIND_LENGTH
 
-            if result:
-                # If the second line of play_index.txt is greater than
-                # REWIND_LENGTH, pass it to media player arguments.
-                if elapsed_time < REWIND_LENGTH:
-                    elapsed_time = 0
-                else:
-                    # If video took less than REWIND_LENGTH to play
-                    # (e.g. repeatedly failing to start or first loop
-                    # of script), do not rewind.
-                    if (exit_time - video_time).seconds > REWIND_LENGTH:
-                        elapsed_time -= REWIND_LENGTH
+            # Write history of played video files and timestamps,
+            # limited to PLAY_HISTORY_LENGTH.
+            if PLAY_HISTORY_LENGTH > 0:
+                try:
+                    with open(os.path.join(BASE_PATH,"play_history.txt"),
+                        "r") as play_history:
 
-                # Write history of played video files and timestamps,
-                # limited to PLAY_HISTORY_LENGTH.
-                if PLAY_HISTORY_LENGTH > 0:
-                    try:
-                        with open(os.path.join(BASE_PATH,"play_history.txt"),
-                            "r") as play_history:
+                        play_history_buffer = play_history.readlines()
 
-                            play_history_buffer = play_history.readlines()
+                except FileNotFoundError:
+                    with open(os.path.join(BASE_PATH,"play_history.txt"),
+                        "w+") as play_history:
 
-                    except FileNotFoundError:
-                        with open(os.path.join(BASE_PATH,"play_history.txt"),
-                            "w+") as play_history:
+                        play_history_buffer = []
+                        play_history.close()
 
-                            play_history_buffer = []
-                            play_history.close()
+                finally:
+                    with open(os.path.join(BASE_PATH,"play_history.txt"),
+                        "w+") as play_history:
 
-                    finally:
-                        with open(os.path.join(BASE_PATH,"play_history.txt"),
-                            "w+") as play_history:
+                        play_history_buffer.append(
+                            f"{video_time} - {''.join(video_file[0])}\n")
+                        play_history.writelines(
+                            play_history_buffer[-PLAY_HISTORY_LENGTH:])
 
-                            play_history_buffer.append(
-                                f"{video_time} - {video_file}\n")
-                            play_history.writelines(
-                                play_history_buffer[-PLAY_HISTORY_LENGTH:])
+            print("Now playing: " + video_file[0][0])
 
-                print("Now playing: " + video_file[0])
-
-                schedule_p = Process(target=write_schedule,
-                    args=(
-                        media_playlist,
-                        play_index,
-                        SCHEDULE_EXCLUDE_FILE_PATTERN,
-                        elapsed_time
-                        )
+            schedule_p = Process(target=write_schedule,
+                args=(
+                    media_playlist,
+                    play_index,
+                    SCHEDULE_EXCLUDE_FILE_PATTERN,
+                    elapsed_time
                     )
-                player_p = Process(target=subprocess.run,
-                    kwargs={
-                        "args":f"\"{MEDIA_PLAYER_PATH}\" "
-                        f"{MEDIA_PLAYER_BEFORE_ARGUMENTS} "
-                        .format(elapsed_time=elapsed_time) +
-                        f"\"{video_file_fullpath}\" "
-                        f"{MEDIA_PLAYER_AFTER_ARGUMENTS}","shell":True,
-                        "check":True
-                        }
-                    )
-                write_p = Process(target=write_index,
-                    args=(play_index,elapsed_time))
+                )
+            player_p = Process(target=subprocess.run,
+                kwargs={
+                    "args":f"\"{MEDIA_PLAYER_PATH}\" "
+                    f"{MEDIA_PLAYER_BEFORE_ARGUMENTS} "
+                    .format(elapsed_time=elapsed_time) +
+                    f"\"{video_file_fullpath}\" "
+                    f"{MEDIA_PLAYER_AFTER_ARGUMENTS}","shell":True,
+                    "check":True
+                    }
+                )
+            write_p = Process(target=write_index,
+                args=(play_index,elapsed_time))
 
-                player_p.start()
-                if SCHEDULE_PATH is not None:
-                    schedule_p.start()
-                write_p.start()
-                player_p.join()
-                if schedule_p.is_alive():
-                    schedule_p.join()
-                write_p.terminate()
+            player_p.start()
+            if SCHEDULE_PATH is not None:
+                schedule_p.start()
+            write_p.start()
+            player_p.join()
+            if schedule_p.is_alive():
+                schedule_p.join()
+            write_p.terminate()
 
         exit_time = datetime.datetime.now()
 
         if player_p.exitcode == 0:
-            # Advance play_index and set resume point to 0
-            # only if media player exits normally.
             if play_index < len(media_playlist):
                 play_index += 1 + extra_offset
 

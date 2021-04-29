@@ -51,10 +51,11 @@ Times are converted to your local time zone: <div id="timezone"></div>
     request.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
             json_exported = JSON.parse(request.responseText);
-                var previous_file = json_exported["previous_file"];
+                var previous_names = json_exported["previous_files"];
                 var names = json_exported["coming_up_next"];
 
                 // Populate times array with starting times and names of upcoming videos.
+                var previous_times = [""];
                 var times = [""];
 
                 // Add first entry. If it's not a normal line, append further entries
@@ -68,9 +69,11 @@ Times are converted to your local time zone: <div id="timezone"></div>
 
                 times = times.concat(names.map(writeRow));
 
-                // Only write "Previously" line if previous_file information was passed in.
-                if ("previous_file" in json_exported) {
-                        document.getElementById("previouslyon").innerHTML = "Previously: <strong>" + previous_file.name + "</strong> <i>" + previous_file.extra_info + "</i><br /><br />";
+                // Only write "Previously" section if previous_files information was passed in.
+                if (previous_names.length > 0) {
+
+                    previous_times = previous_times.concat(previous_names.map(writeRow));
+                    document.getElementById("previouslyon").innerHTML = "Previously: " + previous_times.join("");
                 };
 
                 document.getElementById("nowplaying").innerHTML = times[0];
