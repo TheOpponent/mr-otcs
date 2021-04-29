@@ -22,6 +22,8 @@ config_defaults = {
         "FFPROBE_PATH":"/usr/local/bin/ffprobe",
         "BASE_PATH":"/media/videos/",
         "MEDIA_PLAYLIST":"playlist.txt",
+        "PLAY_INDEX_FILE":"%(BASE_PATH)s/play_index.txt",
+        "PLAY_HISTORY_FILE":"%(BASE_PATH)s/play_history.txt",
         "SCHEDULE_PATH":"schedule.json"
         },
     "VideoOptions":{
@@ -62,6 +64,13 @@ else:
 MEDIA_PLAYER_PATH = config.get("Paths","MEDIA_PLAYER_PATH")
 FFPROBE_PATH = config.get("Paths","FFPROBE_PATH")
 BASE_PATH = os.path.expanduser(config.get("Paths","BASE_PATH"))
+PLAY_INDEX_FILE = os.path.expanduser(config.get("Paths","PLAY_INDEX_FILE"))
+if config.get("Paths","PLAY_HISTORY_FILE") != "":
+    PLAY_HISTORY_FILE = os.path.expanduser(config.get("Paths",
+                                                      "PLAY_HISTORY_FILE"))
+else:
+    PLAY_HISTORY_FILE = None
+
 if config.get("Paths","SCHEDULE_PATH") != "":
     SCHEDULE_PATH = os.path.expanduser(config.get("Paths","SCHEDULE_PATH"))
 else:
@@ -96,9 +105,10 @@ if config.get("Schedule","SCHEDULE_EXCLUDE_FILE_PATTERN") != "":
 else:
     SCHEDULE_EXCLUDE_FILE_PATTERN = None
 
-RETRY_ATTEMPTS = config.getint("Misc","RETRY_ATTEMPTS")
-RETRY_PERIOD = config.getint("Misc","RETRY_PERIOD")
-EXIT_ON_FILE_NOT_FOUND = config.getboolean("Misc","EXIT_ON_FILE_NOT_FOUND")
+RETRY_ATTEMPTS = config.getint("Retry","RETRY_ATTEMPTS")
+RETRY_PERIOD = config.getint("Retry","RETRY_PERIOD")
+EXIT_ON_FILE_NOT_FOUND = config.getboolean("Retry","EXIT_ON_FILE_NOT_FOUND")
+
 PLAY_HISTORY_LENGTH = config.getint("Misc","PLAY_HISTORY_LENGTH")
 
 
@@ -418,14 +428,11 @@ def main():
         play_index_contents = []
 
         try:
-            with open(os.path.join(BASE_PATH,"play_index.txt"),
-                "r") as index_file:
-
+            with open(PLAY_INDEX_FILE,"r") as index_file:
                 play_index_contents = index_file.readlines()
 
         except FileNotFoundError:
-            with open(os.path.join(BASE_PATH,"play_index.txt"),
-                "w+") as index_file:
+            with open(PLAY_INDEX_FILE,"w+") as index_file:
 
                 index_file.write("0\n0")
                 play_index = 0
@@ -479,24 +486,18 @@ def main():
 
             # Write history of played video files and timestamps,
             # limited to PLAY_HISTORY_LENGTH.
-            if PLAY_HISTORY_LENGTH > 0:
+            if PLAY_HISTORY_FILE is not None:
                 try:
-                    with open(os.path.join(BASE_PATH,"play_history.txt"),
-                        "r") as play_history:
-
+                    with open(PLAY_HISTORY_FILE,"r") as play_history:
                         play_history_buffer = play_history.readlines()
 
                 except FileNotFoundError:
-                    with open(os.path.join(BASE_PATH,"play_history.txt"),
-                        "w+") as play_history:
-
+                    with open(PLAY_HISTORY_FILE,"w+") as play_history:
                         play_history_buffer = []
                         play_history.close()
 
                 finally:
-                    with open(os.path.join(BASE_PATH,"play_history.txt"),
-                        "w+") as play_history:
-
+                    with open(PLAY_HISTORY_FILE,"w+") as play_history:
                         play_history_buffer.append(
                             f"{video_time} - {''.join(video_file[0])}\n")
                         play_history.writelines(
@@ -544,9 +545,7 @@ def main():
                 # Reset index at end of playlist.
                 play_index = 0
 
-            with open(os.path.join(BASE_PATH,"play_index.txt"),
-                "w") as index_file:
-
+            with open(PLAY_INDEX_FILE,"w") as index_file:
                 index_file.write(str(play_index) + "\n0")
 
 
