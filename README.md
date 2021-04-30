@@ -3,7 +3,7 @@ A script to play a list of video files in a continuous loop, transcode it to RTM
 
 See the [wiki](https://github.com/TheOpponent/mr-otcs/wiki) for installation instructions on Raspberry Pi.
 
-The playlist is either a Python list or a text file with filenames:
+The playlist is a text file with filenames:
 ```
 Video Name 1.mp4
 Video Name 2.mp4
