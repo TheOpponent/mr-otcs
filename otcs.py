@@ -499,7 +499,7 @@ def main():
                 finally:
                     with open(PLAY_HISTORY_FILE,"w+") as play_history:
                         play_history_buffer.append(
-                            f"{video_time} - {''.join(video_file[0])}\n")
+                            f"{video_time} - {play_index}. {''.join(video_file[0])}\n")
                         play_history.writelines(
                             play_history_buffer[-PLAY_HISTORY_LENGTH:])
 
