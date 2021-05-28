@@ -259,6 +259,13 @@ def write_schedule(file_list,index,str_pattern,time_rewind=0):
                 "extra_info":element[1:]
                 }
 
+    # Load alt_names.json.
+    try:
+        with open("alt_names.json","r") as alt_names_json:
+            alt_names = json.load(alt_names_json)
+    except:
+        alt_names = None
+
     # Get names and start times of upcoming videos.
 
     # For the first file in file_list, this is the current system time.
@@ -312,6 +319,14 @@ def write_schedule(file_list,index,str_pattern,time_rewind=0):
             filename[0][0].casefold().startswith(str_pattern)):
 
             continue
+
+        # Read the alt_names dictionary. If filename has a matching
+        # key, replace the name with the value.
+        if alt_names is not None:
+            if (filename[0][0] in alt_names
+                and isinstance(alt_names[filename[0][0]],str)):
+
+                filename[0] = (alt_names[filename[0][0]],filename[0][1])
 
         coming_up_next.append(create_entry(filename,
                               time=next_time.strftime("%Y-%m-%d %H:%M:%S")))
