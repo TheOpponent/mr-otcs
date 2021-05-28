@@ -339,7 +339,10 @@ def write_schedule(file_list,index,str_pattern,time_rewind=0):
     # Get names and start times of previous videos.
     # Process is similar to adding upcoming videos but some steps
     # run in opposite order.
-    if SCHEDULE_PREVIOUS_MAX_VIDEOS > 0:
+    # If time_rewind is not 0 because of a resume, do not provide
+    # previous file information, as a stream may have restarted
+    # after an unexpected exit.
+    if SCHEDULE_PREVIOUS_MAX_VIDEOS > 0 and time_rewind == 0:
 
         prev_time = datetime.datetime.utcnow()
         duration = 0
