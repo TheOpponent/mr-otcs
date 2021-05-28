@@ -1,6 +1,6 @@
 {
-  "Example file name without extension": "Example file name replacement",
-  "Characters not allowed in file names": "Characters: not allowed in file names?",
+  "Example filename without extension": "Example filename replacement",
+  "Characters not allowed in filenames": "Characters: not allowed in filenames?",
   "Subdirectory/must be included": "May be excluded in replacement",
   "Accented characters may be unsafe for filenames": "Âććented cĥaracterş maŷ ße ünsafe fõr fılenameŝ"
 }

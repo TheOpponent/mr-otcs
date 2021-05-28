@@ -567,7 +567,7 @@ def main():
                 index_file.write(str(play_index) + "\n0")
 
 
-SCRIPT_VERSION = "1.4.0"
+SCRIPT_VERSION = "1.5.0"
 
 if __name__ == "__main__":
     main()
