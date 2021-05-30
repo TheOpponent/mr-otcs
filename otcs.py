@@ -259,6 +259,47 @@ def write_schedule(file_list,index,str_pattern,time_rewind=0):
                 "extra_info":element[1:]
                 }
 
+    def process_filename(filename):
+        """Process a filename for insertion. Returns either a
+        two-element list from get_extra_info() with a changed title
+        from alt_names, or None for entries to be passed over.
+        """
+
+        nonlocal duration, total_duration, alt_names
+
+        filename = get_extra_info(filename)
+
+        # Check file, and if entry cannot be found, skip the entry.
+        if not check_file(os.path.join(BASE_PATH,''.join(filename[0])),
+            no_exit=True):
+
+            return None
+
+        # Get length of video in seconds from ffprobe, plus
+        # ffmpeg padding.
+        duration += (get_length(os.path.join(BASE_PATH,''.join(filename[0])))
+                     + VIDEO_PADDING)
+        total_duration += duration
+
+        # Skip files matching SCHEDULE_EXCLUDE_FILE_PATTERN, but keep
+        # their durations.
+        if (str_pattern is not None and
+            filename[0][0].casefold().startswith(str_pattern)):
+
+            return None
+
+        # Read the alt_names dictionary. If filename has a matching
+        # key, replace the name with the value.
+        if alt_names is not None:
+            if filename[0][0] in alt_names:
+                if isinstance(alt_names[filename[0][0]],str):
+                    filename[0] = (alt_names[filename[0][0]],filename[0][1])
+                else:
+                    print(f"""Alternate name for {filename[0][0]} in
+                        alt_names.json is not a valid string.""")
+
+        return filename
+
     # Load alt_names.json.
     try:
         with open("alt_names.json","r") as alt_names_json:
@@ -298,38 +339,13 @@ def write_schedule(file_list,index,str_pattern,time_rewind=0):
             coming_up_next.append(create_entry(filename,type="extra"))
             continue
 
-        filename = get_extra_info(filename)
+        processed_name = process_filename(filename)
 
-        # Check file, and if entry cannot be found, skip the entry.
-        result = check_file(os.path.join(BASE_PATH,''.join(filename[0])),
-                            no_exit=True)
-        if result is False:
+        if processed_name is not None:
+            coming_up_next.append(create_entry(processed_name,
+                                time=next_time.strftime("%Y-%m-%d %H:%M:%S")))
+        else:
             continue
-
-        # Get length of next video in seconds from ffprobe, plus
-        # ffmpeg padding.
-        duration += (get_length(os.path.join(BASE_PATH,''.join(filename[0])))
-                     + VIDEO_PADDING)
-        total_duration += duration
-
-        # Append duration and stripped filename to list as tuple.
-        # Skip files matching SCHEDULE_EXCLUDE_FILE_PATTERN, but keep
-        # their durations.
-        if (str_pattern is not None and
-            filename[0][0].casefold().startswith(str_pattern)):
-
-            continue
-
-        # Read the alt_names dictionary. If filename has a matching
-        # key, replace the name with the value.
-        if alt_names is not None:
-            if (filename[0][0] in alt_names
-                and isinstance(alt_names[filename[0][0]],str)):
-
-                filename[0] = (alt_names[filename[0][0]],filename[0][1])
-
-        coming_up_next.append(create_entry(filename,
-                              time=next_time.strftime("%Y-%m-%d %H:%M:%S")))
 
         # Add length of current video to current time and use as
         # starting time for next video.
@@ -362,28 +378,16 @@ def write_schedule(file_list,index,str_pattern,time_rewind=0):
                 previous_files.appendleft(create_entry(filename,type="extra"))
                 continue
 
-            filename = get_extra_info(filename)
-
-            result = check_file(os.path.join(BASE_PATH,''.join(filename[0])),
-                                no_exit=True)
-            if result is False:
-                continue
-
-            duration += (get_length(
-                         os.path.join(BASE_PATH,''.join(filename[0])))
-                         + VIDEO_PADDING)
-            total_duration += duration
-
-            if (str_pattern is not None and
-                filename[0][0].casefold().startswith(str_pattern)):
-
-                continue
+            processed_name = process_filename(filename)
 
             # Subtract duration from current time before appending.
             prev_time -= datetime.timedelta(seconds=duration)
 
-            previous_files.appendleft(create_entry(filename,
+            if processed_name is not None:
+                previous_files.appendleft(create_entry(processed_name,
                                 time=prev_time.strftime("%Y-%m-%d %H:%M:%S")))
+            else:
+                continue
 
             duration = 0
 
