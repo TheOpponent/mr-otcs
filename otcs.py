@@ -424,7 +424,7 @@ def main():
 
     # If MEDIA_PLAYLIST is a file, open the file.
     if isinstance(MEDIA_PLAYLIST,str):
-        with open(MEDIA_PLAYLIST,"r") as media_playlist_file:
+        with open(MEDIA_PLAYLIST,"r",encoding="utf-8-sig") as media_playlist_file:
             media_playlist = media_playlist_file.read().splitlines()
 
     elif isinstance(MEDIA_PLAYLIST,list):
