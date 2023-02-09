@@ -131,19 +131,20 @@ PLAY_HISTORY_LENGTH = default_ini.getint("Misc","PLAY_HISTORY_LENGTH")
 VERBOSE = default_ini.getboolean("Misc","VERBOSE")
 
 # Validate config settings.
-try:
-    with open(ALT_NAMES_JSON_PATH,"r",encoding='utf8') as alt_names_json:
-        try:
-            ALT_NAMES = json.load(alt_names_json)
-        except json.JSONDecodeError as e:
-            print(e)
-            print(f"{warn} Error loading {ALT_NAMES_JSON_PATH} in ALT_NAMES_JSON_PATH.")
-            ALT_NAMES = {}
+if ALT_NAMES_JSON_PATH is not None:
+    try:
+        with open(ALT_NAMES_JSON_PATH,"r",encoding='utf8') as alt_names_json:
+            try:
+                ALT_NAMES = json.load(alt_names_json)
+            except json.JSONDecodeError as e:
+                print(e)
+                print(f"{warn} Error loading {ALT_NAMES_JSON_PATH} in ALT_NAMES_JSON_PATH.")
+                ALT_NAMES = {}
 
-except FileNotFoundError:
-    print(f"{warn} {ALT_NAMES_JSON_PATH} in ALT_NAMES_JSON_PATH not found.")
-    ALT_NAMES_JSON_PATH = None
-    ALT_NAMES = {}
+    except FileNotFoundError:
+        print(f"{warn} {ALT_NAMES_JSON_PATH} in ALT_NAMES_JSON_PATH not found.")
+        ALT_NAMES_JSON_PATH = None
+        ALT_NAMES = {}
 
 if SCHEDULE_EXCLUDE_FILE_PATTERN is not None:
     SCHEDULE_EXCLUDE_FILE_PATTERN = tuple([i.strip().casefold().replace("\\","/") for i in SCHEDULE_EXCLUDE_FILE_PATTERN.split(",")])

@@ -16,7 +16,7 @@ from headers import *
 try:
     import pysftp
 except ImportError:
-    print("pysftp is not installed.")
+    print(f"{info} pysftp is not installed.")
 
 
 class PlaylistEntry():
@@ -181,11 +181,12 @@ def create_playlist():
 
         # Read the ALT_NAMES dictionary. If filename has a matching
         # key, replace the name with the value.
-        if new_entry.name in config.ALT_NAMES:
-            if isinstance(config.ALT_NAMES[new_entry.name],str):
-                new_entry.name = config.ALT_NAMES[new_entry.name]
-            else:
-                print(f"{warn} Alternate name for {new_entry.name} in alt_names.json is not a valid string.")
+        if config.ALT_NAMES_JSON_PATH is not None:
+            if new_entry.name in config.ALT_NAMES:
+                if isinstance(config.ALT_NAMES[new_entry.name],str):
+                    new_entry.name = config.ALT_NAMES[new_entry.name]
+                else:
+                    print(f"{warn} Alternate name for {new_entry.name} in alt_names.json is not a valid string.")
 
         if config.VERBOSE:
             if i is not None:
