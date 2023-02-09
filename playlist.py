@@ -181,12 +181,13 @@ def create_playlist():
 
         # Read the ALT_NAMES dictionary. If filename has a matching
         # key, replace the name with the value.
-        if config.ALT_NAMES_JSON_PATH is not None:
-            if new_entry.name in config.ALT_NAMES:
-                if isinstance(config.ALT_NAMES[new_entry.name],str):
-                    new_entry.name = config.ALT_NAMES[new_entry.name]
-                else:
-                    print(f"{warn} Alternate name for {new_entry.name} in alt_names.json is not a valid string.")
+        if new_entry.name[0] in config.ALT_NAMES:
+            if isinstance(config.ALT_NAMES[new_entry.name],str):
+                new_entry.name = config.ALT_NAMES[new_entry.name[0]]
+            else:
+                print(f"{warn} Alternate name for {new_entry.name} in alt_names.json is not a valid string.")
+        else:
+            new_entry.name = new_entry.name[0]
 
         if config.VERBOSE:
             if i is not None:
@@ -222,7 +223,7 @@ def get_stream_restart_duration():
     return duration
 
 
-def write_schedule(playlist: list,entry_index: int,time_rewind: int=0):
+def write_schedule(playlist: list,entry_index: int,time_rewind: int=0,stream_time_remaining: int=0):
     """Write a JSON file containing file names and lengths read from playlist.
     The playlist, a list created by create_playlist(), is read starting from
     the entry_index.
@@ -255,18 +256,14 @@ def write_schedule(playlist: list,entry_index: int,time_rewind: int=0):
         reversing the original and sliced lists.
         """
 
-        list_sub_reverse = list(list_sub[:index_sub])
-        list_sub_reverse_full = list(list_sub)
-        list_sub_reverse.reverse()
-        list_sub_reverse_full.reverse()
-        list_iter = (i for i in list_sub_reverse)
+        list_sub_reverse = reversed(list(list_sub[:index_sub]))
+        list_sub_reverse_full = itertools.cycle(reversed(list(list_sub)))
 
-        while True:
-            try:
-                yield next(list_iter)
-            # Produce cycled list when generator runs out.
-            except StopIteration:
-                list_iter = itertools.cycle(list_sub_reverse_full)
+        for i in list_sub_reverse:
+            yield i
+            
+        for i in list_sub_reverse_full:
+            yield i
 
 
     # Get names and start times of upcoming videos.
@@ -323,6 +320,10 @@ def write_schedule(playlist: list,entry_index: int,time_rewind: int=0):
                 continue
             if check_file(entry[1].path,line_num=entry[0]):
                 duration += get_length(entry[1].path) + config.VIDEO_PADDING
+                stream_time_remaining -= duration
+                if stream_time_remaining <= 0:
+                    next_time += datetime.timedelta(seconds=get_stream_restart_duration())
+                    stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
                 coming_up_next.append({
                     "type":"normal",
                     "name":entry[1].name,

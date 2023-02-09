@@ -145,6 +145,8 @@ if ALT_NAMES_JSON_PATH is not None:
         print(f"{warn} {ALT_NAMES_JSON_PATH} in ALT_NAMES_JSON_PATH not found.")
         ALT_NAMES_JSON_PATH = None
         ALT_NAMES = {}
+else:
+    ALT_NAMES = {}
 
 if SCHEDULE_EXCLUDE_FILE_PATTERN is not None:
     SCHEDULE_EXCLUDE_FILE_PATTERN = tuple([i.strip().casefold().replace("\\","/") for i in SCHEDULE_EXCLUDE_FILE_PATTERN.split(",")])

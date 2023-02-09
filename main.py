@@ -260,7 +260,7 @@ def main():
                         if config.SCHEDULE_PATH is not None:
                             if config.VERBOSE:
                                 print(f"{info} Writing schedule file to {config.SCHEDULE_PATH}.")
-                            playlist.write_schedule(media_playlist,play_index,video_start_time)
+                            schedule_future = executor.schedule(playlist.write_schedule,(media_playlist,play_index,video_start_time,config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time - next_video_duration))
 
                         # Always start video no earlier than video_start_time, which is read from
                         # play_index.txt file at the start of the loop.
