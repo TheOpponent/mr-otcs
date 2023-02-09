@@ -1,15 +1,18 @@
 # Functions for handling the playlist and schedule files.
 
-import os
-import errno
-import time
-import subprocess
-import itertools
-import config
 import datetime
+import errno
+import itertools
 import json
+import os
+import subprocess
 import sys
+import time
 from collections import deque
+
+import config
+from headers import *
+
 try:
     import pysftp
 except ImportError:
@@ -86,7 +89,7 @@ def get_length(video):
     result = subprocess.run([config.FFPROBE_PATH,"-v","error","-select_streams","v:0","-show_entries","stream=duration","-of","default=noprint_wrappers=1:nokey=1",video],capture_output=True,text=True).stdout
 
     if result == "":
-        raise RuntimeError("[Error] ffprobe was unable to read duration of: " + video)
+        raise RuntimeError(f"{error} ffprobe was unable to read duration of: " + video)
 
     return int(float(result))
 
@@ -113,23 +116,23 @@ def check_file(path,line_num=None,no_exit=False):
         # Print number of attempts remaining.
         if retry_attempts_remaining > 0:
             if retry_attempts_remaining > 1:
-                retry_attempts_string = (f"{retry_attempts_remaining} attempts remaining.")
+                retry_attempts_string = (f"{info} {retry_attempts_remaining} attempts remaining.")
             else:
-                retry_attempts_string = "1 attempt remaining."
+                retry_attempts_string = f"{info} 1 attempt remaining."
             retry_attempts_remaining -= 1
 
         elif retry_attempts_remaining == 0:
             if config.EXIT_ON_FILE_NOT_FOUND and not no_exit:
-                print(f"[Error] Line {line_num}: {path} not found." if line_num is not None else f"[Error] {path} not found.")
+                print(f"{error} Line {line_num}: {path} not found." if line_num is not None else f"{error} {path} not found.")
                 raise FileNotFoundError(errno.ENOENT,os.strerror(errno.ENOENT),path)
             else:
-                print(f"[Error] Line {line_num}: {path} not found. Continuing." if line_num is not None else f"[Error] {path} not found. Continuing.")
+                print(f"{error} Line {line_num}: {path} not found. Continuing." if line_num is not None else f"{error} {path} not found. Continuing.")
                 return False
 
         print(
-            f"[Error] File not found: {path}.\n"
-            f"[Warn] {retry_attempts_string} "
-            f"[Warn] Retrying in {config.RETRY_PERIOD} seconds..."
+            f"{error} File not found: {path}.\n"
+            f"{warn} {retry_attempts_string} "
+            f"{warn} Retrying in {config.RETRY_PERIOD} seconds..."
             )
 
         time.sleep(config.RETRY_PERIOD)
@@ -155,14 +158,14 @@ def create_playlist():
             with open(config.MEDIA_PLAYLIST,"r",encoding="utf-8-sig") as media_playlist_file:
                 media_playlist = media_playlist_file.read().splitlines()
         except FileNotFoundError:
-            print(f"[Error] Playlist file {config.MEDIA_PLAYLIST} not found.")
+            print(f"{error} Playlist file {config.MEDIA_PLAYLIST} not found.")
             exit(1)
 
     elif isinstance(config.MEDIA_PLAYLIST,list):
         media_playlist = config.MEDIA_PLAYLIST
 
     else:
-        raise TypeError("[Error] MEDIA_PLAYLIST is not a file or Python list.")
+        raise TypeError(f"{error} MEDIA_PLAYLIST is not a file or Python list.")
 
     # Change blank lines and comment entries in media_playlist to None.
     media_playlist = [i if i != "" and not i.startswith((";","#","//")) else None for i in media_playlist]
@@ -182,7 +185,7 @@ def create_playlist():
             if isinstance(config.ALT_NAMES[new_entry.name],str):
                 new_entry.name = config.ALT_NAMES[new_entry.name]
             else:
-                print(f"[Warn] Alternate name for {new_entry.name} in alt_names.json is not a valid string.")
+                print(f"{warn} Alternate name for {new_entry.name} in alt_names.json is not a valid string.")
 
         if config.VERBOSE:
             if i is not None:
@@ -194,7 +197,7 @@ def create_playlist():
         index += 1
 
     if entry_count == 0:
-        print(f"[Error] No valid entries found in {config.MEDIA_PLAYLIST}.")
+        print(f"{error} No valid entries found in {config.MEDIA_PLAYLIST}.")
         exit(1)
 
     return playlist
@@ -309,7 +312,7 @@ def write_schedule(playlist: list,entry_index: int,time_rewind: int=0):
             if entry[1].info == "RESTART":
                 duration += get_stream_restart_duration()
             else:
-                raise ValueError(f"[Warn] Line {entry[0]}: Playlist directive {entry[1].info} not recognized.")
+                raise ValueError(f"{warn} Line {entry[0]}: Playlist directive {entry[1].info} not recognized.")
             continue
 
         elif entry[1].type == "normal":
@@ -371,7 +374,7 @@ def write_schedule(playlist: list,entry_index: int,time_rewind: int=0):
                 if entry[1].info == "RESTART":
                     duration += get_stream_restart_duration()
                 else:
-                    raise ValueError(f"[Error] Line {entry[0]}: Playlist directive {entry[1].info} not recognized.")
+                    raise ValueError(f"{error} Line {entry[0]}: Playlist directive {entry[1].info} not recognized.")
                 continue
 
             elif entry[1].type == "normal":

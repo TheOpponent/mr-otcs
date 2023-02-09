@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 #######################################################################
 # Mr. OTCS
@@ -6,14 +6,18 @@
 # https://github.com/TheOpponent/mr-otcs
 # https://twitter.com/TheOpponent
 
+import datetime
 import shlex
+import subprocess
 import time
+
+import psutil
+from pebble import ProcessExpired, ProcessPool
+
 import config
 import playlist
-import datetime
-import subprocess
-import psutil
-from pebble import ProcessPool, ProcessExpired
+from headers import *
+
 
 class BackgroundProcessError(Exception):
     """Raised when the background process closes prematurely for any reason.
@@ -34,11 +38,11 @@ def rtmp_task(process=None) -> subprocess.Popen:
         else:
             proc.terminate()
             if config.VERBOSE:
-                print("[Warn] Old RTMP process terminated.")
+                print(f"{info} Old RTMP process terminated.")
 
     process = subprocess.Popen(command)
     if config.VERBOSE:
-        print(f"[Info] RTMP process started at {datetime.datetime.now()}.")
+        print(f"{info} RTMP process started at {datetime.datetime.now()}.")
 
     return process
 
@@ -54,7 +58,7 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,skip_time=0):
     try:
         process = subprocess.Popen(shlex.split(command))
     except subprocess.CalledProcessError as e:
-        print(f"[Error] Encoder process terminated at {datetime.datetime.now()}, exit code {e.returncode}.")
+        print(f"{error} Encoder process terminated at {datetime.datetime.now()}, exit code {e.returncode}.")
         return e.returncode
 
     # Poll both encoder and RTMP processes.
@@ -64,7 +68,7 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,skip_time=0):
 
     if rtmp_task.poll() is not None:
         process.terminate()
-        raise BackgroundProcessError(f"[Error] RTMP process terminated unexpectedly at {datetime.datetime.now()}, exit code {rtmp_task.poll()}. Restarting stream.")
+        raise BackgroundProcessError(f"{error} RTMP process terminated unexpectedly at {datetime.datetime.now()}, exit code {rtmp_task.poll()}. Restarting stream.")
     else:
         return process.poll()
 
@@ -104,8 +108,8 @@ def int_to_time(seconds):
 
 def main():
 
-    print(f"[Info] Mr. OTCS version {config.SCRIPT_VERSION}")
-    print(f"[Info] https://github.com/TheOpponent/mr-otcs")
+    print(f"{info} Mr. OTCS version {config.SCRIPT_VERSION}")
+    print(f"{info} https://github.com/TheOpponent/mr-otcs")
 
     video_file: playlist.PlaylistEntry
 
@@ -130,14 +134,14 @@ def main():
             # length to total_elapsed_time before it plays.
             if config.STREAM_RESTART_BEFORE_VIDEO is not None:
                 total_elapsed_time += playlist.get_length(config.STREAM_RESTART_BEFORE_VIDEO)
-                print(f"[Info] {config.STREAM_RESTART_BEFORE_VIDEO} to play before stream restarts: {total_elapsed_time} seconds.\n[Info] {config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time} seconds left before restart.")
+                print(f"{info} {config.STREAM_RESTART_BEFORE_VIDEO} to play before stream restarts: {total_elapsed_time} seconds.\n{info} {config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time} seconds left before restart.")
 
             # Keep playlist index and elapsed time of current video and store
             # in file play_index.txt. Create it if it does not exist.
             play_index_contents = []
 
             if restarted:
-                print(f"[Info] Stream restarted at {datetime.datetime.now()}.")
+                print(f"{info} Stream restarted at {datetime.datetime.now()}.")
                 if config.STREAM_RESTART_AFTER_VIDEO is not None:
                     encoder = encoder_task(config.STREAM_RESTART_AFTER_VIDEO,rtmp_process)
                     if encoder == 0:
@@ -174,13 +178,13 @@ def main():
 
                 if media_playlist[play_index][1].type == "blank":
                     if config.VERBOSE:
-                        print(f"[Info] {media_playlist[play_index][0]}. Non-video file entry. Skipping.")
+                        print(f"{info} {media_playlist[play_index][0]}. Non-video file entry. Skipping.")
                     play_index += 1
                     continue
 
                 elif media_playlist[play_index][1].type == "extra":
                     if config.VERBOSE:
-                        print(f"[Info] {media_playlist[play_index][0]}. Comment: {media_playlist[play_index][1].info}")
+                        print(f"{info} {media_playlist[play_index][0]}. Comment: {media_playlist[play_index][1].info}")
                     play_index += 1
                     continue
 
@@ -190,7 +194,7 @@ def main():
                         if total_elapsed_time > config.STREAM_RESTART_MINIMUM_TIME:
                             restarted = True
 
-                            print(f"[Play] {media_playlist[play_index][0]}. Executing RESTART command.")
+                            print(f"{play} {media_playlist[play_index][0]}. Executing RESTART command.")
 
                             if config.STREAM_RESTART_BEFORE_VIDEO is not None:
                                 encoder_task(config.STREAM_RESTART_BEFORE_VIDEO,rtmp_process)
@@ -199,14 +203,14 @@ def main():
                             total_elapsed_time = 0
 
                             if config.VERBOSE:
-                                print(f"[Info] Waiting {config.STREAM_RESTART_WAIT} seconds to restart.")
+                                print(f"{info} Waiting {config.STREAM_RESTART_WAIT} seconds to restart.")
                             time.sleep(config.STREAM_RESTART_WAIT)
                             play_index += 1
                             rtmp_process = rtmp_task()
                             break
 
                         else:
-                            print(f"[Info] {media_playlist[play_index][0]}. RESTART command found, but not executing as less than {config.STREAM_RESTART_MINIMUM_TIME} seconds have passed.")
+                            print(f"{info} {media_playlist[play_index][0]}. RESTART command found, but not executing as less than {config.STREAM_RESTART_MINIMUM_TIME} seconds have passed.")
 
                         play_index += 1
                         continue
@@ -230,14 +234,14 @@ def main():
                     next_video_duration = playlist.get_length(video_file.path) - video_start_time
                     if config.STREAM_TIME_BEFORE_RESTART == 0 or total_elapsed_time + next_video_duration < config.STREAM_TIME_BEFORE_RESTART:
                         if config.VERBOSE:
-                            print(f"[Play] {media_playlist[play_index][0]}. {video_file.path}: {next_video_duration} seconds.")
+                            print(f"{play} {media_playlist[play_index][0]}. {video_file.path}: {next_video_duration} seconds.")
                             if config.STREAM_TIME_BEFORE_RESTART > 0:
-                                print(f"[Info] {config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time - next_video_duration} seconds left before restart.")
+                                print(f"{info} {config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time - next_video_duration} seconds left before restart.")
                         else:
-                            print(f"[Play] {media_playlist[play_index][0]}. {video_file.path}")
+                            print(f"{play} {media_playlist[play_index][0]}. {video_file.path}")
 
                         if video_start_time > 0:
-                            print(f"[Info] Starting from {int_to_time(video_start_time)}.")
+                            print(f"{info} Starting from {int_to_time(video_start_time)}.")
 
                         # If the second line of play_index.txt is greater than
                         # REWIND_LENGTH, pass it to media player arguments.
@@ -255,7 +259,7 @@ def main():
                         
                         if config.SCHEDULE_PATH is not None:
                             if config.VERBOSE:
-                                print(f"[Info] Writing schedule file to {config.SCHEDULE_PATH}.")
+                                print(f"{info} Writing schedule file to {config.SCHEDULE_PATH}.")
                             playlist.write_schedule(media_playlist,play_index,video_start_time)
 
                         # Always start video no earlier than video_start_time, which is read from
@@ -266,7 +270,7 @@ def main():
                         while True:
 
                             if config.VERBOSE:
-                                print(f"[Info] Encoding started on {video_time}.")
+                                print(f"{info} Encoding started on {video_time}.")
                             if playlist.elapsed_time < config.REWIND_LENGTH:
                                 write_index_future = executor.schedule(playlist.write_index,[play_index,video_start_time])
                                 encoder_result = encoder_task(video_file.path,rtmp_process,video_start_time)
@@ -276,17 +280,17 @@ def main():
 
                             if encoder_result == 0:
                                 if config.VERBOSE:
-                                    print("[Info] Video encoded successfully.")
+                                    print(f"{info} Video encoded successfully.")
                                 # Increment play_index and add video duration to
                                 # total_elapsed_time upon successful playback.
                                 write_index_future.cancel()
                                 exit_time = datetime.datetime.now()
                                 total_elapsed_time += next_video_duration
                                 if config.VERBOSE:
-                                    print(f"[Info] Elapsed stream time: {total_elapsed_time} seconds.")
+                                    print(f"{info} Elapsed stream time: {total_elapsed_time} seconds.")
                                 if play_index < len(media_playlist):
                                     play_index += 1
-                                    print(f"[Info] Incrementing play index: {play_index}")
+                                    print(f"{info} Incrementing play index: {play_index}")
                                 else:
                                     # Reset index at end of playlist.
                                     play_index = 0
@@ -303,25 +307,25 @@ def main():
                                 else:
                                     restart_time = video_start_time + playlist.elapsed_time
 
-                                print(f"[Info] Encoding failed. Retrying from {int_to_time(restart_time)}.")
+                                print(f"{info} Encoding failed. Retrying from {int_to_time(restart_time)}.")
                                 time.sleep(5)
 
                     else:
-                        print(f"[Info] STREAM_TIME_BEFORE_RESTART limit reached.")
+                        print(f"{info} STREAM_TIME_BEFORE_RESTART limit reached.")
                         restarted = True
                         if config.STREAM_RESTART_BEFORE_VIDEO is not None:
-                            print(f"[Play] STREAM_RESTART_BEFORE_VIDEO: {config.STREAM_RESTART_BEFORE_VIDEO}")
+                            print(f"{play} STREAM_RESTART_BEFORE_VIDEO: {config.STREAM_RESTART_BEFORE_VIDEO}")
                             encoder = encoder_task(config.STREAM_RESTART_BEFORE_VIDEO,rtmp_process)
 
                         restart_stream(executor,rtmp_process)
-                        print(f"[Info] Waiting {config.STREAM_RESTART_WAIT} seconds to restart stream.")
+                        print(f"{info} Waiting {config.STREAM_RESTART_WAIT} seconds to restart stream.")
                         total_elapsed_time = 0
                         time.sleep(config.STREAM_RESTART_WAIT)
                         rtmp_process = rtmp_task()
                         continue
 
             else:
-                print(f"{media_playlist[play_index][0]}. Unrecognized entry type.")
+                print(f"{warn} {media_playlist[play_index][0]}. Unrecognized entry type.")
                 play_index += 1
 
         except (ProcessExpired, BackgroundProcessError) as e:
@@ -333,7 +337,7 @@ def main():
             continue
 
         except KeyboardInterrupt:
-            print("[Info] Stopping RTMP process.")
+            print(f"{info} Stopping RTMP process.")
             rtmp_process.terminate()
             executor.stop()
             executor.join()

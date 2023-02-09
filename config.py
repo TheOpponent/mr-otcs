@@ -4,6 +4,8 @@ import json
 import os
 import sys
 from configparser import ConfigParser
+
+from headers import *
 from playlist import check_file
 
 SCRIPT_VERSION = "2.0.0"
@@ -135,11 +137,11 @@ try:
             ALT_NAMES = json.load(alt_names_json)
         except json.JSONDecodeError as e:
             print(e)
-            print(f"Error loading {ALT_NAMES_JSON_PATH} in ALT_NAMES_JSON_PATH.")
+            print(f"{warn} Error loading {ALT_NAMES_JSON_PATH} in ALT_NAMES_JSON_PATH.")
             ALT_NAMES = {}
 
 except FileNotFoundError:
-    print(f"{ALT_NAMES_JSON_PATH} in ALT_NAMES_JSON_PATH not found.")
+    print(f"{warn} {ALT_NAMES_JSON_PATH} in ALT_NAMES_JSON_PATH not found.")
     ALT_NAMES_JSON_PATH = None
     ALT_NAMES = {}
 
@@ -149,7 +151,7 @@ if SCHEDULE_EXCLUDE_FILE_PATTERN is not None:
 if STREAM_RESTART_BEFORE_VIDEO != "":
     if not check_file(STREAM_RESTART_BEFORE_VIDEO):
         if not EXIT_ON_FILE_NOT_FOUND:
-            print("STREAM_RESTART_BEFORE_VIDEO not found.")
+            print(f"{warn} STREAM_RESTART_BEFORE_VIDEO not found.")
             STREAM_RESTART_BEFORE_VIDEO = None
 else:
     STREAM_RESTART_BEFORE_VIDEO = None
@@ -157,13 +159,13 @@ else:
 if STREAM_RESTART_AFTER_VIDEO != "":
     if not check_file(STREAM_RESTART_AFTER_VIDEO):
         if not EXIT_ON_FILE_NOT_FOUND:
-            print("STREAM_RESTART_AFTER_VIDEO not found.")
+            print(f"{warn} STREAM_RESTART_AFTER_VIDEO not found.")
             STREAM_RESTART_AFTER_VIDEO = None
 else:
     STREAM_RESTART_AFTER_VIDEO = None
 
 if STREAM_URL == "":
-    print(f"STREAM_URL in {config_file} is blank. Enter a valid stream location and run main.py again.")
+    print(f"{error} STREAM_URL in {config_file} is blank. Enter a valid stream location and run main.py again.")
     exit(1)
 
 
