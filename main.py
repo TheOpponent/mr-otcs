@@ -228,9 +228,11 @@ def main():
 
                 if result:
                     next_video_duration = playlist.get_length(video_file.path) - video_start_time
-                    if total_elapsed_time + next_video_duration < config.STREAM_TIME_BEFORE_RESTART:
+                    if config.STREAM_TIME_BEFORE_RESTART == 0 or total_elapsed_time + next_video_duration < config.STREAM_TIME_BEFORE_RESTART:
                         if config.VERBOSE:
-                            print(f"[Play] {media_playlist[play_index][0]}. {video_file.path}: {next_video_duration} seconds.\n[Info] {config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time - next_video_duration} seconds left before restart.")
+                            print(f"[Play] {media_playlist[play_index][0]}. {video_file.path}: {next_video_duration} seconds.")
+                            if config.STREAM_TIME_BEFORE_RESTART > 0:
+                                print(f"[Info] {config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time - next_video_duration} seconds left before restart.")
                         else:
                             print(f"[Play] {media_playlist[play_index][0]}. {video_file.path}")
 
