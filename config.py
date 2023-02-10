@@ -6,7 +6,6 @@ import sys
 from configparser import ConfigParser
 
 from headers import *
-from playlist import check_file
 
 SCRIPT_VERSION = "2.0.0"
 
@@ -151,8 +150,10 @@ else:
 if SCHEDULE_EXCLUDE_FILE_PATTERN is not None:
     SCHEDULE_EXCLUDE_FILE_PATTERN = tuple([i.strip().casefold().replace("\\","/") for i in SCHEDULE_EXCLUDE_FILE_PATTERN.split(",")])
 
+# STREAM_RESTART_BEFORE_VIDEO and STREAM_RESTART_AFTER_VIDEO are only checked
+# as existing once at startup.
 if STREAM_RESTART_BEFORE_VIDEO != "":
-    if not check_file(STREAM_RESTART_BEFORE_VIDEO):
+    if not os.path.isfile(STREAM_RESTART_BEFORE_VIDEO):
         if not EXIT_ON_FILE_NOT_FOUND:
             print(f"{warn} STREAM_RESTART_BEFORE_VIDEO not found.")
             STREAM_RESTART_BEFORE_VIDEO = None
@@ -160,7 +161,7 @@ else:
     STREAM_RESTART_BEFORE_VIDEO = None
 
 if STREAM_RESTART_AFTER_VIDEO != "":
-    if not check_file(STREAM_RESTART_AFTER_VIDEO):
+    if not os.path.isfile(STREAM_RESTART_AFTER_VIDEO):
         if not EXIT_ON_FILE_NOT_FOUND:
             print(f"{warn} STREAM_RESTART_AFTER_VIDEO not found.")
             STREAM_RESTART_AFTER_VIDEO = None
