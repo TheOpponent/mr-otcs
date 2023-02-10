@@ -346,6 +346,7 @@ def main():
             rtmp_process.terminate()
             executor.stop()
             executor.join()
+            print(f"{info} Exiting.")
             exit(0)
 
         except Exception as e:
