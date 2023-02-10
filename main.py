@@ -121,6 +121,10 @@ def main():
     # will exceed STREAM_TIME_BEFORE_RESTART.
     rtmp_process = rtmp_task()
 
+    # Keep list of extra entries that get passed over, and pass it to
+    # write_schedule().
+    extra_entries = []
+
     while True:
         try:
             executor = ProcessPool()
@@ -172,9 +176,12 @@ def main():
                 video_start_time = 0
 
             # Get next item in media_playlist that is a PlaylistEntry of type "normal".
-            while media_playlist[play_index][1].type != "normal":
+            while True:
                 if play_index >= len(media_playlist):
                     play_index = 0
+
+                if media_playlist[play_index][1].type == "normal":
+                    break
 
                 if media_playlist[play_index][1].type == "blank":
                     if config.VERBOSE:
@@ -184,7 +191,8 @@ def main():
 
                 elif media_playlist[play_index][1].type == "extra":
                     if config.VERBOSE:
-                        print(f"{info} {media_playlist[play_index][0]}. Comment: {media_playlist[play_index][1].info}")
+                        print(f"{info} {media_playlist[play_index][0]}. Extra: {media_playlist[play_index][1].info}")
+                    extra_entries.append(media_playlist[play_index][1])
                     play_index += 1
                     continue
 
@@ -262,9 +270,9 @@ def main():
                             if config.VERBOSE:
                                 print(f"{info} Writing schedule file to {config.SCHEDULE_PATH}.")
                             if playlist.elapsed_time < config.REWIND_LENGTH:
-                                schedule_future = executor.schedule(playlist.write_schedule,(media_playlist,play_index,video_start_time,config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time))
+                                schedule_future = executor.schedule(playlist.write_schedule,(media_playlist,play_index,video_start_time,config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time,extra_entries))
                             else:
-                                schedule_future = executor.schedule(playlist.write_schedule,(media_playlist,play_index,video_start_time + playlist.elapsed_time,config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time))
+                                schedule_future = executor.schedule(playlist.write_schedule,(media_playlist,play_index,video_start_time + playlist.elapsed_time,config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time,extra_entries))
                             schedule_future.result()
 
                         # Always start video no earlier than video_start_time, which is read from
@@ -291,6 +299,7 @@ def main():
                                 write_index_future.cancel()
                                 exit_time = datetime.datetime.now()
                                 total_elapsed_time += next_video_length
+                                extra_entries = []
                                 if config.VERBOSE:
                                     print(f"{info} Elapsed stream time: {total_elapsed_time} seconds.")
                                 if play_index < len(media_playlist):
@@ -323,6 +332,7 @@ def main():
                             encoder = encoder_task(config.STREAM_RESTART_BEFORE_VIDEO,rtmp_process)
 
                         restart_stream(executor,rtmp_process)
+                        extra_entries = []
                         print(f"{info} Waiting {config.STREAM_RESTART_WAIT} seconds to restart stream.")
                         total_elapsed_time = 0
                         time.sleep(config.STREAM_RESTART_WAIT)
@@ -354,8 +364,8 @@ def main():
             rtmp_process.terminate()
             executor.stop()
             executor.join()
-            print(f"{error} Fatal error encountered. Terminating stream.")
-            exit(1)
+            print(f"{error} Fatal error encountered on {datetime.datetime.now()}. Terminating stream.")
+            raise e
 
 if __name__ == "__main__":
     main()

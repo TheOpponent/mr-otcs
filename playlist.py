@@ -182,19 +182,24 @@ def create_playlist() -> list[Tuple[int,PlaylistEntry]]:
 
         # Read the ALT_NAMES dictionary. If filename has a matching
         # key, replace the name with the value.
-        if new_entry.name[0] in config.ALT_NAMES:
+        if new_entry.type == "normal" and new_entry.name in config.ALT_NAMES:
             if isinstance(config.ALT_NAMES[new_entry.name],str):
-                new_entry.name = config.ALT_NAMES[new_entry.name[0]]
+                new_entry.name = config.ALT_NAMES[new_entry.name]
             else:
                 print(f"{warn} Alternate name for {new_entry.name} in alt_names.json is not a valid string.")
-        else:
-            new_entry.name = new_entry.name[0]
 
         if config.VERBOSE:
-            if i is not None:
-                print(f"[Info] Adding entry: {index}. {new_entry.name}")
-            else:
-                print(f"[Info] Adding entry: {index}. (Comment line)")
+            if new_entry.type == "normal":
+                if new_entry.info == "":
+                    print(f"{info} Adding normal entry: {index}. {new_entry.name}")
+                else:
+                    print(f"{info} Adding normal entry: {index}. {new_entry.name} - Extra info: {new_entry.info}")
+            elif new_entry.type == "extra":
+                print(f"{info} Adding extra entry: {index}. {new_entry.info}")
+            elif new_entry.type == "command":
+                print(f"{info} Adding directive: {index}. {new_entry.info}")
+            elif new_entry.type == "blank":
+                print(f"{info} Blank line or comment: {index}.")
         playlist.append((index,new_entry))
 
         index += 1
@@ -228,12 +233,12 @@ def get_stream_restart_duration():
 # the playlist.
 recent_playlist = deque()
 if config.SCHEDULE_PREVIOUS_MAX_VIDEOS:
-    previous_files = deque(maxlen=config.SCHEDULE_PREVIOUS_MAX_VIDEOS)
+    previous_files = deque()
 else:
     previous_files = None
 
 
-def write_schedule(playlist: list,entry_index: int,first_length_offset: int=0,stream_time_remaining: int=0):
+def write_schedule(playlist: list,entry_index: int,first_length_offset: int=0,stream_time_remaining: int=0,extra_entries=[]):
     """Write a JSON file containing file names and lengths read from playlist.
     The playlist, a list created by create_playlist(), is read starting from
     the entry_index.
@@ -248,6 +253,10 @@ def write_schedule(playlist: list,entry_index: int,first_length_offset: int=0,st
     stream_time_remaining is used to predict time-based automatic stream
     restarts. The calculated length of the first video in the sliced
     playlist is subtracted from this amount.
+
+    Any PlaylistEntry objects in the extra_entries list will be added
+    before the first video in the generated JSON. Only "extra" type entries
+    are currently supported; all others are ignored.
 
     The JSON file includes the following keys:
     start_time: The time this function was called, which approximates
@@ -306,7 +315,21 @@ def write_schedule(playlist: list,entry_index: int,first_length_offset: int=0,st
 
     length_offset = -first_length_offset
 
-    # First entry is the file playing now and is added unconditionally.
+    # Add extra entries before currently playing video.
+    for entry in extra_entries:
+        if entry.type != "extra":
+            continue
+        else:
+            coming_up_next_json.append({
+                "type":"extra",
+                "name":"",
+                "time":"",
+                "unixtime":0,
+                "length":0,
+                "extra_info":entry.info
+            })
+
+    # First entry is the video playing now and is added unconditionally.
     sub_playlist = iter_playlist(playlist,entry_index)
     entry = next(sub_playlist)
     entry_length = get_length(entry[1].path) + config.VIDEO_PADDING + length_offset
@@ -394,135 +417,31 @@ def write_schedule(playlist: list,entry_index: int,first_length_offset: int=0,st
 
     if previous_files is not None:
         prev_total_duration = 0
+
         # When the program starts, recent_playlist will be empty.
         if len(recent_playlist):
+            # Pop left from recent_playlist and append until a normal entry is added.
             previous_files.append(recent_playlist.popleft())
+            while previous_files[-1]["type"] != "normal":
+                previous_files.append(recent_playlist.popleft())
 
             # If combined length of previous_files exceeds SCHEDULE_PREVIOUS_LENGTH,
-            # pop left.
+            # or number of videos exceeds SCHEDULE_PREVIOUS_MAX_VIDEOS, pop left.
             for i in previous_files:
                 if i["type"] == "normal":
                     prev_total_duration += i["length"]
 
+            if sum([i["type"] == "normal" for i in previous_files]) > config.SCHEDULE_PREVIOUS_MAX_VIDEOS:
+                while previous_files[-1]["type"] != "normal":
+                    previous_files.popleft()
+                previous_files.popleft()
+
             while len(previous_files) > 1 and prev_total_duration > (config.SCHEDULE_PREVIOUS_LENGTH * 60):
                 pop = previous_files.popleft()
-                prev_total_duration -= pop["length"]
+                if pop["type"] == "normal":
+                    prev_total_duration -= pop["length"]
 
         recent_playlist = deque(coming_up_next_json.copy())
-
-        # Break when either limit is reached.
-        # if (len([i for i in coming_up_next if i["type"] == "normal"]) > config.SCHEDULE_MAX_VIDEOS or total_duration > (config.SCHEDULE_UPCOMING_LENGTH * 60)):
-        #     break
-
-        # # Skip blank lines.
-        # if entry[1].type == "blank":
-        #     continue
-
-        # # Add extra lines and continue.
-        # if entry[1].type == "extra":
-        #     coming_up_next.append({
-        #         "type":"extra",
-        #         "name":"",
-        #         "time":"",
-        #         "extra_info":entry[1].info
-        #         })
-        #     continue
-
-        # elif entry[1].type == "command":
-        #     if entry[1].info == "RESTART":
-        #         duration += get_stream_restart_duration()
-        #     else:
-        #         raise ValueError(f"{warn} Line {entry[0]}: Playlist directive {entry[1].info} not recognized.")
-        #     continue
-
-        # elif entry[1].type == "normal":
-        #     if config.SCHEDULE_EXCLUDE_FILE_PATTERN is not None and entry[1].name.casefold().startswith(config.SCHEDULE_EXCLUDE_FILE_PATTERN):
-        #         if config.VERBOSE:
-        #             print(f"[Info] Line {entry[0]}: File name {entry[1].name} matches SCHEDULE_EXCLUDE_FILE_PATTERN; not adding to schedule.")
-        #         continue
-        #     if check_file(entry[1].path,line_num=entry[0]):
-        #         duration += get_length(entry[1].path) + config.VIDEO_PADDING
-        #         stream_time_remaining -= duration
-        #         if stream_time_remaining <= 0:
-        #             next_time += datetime.timedelta(seconds=get_stream_restart_duration())
-        #             stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
-        #         coming_up_next.append({
-        #             "type":"normal",
-        #             "name":entry[1].name,
-        #             "time":next_time.strftime("%Y-%m-%d %H:%M:%S"),
-        #             "extra_info":entry[1].info
-        #         })
-
-        # else:
-        #     print(f"Line {entry[0]}: Invalid entry.")
-        #     continue
-
-        # Add length of current video to current time and use as
-        # starting time for next video.
-        # next_time += datetime.timedelta(seconds=duration)
-        # duration = 0
-
-    # Get names and start times of previous videos.
-    # Process is similar to adding upcoming videos but some steps
-    # run in opposite order.
-    # If time_rewind is not 0 because of a resume, do not provide
-    # previous file information, as a stream may have restarted
-    # after an unexpected exit.
-
-
-        # Insert at least one entry from the last coming_up_next
-        # deque that was generated last time this function was called.
-        # When this program starts, it will be empty.
-        # if len(previous_playlist):
-
-        # prev_time = datetime.datetime.utcnow()
-        # duration = 0
-        # total_duration = 0
-
-    #     for entry in get_prev_file(playlist,entry_index):
-
-    #         if (len([i for i in previous_files if i["type"] == "normal"]) > config.SCHEDULE_PREVIOUS_MAX_VIDEOS or total_duration > (config.SCHEDULE_PREVIOUS_LENGTH * 60)):
-    #             break
-
-    #         # Skip comment lines.
-    #         if entry[1] is None:
-    #             continue
-
-    #         # Add extra lines and continue.
-    #         if entry[1].type == "extra":
-    #             previous_files.appendleft({
-    #                 "type":"extra",
-    #                 "name":"",
-    #                 "time":"",
-    #                 "extra_info":entry[1].info
-    #                 })
-    #             continue
-
-    #         elif entry[1].type == "command":
-    #             if entry[1].info == "RESTART":
-    #                 duration += get_stream_restart_duration()
-    #             else:
-    #                 raise ValueError(f"{error} Line {entry[0]}: Playlist directive {entry[1].info} not recognized.")
-    #             continue
-
-    #         elif entry[1].type == "normal":
-
-    #             if check_file(entry[1].path,line_num=entry[0]):
-    #                 duration += get_length(entry[1].path) + config.VIDEO_PADDING
-    #                 # Subtract duration from current time before appending.
-    #                 prev_time -= datetime.timedelta(seconds=duration)
-    #                 previous_files.appendleft({
-    #                     "type":"normal",
-    #                     "name":entry[1].name,
-    #                     "time":prev_time.strftime("%Y-%m-%d %H:%M:%S"),
-    #                     "extra_info":entry[1].info
-    #                 })
-
-    #         duration = 0
-
-    # else:
-    #     previous_files = []
-
 
     schedule_json_out = {
         "start_time":start_time.strftime("%Y-%m-%d %H:%M:%S"),
