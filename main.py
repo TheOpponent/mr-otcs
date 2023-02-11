@@ -312,13 +312,12 @@ def main():
 
                             # Retry if encoder process fails.
                             else:
-                                if playlist.elapsed_time < config.REWIND_LENGTH:
-                                    restart_time = stats.elapsed_time
-                                else:
-                                    restart_time = stats.elapsed_time + playlist.elapsed_time
+                                if stats.elapsed_time < config.REWIND_LENGTH:
+                                    stats.elapsed_time = 0
+                                restart_time = stats.elapsed_time 
 
                                 print(f"{info} Encoding failed. Retrying from {int_to_time(restart_time)}.")
-                                time.sleep(5)
+                                # time.sleep(1)
 
                     else:
                         print(f"{info} STREAM_TIME_BEFORE_RESTART limit reached.")
