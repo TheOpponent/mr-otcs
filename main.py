@@ -266,14 +266,14 @@ def main():
                             write_play_history(video_file.name,media_playlist[play_index][0],video_time)
 
                         # Write schedule only once per video file.
+                        # TODO: When write_schedule() is run as a Future, the recent_playlist and previous_files deques are always empty.
                         if config.SCHEDULE_PATH is not None:
                             if config.VERBOSE:
                                 print(f"{info} Writing schedule file to {config.SCHEDULE_PATH}.")
                             if playlist.elapsed_time < config.REWIND_LENGTH:
-                                schedule_future = executor.schedule(playlist.write_schedule,(media_playlist,play_index,video_start_time,config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time,extra_entries))
+                                playlist.write_schedule(media_playlist,play_index,video_start_time,config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time,extra_entries)
                             else:
-                                schedule_future = executor.schedule(playlist.write_schedule,(media_playlist,play_index,video_start_time + playlist.elapsed_time,config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time,extra_entries))
-                            schedule_future.result()
+                                playlist.write_schedule(media_playlist,play_index,video_start_time + playlist.elapsed_time,config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time,extra_entries)
 
                         # Always start video no earlier than video_start_time, which is read from
                         # play_index.txt file at the start of the loop.
