@@ -40,7 +40,12 @@ def rtmp_task(process=None) -> subprocess.Popen:
             if config.VERBOSE:
                 print(f"{info} Old RTMP process terminated.")
 
-    process = subprocess.Popen(command)
+    try:
+        process = subprocess.Popen(command)
+    except subprocess.CalledProcessError as e:
+        print(f"{error} RTMP process terminated at {datetime.datetime.now()}, exit code {e.returncode}.")
+        return e.returncode
+
     if config.VERBOSE:
         print(f"{info} RTMP process started at {datetime.datetime.now()}.")
 
@@ -53,10 +58,20 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,skip_time=0):
     process exits with a non-zero code, returns False. Otherwise, returns
     True."""
 
-    command = f"{config.MEDIA_PLAYER_PATH} {config.MEDIA_PLAYER_ARGUMENTS.format(file=file,skip_time=skip_time)}"
+    command = shlex.split(f"{config.MEDIA_PLAYER_PATH} {config.MEDIA_PLAYER_ARGUMENTS.format(file=file,skip_time=skip_time)}")
+
+    # Check if encoding ffmpeg is already running and terminate any processes
+    # that match the command line.
+    for proc in psutil.process_iter(['cmdline']):
+        if proc.info['cmdline'] != command:
+            continue
+        else:
+            proc.terminate()
+            if config.VERBOSE:
+                print(f"{info} Old encoder process terminated.")
 
     try:
-        process = subprocess.Popen(shlex.split(command))
+        process = subprocess.Popen(command)
     except subprocess.CalledProcessError as e:
         print(f"{error} Encoder process terminated at {datetime.datetime.now()}, exit code {e.returncode}.")
         return e.returncode
