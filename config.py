@@ -168,10 +168,6 @@ if STREAM_RESTART_AFTER_VIDEO != "":
 else:
     STREAM_RESTART_AFTER_VIDEO = None
 
-if STREAM_URL == "":
-    print(f"{error} STREAM_URL in {config_file} is blank. Enter a valid stream location and run main.py again.")
-    exit(1)
-
 
 if __name__ == "__main__":
     print("Run python3 main.py to start this program.")

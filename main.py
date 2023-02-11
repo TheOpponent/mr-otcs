@@ -128,6 +128,10 @@ def main():
     print(f"{info} Mr. OTCS version {config.SCRIPT_VERSION}")
     print(f"{info} https://github.com/TheOpponent/mr-otcs")
 
+    if config.STREAM_URL == "":
+        print(f"{error} STREAM_URL in {config.config_file} is blank. Enter a valid stream location and run main.py again.")
+        exit(1)
+
     restarted = False
     media_playlist = playlist.create_playlist()
     total_elapsed_time = 0
