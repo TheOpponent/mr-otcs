@@ -73,12 +73,38 @@ class PlaylistEntry():
         else:
             self.type = "normal"
             split_name = entry.split(" :",1)
-            self.name = os.path.splitext(split_name[0])
+            self.name = os.path.splitext(split_name[0])[0]
             self.path = os.path.join(config.BASE_PATH,''.join(split_name[0]))
             if len(split_name) > 1:
                 self.info = split_name[1]
             else:
                 self.info = ""
+
+
+class StreamStats():
+    """A class to store persistent information regarding the stream runtime
+    and the history of the schedule."""
+
+    recent_playlist: deque
+    "A copy of the dict objects that were written as JSON objects on the most recent call to write_schedule()."
+
+    previous_files: deque
+    "Entries from recent_playlist are popped from the left and appended to this deque."
+
+    stream_start_time: datetime.datetime
+    "The time this program was started, in UTC."
+
+    elapsed_time: int
+    "Seconds the current video has been playing."
+
+    def __init__(self):
+        self.recent_playlist = deque()
+        if config.SCHEDULE_PREVIOUS_MAX_VIDEOS:
+            self.previous_files = deque()
+        else:
+            self.previous_files = None
+        self.stream_start_time = datetime.datetime.utcnow()
+        self.elapsed_time = 0
 
 
 def get_length(video):
@@ -229,16 +255,7 @@ def get_stream_restart_duration():
     return duration
 
 
-# History of previous files is built as the program proceeds through
-# the playlist.
-recent_playlist = deque()
-if config.SCHEDULE_PREVIOUS_MAX_VIDEOS:
-    previous_files = deque()
-else:
-    previous_files = None
-
-
-def write_schedule(playlist: list,entry_index: int,first_length_offset: int=0,stream_time_remaining: int=0,extra_entries=[]):
+def write_schedule(playlist: list,entry_index: int,stats: StreamStats,first_length_offset: int=0,stream_time_remaining: int=0,extra_entries=[]):
     """Write a JSON file containing file names and lengths read from playlist.
     The playlist, a list created by create_playlist(), is read starting from
     the entry_index.
@@ -259,6 +276,7 @@ def write_schedule(playlist: list,entry_index: int,first_length_offset: int=0,st
     are currently supported; all others are ignored.
 
     The JSON file includes the following keys:
+    stream_start_time: The time this program began, in UTC.
     start_time: The time this function was called, which approximates
     to the time the currently playing video file began, in UTC.
     coming_up_next: Nested JSON objects with a combined duration not
@@ -278,8 +296,6 @@ def write_schedule(playlist: list,entry_index: int,first_length_offset: int=0,st
     Note that the time and unixtime values for objects after the first are
     estimates, due to variances in stream delivery.
     """
-
-    global previous_files, recent_playlist
 
     def iter_playlist(list_sub,index_sub) -> Generator[Tuple[int,PlaylistEntry],None,None]:
         """Get next file from list, looping the list around when it
@@ -312,6 +328,9 @@ def write_schedule(playlist: list,entry_index: int,first_length_offset: int=0,st
     # PlaylistEntry objects.
     coming_up_next = deque()
     coming_up_next_json = []
+
+    if stats.elapsed_time < config.REWIND_LENGTH:
+        first_length_offset = 0
 
     length_offset = -first_length_offset
 
@@ -415,38 +434,39 @@ def write_schedule(playlist: list,entry_index: int,first_length_offset: int=0,st
             else:
                 print(f"{warn} Line {entry[0]}: Invalid entry. Skipping.")
 
-    if previous_files is not None:
+    if stats.previous_files is not None:
         prev_total_duration = 0
 
         # When the program starts, recent_playlist will be empty.
-        if len(recent_playlist):
+        if len(stats.recent_playlist):
             # Pop left from recent_playlist and append until a normal entry is added.
-            previous_files.append(recent_playlist.popleft())
-            while previous_files[-1]["type"] != "normal":
-                previous_files.append(recent_playlist.popleft())
+            stats.previous_files.append(stats.recent_playlist.popleft())
+            while stats.previous_files[-1]["type"] != "normal":
+                stats.previous_files.append(stats.recent_playlist.popleft())
 
             # If combined length of previous_files exceeds SCHEDULE_PREVIOUS_LENGTH,
             # or number of videos exceeds SCHEDULE_PREVIOUS_MAX_VIDEOS, pop left.
-            for i in previous_files:
+            for i in stats.previous_files:
                 if i["type"] == "normal":
                     prev_total_duration += i["length"]
 
-            if sum([i["type"] == "normal" for i in previous_files]) > config.SCHEDULE_PREVIOUS_MAX_VIDEOS:
-                while previous_files[-1]["type"] != "normal":
-                    previous_files.popleft()
-                previous_files.popleft()
+            if sum([i["type"] == "normal" for i in stats.previous_files]) > config.SCHEDULE_PREVIOUS_MAX_VIDEOS:
+                while stats.previous_files[-1]["type"] != "normal":
+                    stats.previous_files.popleft()
+                stats.previous_files.popleft()
 
-            while len(previous_files) > 1 and prev_total_duration > (config.SCHEDULE_PREVIOUS_LENGTH * 60):
-                pop = previous_files.popleft()
+            while len(stats.previous_files) > 1 and prev_total_duration > (config.SCHEDULE_PREVIOUS_LENGTH * 60):
+                pop = stats.previous_files.popleft()
                 if pop["type"] == "normal":
                     prev_total_duration -= pop["length"]
 
-        recent_playlist = deque(coming_up_next_json.copy())
+        stats.recent_playlist = deque(coming_up_next_json.copy())
 
     schedule_json_out = {
-        "start_time":start_time.strftime("%Y-%m-%d %H:%M:%S"),
+        "stream_start_time":stats.stream_start_time.strftime("%Y-%m-%d %H:%M:%S"),
+        "video_start_time":start_time.strftime("%Y-%m-%d %H:%M:%S"),
         "coming_up_next":list(coming_up_next_json),
-        "previous_files":list(previous_files),
+        "previous_files":list(stats.previous_files),
         "script_version":config.SCRIPT_VERSION
         }
 
@@ -474,22 +494,19 @@ def upload_sftp():
         print("pysftp is not installed.")
 
 
-elapsed_time = 0
-
-def write_index(play_index, video_start_time):
+def write_index(play_index, video_start_time, stats):
     """Write play_index and elapsed time to play_index.txt
-    at the period set by TIME_RECORD_INTERVAL.
+    at the period set by TIME_RECORD_INTERVAL. A StreamStats object
+    is used to track elapsed time.
     """
 
-    global elapsed_time
-
-    elapsed_time = 0
+    stats.elapsed_time = 0
 
     while True:
         with open(config.PLAY_INDEX_FILE,"w") as index_file:
-            index_file.write(f"{play_index}\n{video_start_time + elapsed_time}")
+            index_file.write(f"{play_index}\n{video_start_time + stats.elapsed_time}")
 
-        elapsed_time += config.TIME_RECORD_INTERVAL
+        stats.elapsed_time += config.TIME_RECORD_INTERVAL
         time.sleep(config.TIME_RECORD_INTERVAL)
 
 
