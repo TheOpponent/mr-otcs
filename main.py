@@ -290,7 +290,6 @@ def main():
 
                 if result:
                     next_video_length = playlist.get_length(video_file.path)
-                    print(stats.videos_since_restart)
                     if (config.STREAM_TIME_BEFORE_RESTART == 0 or stats.videos_since_restart == 0) or (total_elapsed_time + next_video_length < config.STREAM_TIME_BEFORE_RESTART):
                         print(f"{play} {media_playlist[play_index][0]}. {video_file.path} - Length: {int_to_time(next_video_length)}.")
 
