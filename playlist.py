@@ -398,7 +398,7 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,first_leng
 
         # Break when either limit is reached. Entries that were skipped for
         # matching SCHEDULE_EXCLUDE_FILE_PATTERN are not counted.
-        if (len([i for i in coming_up_next if i.type == "normal"]) >= (config.SCHEDULE_MAX_VIDEOS + skipped_normal_entries) or total_duration > (config.SCHEDULE_UPCOMING_LENGTH * 60)):
+        if (len([i for i in coming_up_next if i.type == "normal"]) >= (config.SCHEDULE_MAX_VIDEOS + skipped_normal_entries) or total_duration > (config.SCHEDULE_UPCOMING_LENGTH)):
             break
 
         if entry[1].type == "blank":
@@ -491,7 +491,7 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,first_leng
                     stats.previous_files.popleft()
                 stats.previous_files.popleft()
 
-            while len(stats.previous_files) > 1 and prev_total_duration > (config.SCHEDULE_PREVIOUS_LENGTH * 60):
+            while len(stats.previous_files) > 1 and prev_total_duration > (config.SCHEDULE_PREVIOUS_LENGTH):
                 pop = stats.previous_files.popleft()
                 if pop["type"] == "normal":
                     prev_total_duration -= pop["length"]

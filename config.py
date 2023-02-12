@@ -26,9 +26,9 @@ ini_defaults = {
         "VIDEO_PADDING":2,
         "MEDIA_PLAYER_ARGUMENTS":"-hide_banner -re -ss {elapsed_time} -i {file} -filter_complex \"[0:v]scale=1280x720,fps=30[scaled];[scaled]tpad=stop_duration=%(VIDEO_PADDING)s;apad=pad_dur=%(VIDEO_PADDING)s\" -c:v h264_omx -b:v 4000k -acodec aac -b:a 192k -ar 48000 -f flv -g 60 rtmp://localhost:1935/live/",
         "RTMP_ARGUMENTS":"-i rtmp://localhost:1935/live -loglevel error -vcodec copy -acodec copy -f flv %(STREAM_URL)s",
-        "STREAM_TIME_BEFORE_RESTART":86400,
+        "STREAM_TIME_BEFORE_RESTART":1440,
         "STREAM_RESTART_WAIT":10,
-        "STREAM_RESTART_MINIMUM_TIME":1800,
+        "STREAM_RESTART_MINIMUM_TIME":30,
         "STREAM_RESTART_BEFORE_VIDEO":"",
         "STREAM_RESTART_AFTER_VIDEO":""
         },
@@ -101,20 +101,9 @@ RTMP_STREAMER_PATH = default_ini.get("Paths","RTMP_STREAMER_PATH")
 FFPROBE_PATH = default_ini.get("Paths","FFPROBE_PATH")
 BASE_PATH = os.path.expanduser(default_ini.get("Paths","BASE_PATH"))
 PLAY_INDEX_FILE = os.path.expanduser(default_ini.get("Paths","PLAY_INDEX_FILE"))
-if default_ini.get("Paths","PLAY_HISTORY_FILE") != "":
-    PLAY_HISTORY_FILE = os.path.expanduser(default_ini.get("Paths","PLAY_HISTORY_FILE"))
-else:
-    PLAY_HISTORY_FILE = None
-
-if default_ini.get("Paths","SCHEDULE_PATH") != "":
-    SCHEDULE_PATH = os.path.expanduser(default_ini.get("Paths","SCHEDULE_PATH"))
-else:
-    SCHEDULE_PATH = None
-
-if default_ini.get("Paths","ALT_NAMES_JSON_PATH") != "":
-    ALT_NAMES_JSON_PATH = os.path.expanduser(default_ini.get("Paths","ALT_NAMES_JSON_PATH"))
-else:
-    ALT_NAMES_JSON_PATH = None
+PLAY_HISTORY_FILE = os.path.expanduser(default_ini.get("Paths","PLAY_HISTORY_FILE")) if default_ini.get("Paths","PLAY_HISTORY_FILE") != "" else None
+SCHEDULE_PATH = os.path.expanduser(default_ini.get("Paths","SCHEDULE_PATH")) if default_ini.get("Paths","SCHEDULE_PATH") != "" else None
+ALT_NAMES_JSON_PATH = os.path.expanduser(default_ini.get("Paths","ALT_NAMES_JSON_PATH")) if default_ini.get("Paths","ALT_NAMES_JSON_PATH") != "" else None
 
 MEDIA_PLAYLIST = os.path.expanduser(default_ini.get("Paths","MEDIA_PLAYLIST"))
 
@@ -122,9 +111,9 @@ MEDIA_PLAYER_ARGUMENTS = default_ini.get("VideoOptions","MEDIA_PLAYER_ARGUMENTS"
 RTMP_ARGUMENTS = default_ini.get("VideoOptions","RTMP_ARGUMENTS")
 VIDEO_PADDING = default_ini.getint("VideoOptions","VIDEO_PADDING")
 STREAM_URL = default_ini.get("VideoOptions","STREAM_URL")
-STREAM_TIME_BEFORE_RESTART = default_ini.getint("VideoOptions","STREAM_TIME_BEFORE_RESTART")
+STREAM_TIME_BEFORE_RESTART = default_ini.getint("VideoOptions","STREAM_TIME_BEFORE_RESTART") * 60
 STREAM_RESTART_WAIT = default_ini.getint("VideoOptions","STREAM_RESTART_WAIT")
-STREAM_RESTART_MINIMUM_TIME = default_ini.getint("VideoOptions","STREAM_RESTART_MINIMUM_TIME")
+STREAM_RESTART_MINIMUM_TIME = default_ini.getint("VideoOptions","STREAM_RESTART_MINIMUM_TIME") * 60
 STREAM_RESTART_BEFORE_VIDEO = default_ini.get("VideoOptions","STREAM_RESTART_BEFORE_VIDEO")
 STREAM_RESTART_AFTER_VIDEO = default_ini.get("VideoOptions","STREAM_RESTART_AFTER_VIDEO")
 
@@ -132,9 +121,9 @@ TIME_RECORD_INTERVAL = default_ini.getint("PlayIndex","TIME_RECORD_INTERVAL")
 REWIND_LENGTH = default_ini.getint("PlayIndex","REWIND_LENGTH")
 
 SCHEDULE_MAX_VIDEOS = default_ini.getint("Schedule","SCHEDULE_MAX_VIDEOS")
-SCHEDULE_UPCOMING_LENGTH = default_ini.getint("Schedule","SCHEDULE_UPCOMING_LENGTH")
+SCHEDULE_UPCOMING_LENGTH = default_ini.getint("Schedule","SCHEDULE_UPCOMING_LENGTH") * 60
 SCHEDULE_PREVIOUS_MAX_VIDEOS = default_ini.getint("Schedule","SCHEDULE_PREVIOUS_MAX_VIDEOS")
-SCHEDULE_PREVIOUS_LENGTH = default_ini.getint("Schedule","SCHEDULE_PREVIOUS_LENGTH")
+SCHEDULE_PREVIOUS_LENGTH = default_ini.getint("Schedule","SCHEDULE_PREVIOUS_LENGTH") * 60
 
 if default_ini.get("Schedule","SCHEDULE_EXCLUDE_FILE_PATTERN") != "":
     SCHEDULE_EXCLUDE_FILE_PATTERN = tuple([i.strip().casefold().replace("\\","/") for i in default_ini.get("Schedule","SCHEDULE_EXCLUDE_FILE_PATTERN").split(",")])
@@ -145,27 +134,13 @@ RETRY_ATTEMPTS = default_ini.getint("Retry","RETRY_ATTEMPTS")
 RETRY_PERIOD = default_ini.getint("Retry","RETRY_PERIOD")
 EXIT_ON_FILE_NOT_FOUND = default_ini.getboolean("Retry","EXIT_ON_FILE_NOT_FOUND")
 
-REMOTE_ADDRESS = default_ini.get("SFTP","REMOTE_ADDRESS")
-REMOTE_USERNAME = default_ini.get("SFTP","REMOTE_USERNAME")
-
-if default_ini.get("SFTP","REMOTE_PASSWORD") != "":
-    REMOTE_PASSWORD = default_ini.get("SFTP","REMOTE_PASSWORD")
-else:
-    REMOTE_PASSWORD = None
-
-REMOTE_PORT = default_ini.getint("SFTP","REMOTE_PORT")
-
-if default_ini.get("SFTP","REMOTE_KEY_FILE") != "":
-    REMOTE_KEY_FILE = default_ini.get("SFTP","REMOTE_KEY_FILE")
-else:
-    REMOTE_KEY_FILE = None
-
-if default_ini.get("SFTP","REMOTE_KEY_FILE_PASSWORD") != "":
-    REMOTE_KEY_FILE_PASSWORD = default_ini.get("SFTP","REMOTE_KEY_FILE_PASSWORD")
-else:
-    REMOTE_KEY_FILE_PASSWORD = None
-
-REMOTE_DIRECTORY = default_ini.get("SFTP","REMOTE_DIRECTORY")
+REMOTE_ADDRESS = default_ini.get("SFTP","REMOTE_ADDRESS") if default_ini.get("SFTP","REMOTE_ADDRESS") != "" else None
+REMOTE_USERNAME = default_ini.get("SFTP","REMOTE_USERNAME") if default_ini.get("SFTP","REMOTE_USERNAME") != "" else None
+REMOTE_PASSWORD = default_ini.get("SFTP","REMOTE_PASSWORD") if default_ini.get("SFTP","REMOTE_PASSWORD") != "" else None
+REMOTE_PORT = default_ini.getint("SFTP","REMOTE_PORT") if default_ini.getint("SFTP","REMOTE_PORT") != "" else 22
+REMOTE_KEY_FILE = default_ini.get("SFTP","REMOTE_KEY_FILE") if default_ini.get("SFTP","REMOTE_KEY_FILE") != "" else None
+REMOTE_KEY_FILE_PASSWORD = default_ini.get("SFTP","REMOTE_KEY_FILE_PASSWORD") if default_ini.get("SFTP","REMOTE_KEY_FILE_PASSWORD") != "" else None
+REMOTE_DIRECTORY = default_ini.get("SFTP","REMOTE_DIRECTORY") if default_ini.get("SFTP","REMOTE_DIRECTORY") != "" else None
 
 PLAY_HISTORY_LENGTH = default_ini.getint("Misc","PLAY_HISTORY_LENGTH")
 VERBOSE = default_ini.getboolean("Misc","VERBOSE")
