@@ -137,7 +137,7 @@ SCHEDULE_PREVIOUS_MAX_VIDEOS = default_ini.getint("Schedule","SCHEDULE_PREVIOUS_
 SCHEDULE_PREVIOUS_LENGTH = default_ini.getint("Schedule","SCHEDULE_PREVIOUS_LENGTH")
 
 if default_ini.get("Schedule","SCHEDULE_EXCLUDE_FILE_PATTERN") != "":
-    SCHEDULE_EXCLUDE_FILE_PATTERN = default_ini.get("Schedule","SCHEDULE_EXCLUDE_FILE_PATTERN")
+    SCHEDULE_EXCLUDE_FILE_PATTERN = tuple([i.strip().casefold().replace("\\","/") for i in default_ini.get("Schedule","SCHEDULE_EXCLUDE_FILE_PATTERN").split(",")])
 else:
     SCHEDULE_EXCLUDE_FILE_PATTERN = None
 
@@ -187,9 +187,6 @@ if ALT_NAMES_JSON_PATH is not None:
         ALT_NAMES = {}
 else:
     ALT_NAMES = {}
-
-if SCHEDULE_EXCLUDE_FILE_PATTERN is not None:
-    SCHEDULE_EXCLUDE_FILE_PATTERN = tuple([i.strip().casefold().replace("\\","/") for i in SCHEDULE_EXCLUDE_FILE_PATTERN.split(",")])
 
 # STREAM_RESTART_BEFORE_VIDEO and STREAM_RESTART_AFTER_VIDEO are only checked
 # as existing once at startup.
