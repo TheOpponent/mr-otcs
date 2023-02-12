@@ -282,7 +282,7 @@ def main():
                 result = playlist.check_file(video_file.path)
 
                 if result:
-                    next_video_length = playlist.get_length(video_file.path) - stats.elapsed_time
+                    next_video_length = playlist.get_length(video_file.path) - stats.elapsed_time + config.VIDEO_PADDING
                     if config.STREAM_TIME_BEFORE_RESTART == 0 or total_elapsed_time + next_video_length < config.STREAM_TIME_BEFORE_RESTART:
                         if config.VERBOSE:
                             print(f"{play} {media_playlist[play_index][0]}. {video_file.path} - Length: {int_to_time(next_video_length)}.")
@@ -335,12 +335,14 @@ def main():
                                 write_index_future.cancel()
                                 exit_time = datetime.datetime.now()
                                 total_elapsed_time += next_video_length
+                                stats.elapsed_time = 0
                                 extra_entries = []
                                 if config.VERBOSE:
                                     print(f"{info} Elapsed stream time: {total_elapsed_time} seconds.")
                                 if play_index < len(media_playlist):
                                     play_index += 1
-                                    print(f"{info} Incrementing play index: {play_index}")
+                                    if config.VERBOSE:
+                                        print(f"{info} Incrementing play index: {play_index}")
                                 else:
                                     # Reset index at end of playlist.
                                     play_index = 0
@@ -357,7 +359,6 @@ def main():
                                 restart_time = stats.elapsed_time
 
                                 print(f"{info} Encoding failed. Retrying from {int_to_time(restart_time)}.")
-                                # time.sleep(1)
 
                     else:
                         print(f"{info} STREAM_TIME_BEFORE_RESTART limit reached.")
