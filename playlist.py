@@ -54,7 +54,6 @@ class PlaylistEntry():
     "For normal and extra entries, any metadata attached to this entry. For command entries, the directive to run."
 
     def __init__(self,entry):
-
         if entry is None:
             self.type = "blank"
             self.name = None
@@ -79,6 +78,17 @@ class PlaylistEntry():
                 self.info = split_name[1]
             else:
                 self.info = ""
+
+
+class PlaylistTestEntry(PlaylistEntry):
+    """A PlaylistEntry intended for use in unit tests. It has an extra attribute,
+    length, that will always be returned by get_length()."""
+
+    def __init__(self,entry,length=60):
+        super().__init__(entry)
+        if self.type == "normal":
+            self.path = None
+            self.length = length
 
 
 class StreamStats():
@@ -107,18 +117,25 @@ class StreamStats():
         self.elapsed_time = 0
 
 
-def get_length(video):
+def get_length(video) -> int:
     """Run ffprobe and retrieve length of a video file."""
 
-    if video is None:
+    if isinstance(video,PlaylistTestEntry):
+        return video.length
+
+    elif isinstance(video,PlaylistEntry):
+        video = video.path
+
+    elif video is None:
         return 0
 
-    result = subprocess.run([config.FFPROBE_PATH,"-v","error","-select_streams","v:0","-show_entries","stream=duration","-of","default=noprint_wrappers=1:nokey=1",video],capture_output=True,text=True).stdout
+    if isinstance(video,str):
+        result = subprocess.run([config.FFPROBE_PATH,"-v","error","-select_streams","v:0","-show_entries","stream=duration","-of","default=noprint_wrappers=1:nokey=1",video],capture_output=True,text=True).stdout
 
-    if result == "":
-        raise RuntimeError(f"{error} ffprobe was unable to read duration of: " + video)
+        if result == "":
+            raise RuntimeError(f"{error} ffprobe was unable to read duration of: " + video)
 
-    return int(float(result))
+        return int(float(result))
 
 
 def check_file(path,line_num=None,no_exit=False):
@@ -351,7 +368,7 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,first_leng
     # First entry is the video playing now and is added unconditionally.
     sub_playlist = iter_playlist(playlist,entry_index)
     entry = next(sub_playlist)
-    entry_length = get_length(entry[1].path) + config.VIDEO_PADDING + length_offset
+    entry_length = get_length(entry[1]) + config.VIDEO_PADDING + length_offset
     stream_time_remaining -= entry_length
     if stream_time_remaining <= 0:
         length_offset = get_stream_restart_duration()
@@ -390,7 +407,7 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,first_leng
             # get_stream_restart_duration() is added to length_offset and added
             # to the next normal entry.
             if entry[1].type == "normal":
-                entry_length = get_length(entry[1].path) + config.VIDEO_PADDING
+                entry_length = get_length(entry[1]) + config.VIDEO_PADDING
                 stream_time_remaining -= entry_length + length_offset
                 if stream_time_remaining <= 0:
                     length_offset = get_stream_restart_duration()
