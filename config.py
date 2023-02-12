@@ -22,7 +22,7 @@ ini_defaults = {
         "ALT_NAMES_JSON_PATH":"alt_names.json"
         },
     "VideoOptions":{
-        "STREAM_URL":None,
+        "STREAM_URL":"rtmp://localhost:1935/live/",
         "VIDEO_PADDING":2,
         "MEDIA_PLAYER_ARGUMENTS":"-hide_banner -re -ss {elapsed_time} -i {file} -filter_complex \"[0:v]scale=1280x720,fps=30[scaled];[scaled]tpad=stop_duration=%(VIDEO_PADDING)s;apad=pad_dur=%(VIDEO_PADDING)s\" -c:v h264_omx -b:v 4000k -acodec aac -b:a 192k -ar 48000 -f flv -g 60 rtmp://localhost:1935/live/",
         "RTMP_ARGUMENTS":"-i rtmp://localhost:1935/live -loglevel error -vcodec copy -acodec copy -f flv %(STREAM_URL)s",
@@ -34,7 +34,9 @@ ini_defaults = {
         },
     "PlayIndex":{
         "TIME_RECORD_INTERVAL":30,
-        "REWIND_LENGTH":30,
+        "REWIND_LENGTH":30
+        },
+    "Schedule":{
         "SCHEDULE_MAX_VIDEOS":15,
         "SCHEDULE_UPCOMING_LENGTH":240,
         "SCHEDULE_PREVIOUS_MAX_VIDEOS":3,
@@ -63,11 +65,36 @@ ini_defaults = {
 
 default_ini = ConfigParser(defaults=ini_defaults)
 if len(sys.argv) > 1:
-    default_ini.read(["config.ini",sys.argv[1]])
-    config_file = sys.argv[1]
+    try:
+        default_ini.read(sys.argv[1])
+        config_file = sys.argv[1]
+    except Exception as e:
+        print(e)
+        print(f"{error} Error reading config file {sys.argv[1]}. Using default values.")
+        default_ini.read("config.ini")
+        config_file = "config.ini"
 else:
     default_ini.read("config.ini")
     config_file = "config.ini"
+
+# Basic validation of config file structure.
+for section in ini_defaults:
+    if default_ini.has_section(section):
+        for option in ini_defaults[section]:
+            if default_ini.has_option(section,option):
+                continue
+            else:
+                print(f"{error} {config_file} is missing option {option}. Using default configuration.")
+                default_ini.read("config.ini")
+                config_file = "config.ini"
+                break
+        else:
+            continue
+    else:
+        print(f"{error} {config_file} is missing section {section}. Using default configuration.")
+        default_ini.read("config.ini")
+        config_file = "config.ini"
+        break
 
 MEDIA_PLAYER_PATH = default_ini.get("Paths","MEDIA_PLAYER_PATH")
 RTMP_STREAMER_PATH = default_ini.get("Paths","RTMP_STREAMER_PATH")
