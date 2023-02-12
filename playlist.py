@@ -527,7 +527,7 @@ def upload_sftp():
         sftp.put(config.SCHEDULE_PATH)
 
 
-def write_index(play_index, video_start_time, stats):
+def write_index(play_index, stats):
     """Write play_index and elapsed time to play_index.txt
     at the period set by TIME_RECORD_INTERVAL. A StreamStats object
     is used to track elapsed time.
@@ -535,7 +535,7 @@ def write_index(play_index, video_start_time, stats):
 
     while True:
         with open(config.PLAY_INDEX_FILE,"w") as index_file:
-            index_file.write(f"{play_index}\n{video_start_time + stats.elapsed_time}")
+            index_file.write(f"{play_index}\n{stats.elapsed_time}")
 
         stats.elapsed_time += config.TIME_RECORD_INTERVAL
         time.sleep(config.TIME_RECORD_INTERVAL)
