@@ -110,7 +110,7 @@ class StreamStats():
             self.previous_files = deque()
         else:
             self.previous_files = None
-        self.stream_start_time = datetime.datetime.utcnow()
+        self.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
         self.elapsed_time = 0
 
 
@@ -328,8 +328,8 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,first_leng
     # For the first file in playlist, this is the current system time.
     # Time is retrieved in UTC, to be converted to user's local time
     # when they load the schedule in their browser.
-    start_time = datetime.datetime.utcnow()
-    current_time = datetime.datetime.utcnow()
+    start_time = datetime.datetime.now(datetime.timezone.utc)
+    current_time = datetime.datetime.now(datetime.timezone.utc)
 
     # total_duration is the cumulative duration of all videos added so
     # far and is checked against config.SCHEDULE_UPCOMING_LENGTH.
