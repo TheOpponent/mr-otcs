@@ -147,10 +147,24 @@ EXIT_ON_FILE_NOT_FOUND = default_ini.getboolean("Retry","EXIT_ON_FILE_NOT_FOUND"
 
 REMOTE_ADDRESS = default_ini.get("SFTP","REMOTE_ADDRESS")
 REMOTE_USERNAME = default_ini.get("SFTP","REMOTE_USERNAME")
-REMOTE_PASSWORD = default_ini.get("SFTP","REMOTE_PASSWORD")
+
+if default_ini.get("SFTP","REMOTE_PASSWORD") != "":
+    REMOTE_PASSWORD = default_ini.get("SFTP","REMOTE_PASSWORD")
+else:
+    REMOTE_PASSWORD = None
+
 REMOTE_PORT = default_ini.getint("SFTP","REMOTE_PORT")
-REMOTE_KEY_FILE = default_ini.get("SFTP","REMOTE_KEY_FILE")
-REMOTE_KEY_FILE_PASSWORD = default_ini.get("SFTP","REMOTE_KEY_FILE_PASSWORD")
+
+if default_ini.get("SFTP","REMOTE_KEY_FILE") != "":
+    REMOTE_KEY_FILE = default_ini.get("SFTP","REMOTE_KEY_FILE")
+else:
+    REMOTE_KEY_FILE = None
+
+if default_ini.get("SFTP","REMOTE_KEY_FILE_PASSWORD") != "":
+    REMOTE_KEY_FILE_PASSWORD = default_ini.get("SFTP","REMOTE_KEY_FILE_PASSWORD")
+else:
+    REMOTE_KEY_FILE_PASSWORD = None
+
 REMOTE_DIRECTORY = default_ini.get("SFTP","REMOTE_DIRECTORY")
 
 PLAY_HISTORY_LENGTH = default_ini.getint("Misc","PLAY_HISTORY_LENGTH")

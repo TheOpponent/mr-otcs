@@ -10,10 +10,10 @@ import datetime
 import shlex
 import subprocess
 import time
+from concurrent.futures import TimeoutError
 
 import psutil
 from pebble import ProcessExpired, ProcessPool
-from concurrent.futures import TimeoutError
 
 import config
 import playlist
@@ -57,7 +57,9 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,skip_time=0):
     """Task for encoding a video file from a playlist.
     Monitors the RTMP process id. If it is not running, or if the encoder
     process exits with a non-zero code, returns False. Otherwise, returns
-    True."""
+    True.
+
+    This task also handles uploading the schedule file via SFTP."""
 
     command = shlex.split(f"{config.MEDIA_PLAYER_PATH} {config.MEDIA_PLAYER_ARGUMENTS.format(file=file,skip_time=skip_time)}")
 
@@ -76,6 +78,25 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,skip_time=0):
     except subprocess.CalledProcessError as e:
         print(f"{error} Encoder process terminated at {datetime.datetime.now()}, exit code {e.returncode}.")
         return e.returncode
+
+    # Upload schedule file to SFTP server after starting encoding.
+    if config.SCHEDULE_PATH is not None and config.REMOTE_ADDRESS is not None:
+        if config.VERBOSE:
+            print(f"{info} Uploading {config.SCHEDULE_PATH} to SFTP server {config.REMOTE_ADDRESS}.")
+        sftp_future = playlist.upload_sftp()
+
+        try:
+            err = sftp_future.exception(timeout=10)
+            if err is None:
+                if config.VERBOSE:
+                    print(f"{info} SFTP upload successful.")
+            else:
+                raise err
+        except TimeoutError:
+            print(f"{warn} SFTP upload timed out.")
+        except Exception as e:
+            print(e)
+            print(f"{warn} SFTP upload failed.")
 
     # Poll both encoder and RTMP processes.
     # Return True if the encode finished successfully and RTMP process is still running.
@@ -292,17 +313,6 @@ def main():
                             if config.VERBOSE:
                                 print(f"{info} Writing schedule file to {config.SCHEDULE_PATH}.")
                             playlist.write_schedule(media_playlist,play_index,stats,stats.elapsed_time,config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time,extra_entries)
-                            if config.REMOTE_ADDRESS != "":
-                                if config.VERBOSE:
-                                    print(f"{info} Uploading {config.SCHEDULE_PATH} to SFTP server {config.REMOTE_ADDRESS}.")
-                                try:
-                                    sftp_future = executor.schedule(playlist.upload_sftp)
-                                    sftp_future.result(timeout=10)
-                                except TimeoutError:
-                                    print(f"{warn} SFTP upload timed out.")
-                                except Exception as e:
-                                    print(e)
-                                    print(f"{warn} SFTP upload failed.")
 
                         # Always start video no earlier than stats.elapsed_time, which is read from
                         # play_index.txt file at the start of the loop.

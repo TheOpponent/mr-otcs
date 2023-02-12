@@ -11,6 +11,7 @@ from collections import deque
 from typing import Generator, Tuple
 
 import pysftp
+from pebble import concurrent
 
 import config
 from headers import *
@@ -487,11 +488,12 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,first_leng
         schedule_json.write(json.dumps(schedule_json_out))
 
 
+@concurrent.process
 def upload_sftp():
     """Upload JSON file to a publicly accessible location
     using pysftp.
     """
-    
+
     with pysftp.Connection(config.REMOTE_ADDRESS,
         username=config.REMOTE_USERNAME,
         private_key=config.REMOTE_KEY_FILE,
