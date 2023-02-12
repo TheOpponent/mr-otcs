@@ -104,6 +104,10 @@ class StreamStats():
     elapsed_time: int
     "Seconds the current video has been playing."
 
+    videos_since_restart: int
+    "Number of videos played since program start or last restart of RTMP process. Does not include STREAM_RESTART_BEFORE_VIDEO or STREAM_RESTART_AFTER_VIDEO."
+    
+
     def __init__(self):
         self.recent_playlist = deque()
         if config.SCHEDULE_PREVIOUS_MAX_VIDEOS:
@@ -112,6 +116,7 @@ class StreamStats():
             self.previous_files = None
         self.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
         self.elapsed_time = 0
+        self.videos_since_restart = 0
 
 
 def get_length(video) -> int:
