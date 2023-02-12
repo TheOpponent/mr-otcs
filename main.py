@@ -265,7 +265,7 @@ def main():
                             break
 
                         else:
-                            print(f"{info} {media_playlist[play_index][0]}. RESTART command found, but not executing as less than {config.STREAM_RESTART_MINIMUM_TIME} seconds have passed.")
+                            print(f"{info} {media_playlist[play_index][0]}. RESTART command found, but not executing as less than {config.STREAM_RESTART_MINIMUM_TIME} minutes have passed.")
 
                         play_index += 1
                         continue
