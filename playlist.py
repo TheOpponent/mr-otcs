@@ -398,7 +398,7 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,first_leng
 
         # Break when either limit is reached. Entries that were skipped for
         # matching SCHEDULE_EXCLUDE_FILE_PATTERN are not counted.
-        if (len([i for i in coming_up_next if i.type == "normal"]) > (config.SCHEDULE_MAX_VIDEOS + skipped_normal_entries) or total_duration > (config.SCHEDULE_UPCOMING_LENGTH * 60)):
+        if (len([i for i in coming_up_next if i.type == "normal"]) >= (config.SCHEDULE_MAX_VIDEOS + skipped_normal_entries) or total_duration > (config.SCHEDULE_UPCOMING_LENGTH * 60)):
             break
 
         if entry[1].type == "blank":
@@ -417,7 +417,7 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,first_leng
                 # If name begins with any strings in SCHEDULE_EXCLUDE_FILE_PATTERN,
                 # do not add them to the schedule, but calculate their lengths and
                 # add to length_offset.
-                if entry[1].name.casefold().startswith(config.SCHEDULE_EXCLUDE_FILE_PATTERN):
+                if config.SCHEDULE_EXCLUDE_FILE_PATTERN is not None and entry[1].name.casefold().startswith(config.SCHEDULE_EXCLUDE_FILE_PATTERN):
                     if config.VERBOSE:
                         print(f"{info} Not adding entry {entry[0]}. {entry[1].name} to schedule: Name matches SCHEDULE_EXCLUDE_FILE_PATTERN.")
                     length_offset += entry_length + config.VIDEO_PADDING
