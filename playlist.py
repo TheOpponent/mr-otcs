@@ -363,10 +363,9 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,first_leng
             })
 
     # First entry is the video playing now and is added unconditionally.
-    sub_playlist = iter_playlist(playlist,entry_index)
-    entry = next(sub_playlist)
-    entry_length = get_length(entry[1]) + config.VIDEO_PADDING + length_offset
-    stream_time_remaining -= entry_length
+    entry = playlist[entry_index]
+    entry_length = get_length(entry[1]) + length_offset
+    stream_time_remaining -= entry_length + config.VIDEO_PADDING
     if stream_time_remaining <= 0:
         length_offset = get_stream_restart_duration()
         stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART - get_stream_restart_duration()
@@ -380,7 +379,7 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,first_leng
         "extra_info":entry[1].info
     })
 
-    total_duration += entry_length
+    total_duration += entry_length + config.VIDEO_PADDING
 
     if stream_time_remaining < total_duration:
         length_offset = get_stream_restart_duration()
@@ -388,10 +387,16 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,first_leng
     else:
         length_offset = 0
 
+    # Advance timestamp for next entry by combined length and offset of previous file.
+    current_time = current_time + datetime.timedelta(seconds=entry_length + length_offset + config.VIDEO_PADDING)
+
+    sub_playlist = iter_playlist(playlist,entry_index)
+    entry = next(sub_playlist)
+
     skipped_normal_entries = 0
     for entry in sub_playlist:
 
-        # Break when either limit is reached. Entries that were skipped for 
+        # Break when either limit is reached. Entries that were skipped for
         # matching SCHEDULE_EXCLUDE_FILE_PATTERN are not counted.
         if (len([i for i in coming_up_next if i.type == "normal"]) > (config.SCHEDULE_MAX_VIDEOS + skipped_normal_entries) or total_duration > (config.SCHEDULE_UPCOMING_LENGTH * 60)):
             break
@@ -407,7 +412,7 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,first_leng
             # to the next normal entry.
             if entry[1].type == "normal":
 
-                entry_length = get_length(entry[1]) + config.VIDEO_PADDING
+                entry_length = get_length(entry[1])
 
                 # If name begins with any strings in SCHEDULE_EXCLUDE_FILE_PATTERN,
                 # do not add them to the schedule, but calculate their lengths and
@@ -415,7 +420,7 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,first_leng
                 if entry[1].name.casefold().startswith(config.SCHEDULE_EXCLUDE_FILE_PATTERN):
                     if config.VERBOSE:
                         print(f"{info} Not adding entry {entry[0]}. {entry[1]} to schedule: Name matches SCHEDULE_EXCLUDE_FILE_PATTERN.")
-                    length_offset += entry_length
+                    length_offset += entry_length + config.VIDEO_PADDING
                     skipped_normal_entries += 1
                     continue
 
@@ -423,8 +428,6 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,first_leng
                 if stream_time_remaining <= 0:
                     length_offset = get_stream_restart_duration()
                     stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART - get_stream_restart_duration()
-
-                current_time = current_time + datetime.timedelta(seconds=entry_length + length_offset)
 
                 coming_up_next_json.append({
                     "type":"normal",
@@ -435,13 +438,16 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,first_leng
                     "extra_info":entry[1].info
                 })
 
-                total_duration += entry_length + length_offset
+                total_duration += entry_length + length_offset + config.VIDEO_PADDING
 
                 if stream_time_remaining < total_duration:
                     length_offset = get_stream_restart_duration()
                     stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART - get_stream_restart_duration()
                 else:
                     length_offset = 0
+
+                # Advance timestamp for next entry by combined length and offset of previous file.
+                current_time = current_time + datetime.timedelta(seconds=entry_length + length_offset + config.VIDEO_PADDING)
 
             elif entry[1].type == "extra":
                 coming_up_next_json.append({
@@ -467,6 +473,7 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,first_leng
 
         # When the program starts, recent_playlist will be empty.
         if len(stats.recent_playlist):
+
             # Pop left from recent_playlist and append until a normal entry is added.
             stats.previous_files.append(stats.recent_playlist.popleft())
             while stats.previous_files[-1]["type"] != "normal":
