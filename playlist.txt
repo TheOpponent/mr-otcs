@@ -1,0 +1,11 @@
+# Insert file names of videos in this file, one per line.
+# Blank lines and comment lines like this one are ignored.
+# Comments can begin with #, ;, or //.
+
+# Lines starting with : are extra entries, which are comments that get inserted into the schedule.
+# Add a space and a : after a file name to attach extra info to it, which is inserted into the schedule. Everything that follows the : will be included.
+# See alt_names.json for examples on how to change how video names are written into the schedule.
+
+# Lines starting with % are commands that control the stream.
+# There is currently one command:
+# %RESTART: Force the stream to restart. The videos defined in STREAM_RESTART_BEFORE_VIDEO and STREAM_RESTART_AFTER_VIDEO, if any, will be played.
