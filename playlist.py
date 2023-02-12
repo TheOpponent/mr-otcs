@@ -419,8 +419,10 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,first_leng
                 # add to length_offset.
                 if entry[1].name.casefold().startswith(config.SCHEDULE_EXCLUDE_FILE_PATTERN):
                     if config.VERBOSE:
-                        print(f"{info} Not adding entry {entry[0]}. {entry[1]} to schedule: Name matches SCHEDULE_EXCLUDE_FILE_PATTERN.")
+                        print(f"{info} Not adding entry {entry[0]}. {entry[1].name} to schedule: Name matches SCHEDULE_EXCLUDE_FILE_PATTERN.")
                     length_offset += entry_length + config.VIDEO_PADDING
+                    # Advance timestamp for next entry by length of excluded file.
+                    current_time = current_time + datetime.timedelta(seconds=length_offset)
                     skipped_normal_entries += 1
                     continue
 
