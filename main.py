@@ -181,13 +181,15 @@ def main():
             # next loop.
             exit_time = datetime.datetime.now()
 
-            stats.videos_since_restart = 0
+            total_elapsed_time = 0
 
             # If config.STREAM_RESTART_BEFORE_VIDEO is defined, add its
             # length to total_elapsed_time before it plays.
             if config.STREAM_RESTART_BEFORE_VIDEO is not None:
-                total_elapsed_time += playlist.get_length(config.STREAM_RESTART_BEFORE_VIDEO)
-                print(f"{info} {config.STREAM_RESTART_BEFORE_VIDEO} to play before stream restarts: {total_elapsed_time} seconds.\n{info} {config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time} seconds left before restart.")
+                total_elapsed_time += playlist.get_length(config.STREAM_RESTART_BEFORE_VIDEO) + config.VIDEO_PADDING
+                print(f"{info} {config.STREAM_RESTART_BEFORE_VIDEO} to play before stream restarts - Length: {int_to_time(next_video_length)}.")
+
+            stats.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time
 
             if restarted:
                 print(f"{info} Stream restarted at {datetime.datetime.now()}.")
@@ -226,6 +228,7 @@ def main():
 
             # Get next item in media_playlist that is a PlaylistEntry of type "normal".
             while True:
+
                 if play_index >= len(media_playlist):
                     play_index = 0
 
@@ -257,6 +260,7 @@ def main():
                                 encoder_task(config.STREAM_RESTART_BEFORE_VIDEO,rtmp_process)
 
                             restart_stream(executor,rtmp_process)
+                            stats.videos_since_restart = 0
                             total_elapsed_time = 0
 
                             if config.VERBOSE:
@@ -279,7 +283,7 @@ def main():
             if restarted:
                 continue
 
-            # Play video file entry. Ensure at least one video will always play each loop 
+            # Play video file entry. Ensure at least one video will always play each loop
             # regardless of stream time limits.
             if play_index >= len(media_playlist):
                 play_index = 0
@@ -290,7 +294,7 @@ def main():
 
                 if result:
                     next_video_length = playlist.get_length(video_file.path)
-                    if (config.STREAM_TIME_BEFORE_RESTART == 0 or stats.videos_since_restart == 0) or (total_elapsed_time + next_video_length < config.STREAM_TIME_BEFORE_RESTART):
+                    if (config.STREAM_TIME_BEFORE_RESTART == 0 or stats.videos_since_restart == 0) or (stats.stream_time_remaining - next_video_length - config.VIDEO_PADDING + stats.elapsed_time > 0):
                         print(f"{play} {media_playlist[play_index][0]}. {video_file.path} - Length: {int_to_time(next_video_length)}.")
 
                         # If the second line of play_index.txt is greater than
@@ -304,11 +308,14 @@ def main():
                             if (exit_time - video_time).seconds > config.REWIND_LENGTH:
                                 stats.elapsed_time -= config.REWIND_LENGTH
 
+                        next_video_length += config.VIDEO_PADDING
+
                         if stats.elapsed_time > 0:
                             print(f"{info} Starting from {int_to_time(stats.elapsed_time)}.")
+
                         if config.VERBOSE:
-                            if config.STREAM_TIME_BEFORE_RESTART > 0:
-                                print(f"{info} {int_to_time(config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time - next_video_length - stats.elapsed_time + config.VIDEO_PADDING)} left before restart.")
+                            if stats.stream_time_remaining - next_video_length + stats.elapsed_time > 0:
+                                print(f"{info} {int_to_time(stats.stream_time_remaining - next_video_length + stats.elapsed_time)} left before restart.")
                             else:
                                 print(f"{info} STREAM_TIME_BEFORE_RESTART limit reached, but stream restart is deferred as no videos have completed yet.")
                         if config.PLAY_HISTORY_FILE is not None:
@@ -320,7 +327,16 @@ def main():
                         if config.SCHEDULE_PATH is not None:
                             if config.VERBOSE:
                                 print(f"{info} Writing schedule file to {config.SCHEDULE_PATH}.")
-                            schedule_future = executor.schedule(playlist.write_schedule,[media_playlist,play_index,stats,stats.elapsed_time,config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time,extra_entries])
+
+                            # Check if current video name matches config.SCHEDULE_EXCLUDE_FILE_PATTERN,
+                            # and only generate a schedule file if it does not.
+                            if config.SCHEDULE_EXCLUDE_FILE_PATTERN is not None and not video_file.name.casefold().startswith(config.SCHEDULE_EXCLUDE_FILE_PATTERN):
+                                schedule_future = playlist.write_schedule(media_playlist,play_index,stats,extra_entries)
+                                # Clear extra_entries after writing schedule.
+                                extra_entries = []
+                            else:
+                                if config.VERBOSE:
+                                    print(f"{info} Not writing schedule for {video_file.name}: Name matches SCHEDULE_EXCLUDE_FILE_PATTERN.")
 
                         # Always start video no earlier than stats.elapsed_time, which is read from
                         # play_index.txt file at the start of the loop.
@@ -343,9 +359,9 @@ def main():
                                 write_index_future.cancel()
                                 exit_time = datetime.datetime.now()
                                 total_elapsed_time += next_video_length
+                                stats.stream_time_remaining -= total_elapsed_time
                                 stats.elapsed_time = 0
                                 stats.videos_since_restart += 1
-                                extra_entries = []
                                 if config.VERBOSE:
                                     print(f"{info} Elapsed stream time: {total_elapsed_time} seconds.")
                                 if play_index < len(media_playlist):
@@ -354,6 +370,8 @@ def main():
                                         print(f"{info} Incrementing play index: {play_index}")
                                 else:
                                     # Reset index at end of playlist.
+                                    if config.VERBOSE:
+                                        print(f"{info} Resetting play index: 0")
                                     play_index = 0
 
                                 with open(config.PLAY_INDEX_FILE,"w") as index_file:
@@ -363,11 +381,20 @@ def main():
 
                             # Retry if encoder process fails.
                             else:
-                                if stats.elapsed_time < config.REWIND_LENGTH:
-                                    stats.elapsed_time = 0
-                                restart_time = stats.elapsed_time
+                                stats.stream_time_remaining -= stats.elapsed_time
+                                if stats.stream_time_remaining > (next_video_length - stats.elapsed_time):
+                                    if stats.elapsed_time < config.REWIND_LENGTH:
+                                        stats.elapsed_time = 0
+                                    else:
+                                        stats.elapsed_time -= config.REWIND_LENGTH
 
-                                print(f"{info} Encoding failed. Retrying from {int_to_time(restart_time)}.")
+                                    print(f"{warn} Encoding failed. Retrying from {int_to_time(stats.elapsed_time)}.")
+                                else:
+                                    # If the remaining length of the video is greater than
+                                    # stats.stream_time_remaining, force a restart by breaking
+                                    # this loop and causing the next iteration to go to restart.
+                                    print(f"{warn} Encoding failed. Insufficient time remaining to retry. Restarting stream.")
+                                    break
 
                     else:
                         print(f"{info} STREAM_TIME_BEFORE_RESTART limit reached.")
@@ -375,9 +402,10 @@ def main():
                         if config.STREAM_RESTART_BEFORE_VIDEO is not None:
                             print(f"{play} STREAM_RESTART_BEFORE_VIDEO: {config.STREAM_RESTART_BEFORE_VIDEO}")
                             encoder = encoder_task(config.STREAM_RESTART_BEFORE_VIDEO,rtmp_process)
-
+                        if config.VERBOSE:
+                            print(f"{info} {stats.videos_since_restart} videos played since last restart.")
                         restart_stream(executor,rtmp_process)
-                        extra_entries = []
+                        stats.videos_since_restart = 0
                         print(f"{info} Waiting {config.STREAM_RESTART_WAIT} seconds to restart stream.")
                         total_elapsed_time = 0
                         time.sleep(config.STREAM_RESTART_WAIT)
@@ -392,7 +420,10 @@ def main():
             # If the RTMP process is terminated for any reason,
             # stop the encoder process immediately and rewind.
             print(e)
+            if config.VERBOSE:
+                print(f"{info} {stats.videos_since_restart} videos played since last restart.")
             restart_stream(executor,rtmp_process)
+            stats.videos_since_restart = 0
             rtmp_process = rtmp_task()
             continue
 
@@ -401,6 +432,8 @@ def main():
             rtmp_process.terminate()
             executor.stop()
             executor.join()
+            if config.VERBOSE:
+                print(f"{info} {stats.videos_since_restart} videos played since last restart.")
             print(f"{info} Exiting.")
             exit(0)
 
