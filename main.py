@@ -306,8 +306,11 @@ def main():
 
                         if stats.elapsed_time > 0:
                             print(f"{info} Starting from {int_to_time(stats.elapsed_time)}.")
-                        if config.VERBOSE and config.STREAM_TIME_BEFORE_RESTART > 0:
-                            print(f"{info} {int_to_time(config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time - next_video_length - stats.elapsed_time + config.VIDEO_PADDING)} left before restart.")
+                        if config.VERBOSE:
+                            if config.STREAM_TIME_BEFORE_RESTART > 0:
+                                print(f"{info} {int_to_time(config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time - next_video_length - stats.elapsed_time + config.VIDEO_PADDING)} left before restart.")
+                            else:
+                                print(f"{info} STREAM_TIME_BEFORE_RESTART limit reached, but stream restart is deferred as no videos have completed yet.")
                         if config.PLAY_HISTORY_FILE is not None:
                             if config.VERBOSE:
                                 print(f"{info} Writing play history file to {config.PLAY_HISTORY_FILE}.")
