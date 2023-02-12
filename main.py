@@ -181,15 +181,13 @@ def main():
             # next loop.
             exit_time = datetime.datetime.now()
 
+            stats.videos_since_restart = 0
+
             # If config.STREAM_RESTART_BEFORE_VIDEO is defined, add its
             # length to total_elapsed_time before it plays.
             if config.STREAM_RESTART_BEFORE_VIDEO is not None:
                 total_elapsed_time += playlist.get_length(config.STREAM_RESTART_BEFORE_VIDEO)
                 print(f"{info} {config.STREAM_RESTART_BEFORE_VIDEO} to play before stream restarts: {total_elapsed_time} seconds.\n{info} {config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time} seconds left before restart.")
-
-            # Keep playlist index and elapsed time of current video and store
-            # in file play_index.txt. Create it if it does not exist.
-            play_index_contents = []
 
             if restarted:
                 print(f"{info} Stream restarted at {datetime.datetime.now()}.")
@@ -199,6 +197,10 @@ def main():
                         total_elapsed_time += playlist.get_length(config.STREAM_RESTART_AFTER_VIDEO) + config.VIDEO_PADDING
 
                 restarted = False
+
+            # Keep playlist index and elapsed time of current video and store
+            # in file play_index.txt. Create it if it does not exist.
+            play_index_contents = []
 
             try:
                 with open(config.PLAY_INDEX_FILE,"r") as index_file:
@@ -277,7 +279,8 @@ def main():
             if restarted:
                 continue
 
-            # Play video file entry.
+            # Play video file entry. Ensure at least one video will always play each loop 
+            # regardless of stream time limits.
             if play_index >= len(media_playlist):
                 play_index = 0
             if media_playlist[play_index][1].type == "normal":
@@ -287,12 +290,13 @@ def main():
 
                 if result:
                     next_video_length = playlist.get_length(video_file.path)
-                    if config.STREAM_TIME_BEFORE_RESTART == 0 or total_elapsed_time + next_video_length < config.STREAM_TIME_BEFORE_RESTART:
+                    print(stats.videos_since_restart)
+                    if (config.STREAM_TIME_BEFORE_RESTART == 0 or stats.videos_since_restart == 0) or (total_elapsed_time + next_video_length < config.STREAM_TIME_BEFORE_RESTART):
                         print(f"{play} {media_playlist[play_index][0]}. {video_file.path} - Length: {int_to_time(next_video_length)}.")
 
                         # If the second line of play_index.txt is greater than
                         # REWIND_LENGTH, pass it to media player arguments.
-                        if stats.elapsed_time < config.REWIND_LENGTH:
+                        if stats.elapsed_time < config.REWIND_LENGTH or stats.elapsed_time >= next_video_length:
                             stats.elapsed_time = 0
                         else:
                             # If video took less than REWIND_LENGTH to play
@@ -338,6 +342,7 @@ def main():
                                 exit_time = datetime.datetime.now()
                                 total_elapsed_time += next_video_length
                                 stats.elapsed_time = 0
+                                stats.videos_since_restart += 1
                                 extra_entries = []
                                 if config.VERBOSE:
                                     print(f"{info} Elapsed stream time: {total_elapsed_time} seconds.")
