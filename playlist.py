@@ -6,18 +6,14 @@ import itertools
 import json
 import os
 import subprocess
-import sys
 import time
 from collections import deque
 from typing import Generator, Tuple
 
+import pysftp
+
 import config
 from headers import *
-
-try:
-    import pysftp
-except ImportError:
-    print(f"{info} pysftp is not installed.")
 
 
 class PlaylistEntry():
@@ -493,22 +489,18 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,first_leng
 
 def upload_sftp():
     """Upload JSON file to a publicly accessible location
-    using pysftp, if it is installed.
+    using pysftp.
     """
+    
+    with pysftp.Connection(config.REMOTE_ADDRESS,
+        username=config.REMOTE_USERNAME,
+        private_key=config.REMOTE_KEY_FILE,
+        password=config.REMOTE_PASSWORD,
+        port=config.REMOTE_PORT,
+        private_key_pass=config.REMOTE_KEY_FILE_PASSWORD,
+        default_path=config.REMOTE_DIRECTORY) as sftp:
 
-    if "pysftp" in sys.modules and config.REMOTE_ADDRESS != "":
-        with pysftp.Connection(config.REMOTE_ADDRESS,
-            username=config.REMOTE_USERNAME,
-            private_key=config.REMOTE_KEY_FILE,
-            password=config.REMOTE_PASSWORD,
-            port=config.REMOTE_PORT,
-            private_key_pass=config.REMOTE_KEY_FILE_PASSWORD,
-            default_path=config.REMOTE_DIRECTORY) as sftp:
-
-            sftp.put(config.SCHEDULE_PATH)
-
-    else:
-        print("pysftp is not installed.")
+        sftp.put(config.SCHEDULE_PATH)
 
 
 def write_index(play_index, video_start_time, stats):

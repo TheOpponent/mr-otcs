@@ -13,6 +13,7 @@ import time
 
 import psutil
 from pebble import ProcessExpired, ProcessPool
+from concurrent.futures import TimeoutError
 
 import config
 import playlist
@@ -287,11 +288,21 @@ def main():
                             write_play_history(video_file.name,media_playlist[play_index][0],video_time)
 
                         # Write schedule only once per video file.
-                        # TODO: When write_schedule() is run as a Future, the recent_playlist and previous_files deques are always empty.
                         if config.SCHEDULE_PATH is not None:
                             if config.VERBOSE:
                                 print(f"{info} Writing schedule file to {config.SCHEDULE_PATH}.")
                             playlist.write_schedule(media_playlist,play_index,stats,stats.elapsed_time,config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time,extra_entries)
+                            if config.REMOTE_ADDRESS != "":
+                                if config.VERBOSE:
+                                    print(f"{info} Uploading {config.SCHEDULE_PATH} to SFTP server {config.REMOTE_ADDRESS}.")
+                                try:
+                                    sftp_future = executor.schedule(playlist.upload_sftp)
+                                    sftp_future.result(timeout=10)
+                                except TimeoutError:
+                                    print(f"{warn} SFTP upload timed out.")
+                                except Exception as e:
+                                    print(e)
+                                    print(f"{warn} SFTP upload failed.")
 
                         # Always start video no earlier than stats.elapsed_time, which is read from
                         # play_index.txt file at the start of the loop.
@@ -333,7 +344,7 @@ def main():
                             else:
                                 if stats.elapsed_time < config.REWIND_LENGTH:
                                     stats.elapsed_time = 0
-                                restart_time = stats.elapsed_time 
+                                restart_time = stats.elapsed_time
 
                                 print(f"{info} Encoding failed. Retrying from {int_to_time(restart_time)}.")
                                 # time.sleep(1)
@@ -380,6 +391,7 @@ def main():
             executor.join()
             print(f"{error} Fatal error encountered on {datetime.datetime.now()}. Terminating stream.")
             raise e
+
 
 if __name__ == "__main__":
     main()
