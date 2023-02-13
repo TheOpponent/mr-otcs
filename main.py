@@ -26,7 +26,7 @@ class BackgroundProcessError(Exception):
     pass
 
 
-def rtmp_task(process=None) -> psutil.Process:
+def rtmp_task(process=None) -> subprocess.Popen:
     """Task for starting the RTMP broadcasting process."""
 
     command = shlex.split(f"{config.RTMP_STREAMER_PATH} {config.RTMP_ARGUMENTS}")
@@ -39,7 +39,7 @@ def rtmp_task(process=None) -> psutil.Process:
         else:
             proc.kill()
             if config.VERBOSE:
-                print(f"{warn} Old RTMP process found and killed.")
+                print(f"{notice} Old RTMP process found and killed.")
 
     try:
         process = subprocess.Popen(command)
@@ -50,7 +50,7 @@ def rtmp_task(process=None) -> psutil.Process:
     if config.VERBOSE:
         print(f"{info} RTMP process started at {datetime.datetime.now()}.")
 
-    return psutil.Process(process.pid)
+    return process
 
 
 def encoder_task(file: str,rtmp_task: subprocess.Popen,skip_time=0):
@@ -132,7 +132,14 @@ def write_play_history(video_file, play_index, video_time):
 
 
 def restart_stream(executor,rtmp_process):
-    rtmp_process.terminate()
+    command = shlex.split(f"{config.RTMP_STREAMER_PATH} {config.RTMP_ARGUMENTS}")
+    for proc in psutil.process_iter(['cmdline']):
+        if proc.info['cmdline'] != command:
+            continue
+        else:
+            proc.kill()
+            if config.VERBOSE:
+                print(f"{notice} RTMP process killed.")
     executor.stop()
     executor.join()
 
@@ -186,15 +193,17 @@ def main():
             total_elapsed_time = 0
 
             # If config.STREAM_RESTART_BEFORE_VIDEO is defined, add its
-            # length to total_elapsed_time before it plays.
+            # length to total_elapsed_time ahead of time.
             if config.STREAM_RESTART_BEFORE_VIDEO is not None:
-                total_elapsed_time += playlist.get_length(config.STREAM_RESTART_BEFORE_VIDEO) + config.VIDEO_PADDING
-                print(f"{info} {config.STREAM_RESTART_BEFORE_VIDEO} to play before stream restarts - Length: {int_to_time(next_video_length)}.")
+                next_video_length = playlist.get_length(config.STREAM_RESTART_BEFORE_VIDEO)
+                total_elapsed_time += next_video_length + config.VIDEO_PADDING
 
             if restarted:
                 print(f"{info} Stream restarted at {datetime.datetime.now()}.")
                 if config.STREAM_RESTART_AFTER_VIDEO is not None:
-                    print(f"{play} STREAM_RESTART_AFTER_VIDEO: {config.STREAM_RESTART_BEFORE_VIDEO} - Length: {int_to_time(next_video_length)}.")
+                    next_video_length = playlist.get_length(config.STREAM_RESTART_AFTER_VIDEO)
+                    total_elapsed_time += next_video_length + config.VIDEO_PADDING
+                    print(f"{play} STREAM_RESTART_AFTER_VIDEO: {config.STREAM_RESTART_AFTER_VIDEO} - Length: {int_to_time(next_video_length)}.")
                     encoder = encoder_task(config.STREAM_RESTART_AFTER_VIDEO,rtmp_process)
                     if encoder == 0:
                         total_elapsed_time += playlist.get_length(config.STREAM_RESTART_AFTER_VIDEO) + config.VIDEO_PADDING
@@ -397,13 +406,15 @@ def main():
                                     # stats.stream_time_remaining, force a restart by breaking
                                     # this loop and causing the next iteration to go to restart.
                                     print(f"{warn} Encoding failed. Insufficient time remaining to retry. Restarting stream.")
+                                    stats.stream_time_remaining = 0
+                                    stats.videos_since_restart += 1
                                     break
 
                     else:
                         print(f"{notice} STREAM_TIME_BEFORE_RESTART limit reached.")
                         restarted = True
                         if config.STREAM_RESTART_BEFORE_VIDEO is not None:
-                            print(f"{play} STREAM_RESTART_BEFORE_VIDEO: {config.STREAM_RESTART_BEFORE_VIDEO}")
+                            print(f"{play} STREAM_RESTART_BEFORE_VIDEO: {config.STREAM_RESTART_BEFORE_VIDEO} - Length: {playlist.get_length(config.STREAM_RESTART_BEFORE_VIDEO)}.")
                             encoder = encoder_task(config.STREAM_RESTART_BEFORE_VIDEO,rtmp_process)
                         if config.VERBOSE:
                             print(f"{info} {stats.videos_since_restart} videos played since last restart.")

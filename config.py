@@ -24,7 +24,7 @@ ini_defaults = {
     "VideoOptions":{
         "STREAM_URL":"rtmp://localhost:1935/live/",
         "VIDEO_PADDING":2,
-        "MEDIA_PLAYER_ARGUMENTS":"-hide_banner -re -ss {elapsed_time} -i {file} -filter_complex \"[0:v]scale=1280x720,fps=30[scaled];[scaled]tpad=stop_duration=%(VIDEO_PADDING)s;apad=pad_dur=%(VIDEO_PADDING)s\" -c:v h264_omx -b:v 4000k -acodec aac -b:a 192k -ar 48000 -f flv -g 60 rtmp://localhost:1935/live/",
+        "MEDIA_PLAYER_ARGUMENTS":"-hide_banner -re -ss {elapsed_time} -i \"{file}\" -filter_complex \"[0:v]scale=1280x720,fps=30[scaled];[scaled]tpad=stop_duration=%(VIDEO_PADDING)s;apad=pad_dur=%(VIDEO_PADDING)s\" -c:v h264_omx -b:v 4000k -acodec aac -b:a 192k -ar 48000 -f flv -g 60 rtmp://localhost:1935/live/",
         "RTMP_ARGUMENTS":"-i rtmp://localhost:1935/live -loglevel error -vcodec copy -acodec copy -f flv %(STREAM_URL)s",
         "STREAM_TIME_BEFORE_RESTART":1440,
         "STREAM_RESTART_WAIT":10,
@@ -114,8 +114,14 @@ STREAM_URL = default_ini.get("VideoOptions","STREAM_URL")
 STREAM_TIME_BEFORE_RESTART = default_ini.getint("VideoOptions","STREAM_TIME_BEFORE_RESTART") * 60
 STREAM_RESTART_WAIT = default_ini.getint("VideoOptions","STREAM_RESTART_WAIT")
 STREAM_RESTART_MINIMUM_TIME = default_ini.getint("VideoOptions","STREAM_RESTART_MINIMUM_TIME") * 60
-STREAM_RESTART_BEFORE_VIDEO = default_ini.get("VideoOptions","STREAM_RESTART_BEFORE_VIDEO")
-STREAM_RESTART_AFTER_VIDEO = default_ini.get("VideoOptions","STREAM_RESTART_AFTER_VIDEO")
+if default_ini.get("VideoOptions","STREAM_RESTART_BEFORE_VIDEO") != "":
+    STREAM_RESTART_BEFORE_VIDEO = os.path.join(BASE_PATH,default_ini.get("VideoOptions","STREAM_RESTART_BEFORE_VIDEO"))
+else:
+    STREAM_RESTART_BEFORE_VIDEO = None
+if default_ini.get("VideoOptions","STREAM_RESTART_AFTER_VIDEO") != "":
+    STREAM_RESTART_AFTER_VIDEO = os.path.join(BASE_PATH,default_ini.get("VideoOptions","STREAM_RESTART_AFTER_VIDEO"))
+else:
+    STREAM_RESTART_AFTER_VIDEO = None
 
 TIME_RECORD_INTERVAL = default_ini.getint("PlayIndex","TIME_RECORD_INTERVAL")
 REWIND_LENGTH = default_ini.getint("PlayIndex","REWIND_LENGTH")
