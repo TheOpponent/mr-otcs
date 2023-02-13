@@ -131,7 +131,7 @@ def write_play_history(video_file, play_index, video_time):
             print(f"{error} Unable to write play history file to {config.PLAY_HISTORY_FILE}.")
 
 
-def restart_stream(executor,rtmp_process):
+def stop_stream(executor):
     command = shlex.split(f"{config.RTMP_STREAMER_PATH} {config.RTMP_ARGUMENTS}")
     for proc in psutil.process_iter(['cmdline']):
         if proc.info['cmdline'] != command:
@@ -271,7 +271,7 @@ def main():
                             if config.STREAM_RESTART_BEFORE_VIDEO is not None:
                                 encoder_task(config.STREAM_RESTART_BEFORE_VIDEO,rtmp_process)
 
-                            restart_stream(executor,rtmp_process)
+                            stop_stream(executor)
                             stats.videos_since_restart = 0
                             total_elapsed_time = 0
 
@@ -414,11 +414,11 @@ def main():
                         print(f"{notice} STREAM_TIME_BEFORE_RESTART limit reached.")
                         restarted = True
                         if config.STREAM_RESTART_BEFORE_VIDEO is not None:
-                            print(f"{play} STREAM_RESTART_BEFORE_VIDEO: {config.STREAM_RESTART_BEFORE_VIDEO} - Length: {playlist.get_length(config.STREAM_RESTART_BEFORE_VIDEO)}.")
+                            print(f"{play} STREAM_RESTART_BEFORE_VIDEO: {config.STREAM_RESTART_BEFORE_VIDEO} - Length: {int_to_time(playlist.get_length(config.STREAM_RESTART_BEFORE_VIDEO))}.")
                             encoder = encoder_task(config.STREAM_RESTART_BEFORE_VIDEO,rtmp_process)
                         if config.VERBOSE:
                             print(f"{info} {stats.videos_since_restart} videos played since last restart.")
-                        restart_stream(executor,rtmp_process)
+                        stop_stream(executor)
                         stats.videos_since_restart = 0
                         print(f"{info} Waiting {config.STREAM_RESTART_WAIT} seconds to restart stream.")
                         total_elapsed_time = 0
@@ -437,7 +437,7 @@ def main():
             print(e)
             if config.VERBOSE:
                 print(f"{info} {stats.videos_since_restart} videos played since last restart.")
-            restart_stream(executor,rtmp_process)
+            stop_stream(executor)
             stats.videos_since_restart = 0
             rtmp_process = rtmp_task()
             stats.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
@@ -445,9 +445,7 @@ def main():
 
         except KeyboardInterrupt:
             print(f"{info} Stopping RTMP process.")
-            rtmp_process.terminate()
-            executor.stop()
-            executor.join()
+            stop_stream(executor)
             if config.VERBOSE:
                 print(f"{info} {stats.videos_since_restart} videos played since last restart.")
             print(f"{info} Exiting.")
@@ -455,9 +453,7 @@ def main():
 
         except Exception as e:
             print(e)
-            rtmp_process.terminate()
-            executor.stop()
-            executor.join()
+            stop_stream(executor)
             print(f"{error} Fatal error encountered on {datetime.datetime.now()}. Terminating stream.")
             raise e
 
