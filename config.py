@@ -171,7 +171,7 @@ else:
 
 # STREAM_RESTART_BEFORE_VIDEO and STREAM_RESTART_AFTER_VIDEO are only checked
 # as existing once at startup.
-if STREAM_RESTART_BEFORE_VIDEO != "":
+if STREAM_RESTART_BEFORE_VIDEO is not None:
     if not os.path.isfile(STREAM_RESTART_BEFORE_VIDEO):
         if not EXIT_ON_FILE_NOT_FOUND:
             print(f"{warn} STREAM_RESTART_BEFORE_VIDEO not found.")
@@ -179,7 +179,7 @@ if STREAM_RESTART_BEFORE_VIDEO != "":
 else:
     STREAM_RESTART_BEFORE_VIDEO = None
 
-if STREAM_RESTART_AFTER_VIDEO != "":
+if STREAM_RESTART_AFTER_VIDEO is not None:
     if not os.path.isfile(STREAM_RESTART_AFTER_VIDEO):
         if not EXIT_ON_FILE_NOT_FOUND:
             print(f"{warn} STREAM_RESTART_AFTER_VIDEO not found.")
