@@ -10,7 +10,7 @@ import time
 from collections import deque
 from typing import Generator, Tuple
 
-import pysftp
+import fabric
 from pebble import concurrent
 
 import config
@@ -538,18 +538,11 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,extra_entr
 @concurrent.thread
 def upload_sftp():
     """Upload JSON file to a publicly accessible location
-    using pysftp.
+    using fabric.
     """
 
-    with pysftp.Connection(config.REMOTE_ADDRESS,
-        username=config.REMOTE_USERNAME,
-        private_key=config.REMOTE_KEY_FILE,
-        password=config.REMOTE_PASSWORD,
-        port=config.REMOTE_PORT,
-        private_key_pass=config.REMOTE_KEY_FILE_PASSWORD,
-        default_path=config.REMOTE_DIRECTORY) as sftp:
-
-        sftp.put(config.SCHEDULE_PATH)
+    with fabric.Connection(config.REMOTE_ADDRESS,user=config.REMOTE_USERNAME,port=config.REMOTE_PORT,connect_kwargs={'password':config.REMOTE_PASSWORD,'key_filename':config.REMOTE_KEY_FILE,'passphrase':config.REMOTE_KEY_FILE_PASSWORD}) as client:
+        client.put(config.SCHEDULE_PATH,config.REMOTE_DIRECTORY)
 
 
 def write_index(play_index, stats):
