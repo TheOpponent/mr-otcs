@@ -132,6 +132,8 @@ def write_play_history(video_file, play_index, video_time):
 
 
 def stop_stream(executor):
+    """Kill old RTMP process(es), stop the executor, and make a new executor."""
+
     command = shlex.split(f"{config.RTMP_STREAMER_PATH} {config.RTMP_ARGUMENTS}")
     for proc in psutil.process_iter(['cmdline']):
         if proc.info['cmdline'] != command:
@@ -142,7 +144,7 @@ def stop_stream(executor):
                 print(f"{notice} RTMP process killed.")
     executor.stop()
     executor.join()
-
+    executor = ProcessPool()
 
 def int_to_time(seconds):
     """Returns a time string containing hours, minutes, and seconds
@@ -177,20 +179,18 @@ def main():
     # write_schedule().
     extra_entries = []
 
+    executor = ProcessPool()
     stats = playlist.StreamStats()
 
     stats.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
 
     while True:
         try:
-            executor = ProcessPool()
 
             # Set initial exit_time. exit_time is set to elapsed time since
             # playback began and compared to start time stored in video_time in
             # next loop.
             exit_time = datetime.datetime.now()
-
-            total_elapsed_time = 0
 
             # If config.STREAM_RESTART_BEFORE_VIDEO is defined, add its
             # length to total_elapsed_time ahead of time.
@@ -274,9 +274,7 @@ def main():
                             stop_stream(executor)
                             stats.videos_since_restart = 0
                             total_elapsed_time = 0
-
-                            if config.VERBOSE:
-                                print(f"{info} Waiting {config.STREAM_RESTART_WAIT} seconds to restart.")
+                            print(f"{info} Waiting {config.STREAM_RESTART_WAIT} seconds to restart.")
                             time.sleep(config.STREAM_RESTART_WAIT)
                             play_index += 1
                             rtmp_process = rtmp_task()
@@ -284,9 +282,8 @@ def main():
 
                         else:
                             print(f"{notice} {media_playlist[play_index][0]}. RESTART command found, but not executing as less than {config.STREAM_RESTART_MINIMUM_TIME} minutes have passed.")
-
-                        play_index += 1
-                        continue
+                            play_index += 1
+                            continue
 
                 else:
                     break
@@ -420,8 +417,8 @@ def main():
                             print(f"{info} {stats.videos_since_restart} videos played since last restart.")
                         stop_stream(executor)
                         stats.videos_since_restart = 0
-                        print(f"{info} Waiting {config.STREAM_RESTART_WAIT} seconds to restart stream.")
                         total_elapsed_time = 0
+                        print(f"{info} Waiting {config.STREAM_RESTART_WAIT} seconds to restart stream.")
                         time.sleep(config.STREAM_RESTART_WAIT)
                         rtmp_process = rtmp_task()
                         stats.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
