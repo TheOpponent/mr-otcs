@@ -274,7 +274,7 @@ def main():
                             break
 
                         else:
-                            print(f"{info} {media_playlist[play_index][0]}. RESTART command found, but not executing as less than {config.STREAM_RESTART_MINIMUM_TIME} minutes have passed.")
+                            print(f"{notice} {media_playlist[play_index][0]}. RESTART command found, but not executing as less than {config.STREAM_RESTART_MINIMUM_TIME} minutes have passed.")
 
                         play_index += 1
                         continue
@@ -320,7 +320,7 @@ def main():
                             if stats.stream_time_remaining - (next_video_length - stats.elapsed_time) > 0:
                                 print(f"{info} {int_to_time(stats.stream_time_remaining - (next_video_length - stats.elapsed_time))} left before restart.")
                             else:
-                                print(f"{info} STREAM_TIME_BEFORE_RESTART limit reached, but stream restart is deferred as no videos have completed yet.")
+                                print(f"{notice} STREAM_TIME_BEFORE_RESTART limit reached, but stream restart is deferred as no videos have completed yet.")
                         if config.PLAY_HISTORY_FILE is not None:
                             if config.VERBOSE:
                                 print(f"{info} Writing play history file to {config.PLAY_HISTORY_FILE}.")
@@ -339,7 +339,7 @@ def main():
                                 extra_entries = []
                             else:
                                 if config.VERBOSE:
-                                    print(f"{info} Not writing schedule for {video_file.name}: Name matches SCHEDULE_EXCLUDE_FILE_PATTERN.")
+                                    print(f"{notice} Not writing schedule for {video_file.name}: Name matches SCHEDULE_EXCLUDE_FILE_PATTERN.")
 
                         # Always start video no earlier than stats.elapsed_time, which is read from
                         # play_index.txt file at the start of the loop.
@@ -400,7 +400,7 @@ def main():
                                     break
 
                     else:
-                        print(f"{info} STREAM_TIME_BEFORE_RESTART limit reached.")
+                        print(f"{notice} STREAM_TIME_BEFORE_RESTART limit reached.")
                         restarted = True
                         if config.STREAM_RESTART_BEFORE_VIDEO is not None:
                             print(f"{play} STREAM_RESTART_BEFORE_VIDEO: {config.STREAM_RESTART_BEFORE_VIDEO}")
