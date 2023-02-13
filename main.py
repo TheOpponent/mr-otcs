@@ -26,7 +26,7 @@ class BackgroundProcessError(Exception):
     pass
 
 
-def rtmp_task(process=None) -> subprocess.Popen:
+def rtmp_task(process=None) -> psutil.Process:
     """Task for starting the RTMP broadcasting process."""
 
     command = shlex.split(f"{config.RTMP_STREAMER_PATH} {config.RTMP_ARGUMENTS}")
@@ -37,9 +37,9 @@ def rtmp_task(process=None) -> subprocess.Popen:
         if proc.info['cmdline'] != command:
             continue
         else:
-            proc.terminate()
+            proc.kill()
             if config.VERBOSE:
-                print(f"{info} Old RTMP process terminated.")
+                print(f"{warn} Old RTMP process found and killed.")
 
     try:
         process = subprocess.Popen(command)
@@ -50,7 +50,7 @@ def rtmp_task(process=None) -> subprocess.Popen:
     if config.VERBOSE:
         print(f"{info} RTMP process started at {datetime.datetime.now()}.")
 
-    return process
+    return psutil.Process(process.pid)
 
 
 def encoder_task(file: str,rtmp_task: subprocess.Popen,skip_time=0):
@@ -172,6 +172,8 @@ def main():
 
     stats = playlist.StreamStats()
 
+    stats.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
+
     while True:
         try:
             executor = ProcessPool()
@@ -189,16 +191,17 @@ def main():
                 total_elapsed_time += playlist.get_length(config.STREAM_RESTART_BEFORE_VIDEO) + config.VIDEO_PADDING
                 print(f"{info} {config.STREAM_RESTART_BEFORE_VIDEO} to play before stream restarts - Length: {int_to_time(next_video_length)}.")
 
-            stats.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART - total_elapsed_time
-
             if restarted:
                 print(f"{info} Stream restarted at {datetime.datetime.now()}.")
                 if config.STREAM_RESTART_AFTER_VIDEO is not None:
+                    print(f"{play} STREAM_RESTART_AFTER_VIDEO: {config.STREAM_RESTART_BEFORE_VIDEO} - Length: {int_to_time(next_video_length)}.")
                     encoder = encoder_task(config.STREAM_RESTART_AFTER_VIDEO,rtmp_process)
                     if encoder == 0:
                         total_elapsed_time += playlist.get_length(config.STREAM_RESTART_AFTER_VIDEO) + config.VIDEO_PADDING
 
                 restarted = False
+
+            stats.stream_time_remaining -= total_elapsed_time
 
             # Keep playlist index and elapsed time of current video and store
             # in file play_index.txt. Create it if it does not exist.
@@ -314,8 +317,8 @@ def main():
                             print(f"{info} Starting from {int_to_time(stats.elapsed_time)}.")
 
                         if config.VERBOSE:
-                            if stats.stream_time_remaining - next_video_length + stats.elapsed_time > 0:
-                                print(f"{info} {int_to_time(stats.stream_time_remaining - next_video_length + stats.elapsed_time)} left before restart.")
+                            if stats.stream_time_remaining - (next_video_length - stats.elapsed_time) > 0:
+                                print(f"{info} {int_to_time(stats.stream_time_remaining - (next_video_length - stats.elapsed_time))} left before restart.")
                             else:
                                 print(f"{info} STREAM_TIME_BEFORE_RESTART limit reached, but stream restart is deferred as no videos have completed yet.")
                         if config.PLAY_HISTORY_FILE is not None:
@@ -359,11 +362,11 @@ def main():
                                 write_index_future.cancel()
                                 exit_time = datetime.datetime.now()
                                 total_elapsed_time += next_video_length
-                                stats.stream_time_remaining -= total_elapsed_time
+                                stats.stream_time_remaining -= next_video_length
                                 stats.elapsed_time = 0
                                 stats.videos_since_restart += 1
                                 if config.VERBOSE:
-                                    print(f"{info} Elapsed stream time: {total_elapsed_time} seconds.")
+                                    print(f"{info} Elapsed stream time: {int_to_time(total_elapsed_time)}.")
                                 if play_index < len(media_playlist):
                                     play_index += 1
                                     if config.VERBOSE:
@@ -410,6 +413,7 @@ def main():
                         total_elapsed_time = 0
                         time.sleep(config.STREAM_RESTART_WAIT)
                         rtmp_process = rtmp_task()
+                        stats.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
                         continue
 
             else:
@@ -425,6 +429,7 @@ def main():
             restart_stream(executor,rtmp_process)
             stats.videos_since_restart = 0
             rtmp_process = rtmp_task()
+            stats.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
             continue
 
         except KeyboardInterrupt:
@@ -435,7 +440,7 @@ def main():
             if config.VERBOSE:
                 print(f"{info} {stats.videos_since_restart} videos played since last restart.")
             print(f"{info} Exiting.")
-            exit(0)
+            exit(130)
 
         except Exception as e:
             print(e)
