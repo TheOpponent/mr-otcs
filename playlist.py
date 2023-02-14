@@ -5,16 +5,16 @@ import errno
 import itertools
 import json
 import os
-import subprocess
 import time
 from collections import deque
 from typing import Generator, Tuple
 
 import fabric
 from pebble import concurrent
+from pymediainfo import MediaInfo
 
 import config
-from headers import *
+from config import print2
 
 
 class PlaylistEntry():
@@ -136,12 +136,15 @@ def get_length(video) -> int:
         return 0
 
     if isinstance(video,str):
-        result = subprocess.run([config.FFPROBE_PATH,"-v","error","-select_streams","v:0","-show_entries","stream=duration","-of","default=noprint_wrappers=1:nokey=1",video],capture_output=True,text=True).stdout
+        # result = subprocess.run([config.FFPROBE_PATH,"-v","error","-select_streams","v:0","-show_entries","stream=duration","-of","default=noprint_wrappers=1:nokey=1",video],capture_output=True,text=True).stdout
+        mediainfo = MediaInfo.parse(video)
+        return mediainfo.video_tracks[0].duration // 1000
 
-        if result == "":
-            raise RuntimeError(f"{error} ffprobe was unable to read duration of: " + video)
+        # if result == "":
+        #     print2("error",f"ffprobe was unable to read duration of: {video}")
+        #     exit(1)
 
-        return int(float(result))
+        # return int(float(result))
 
 
 def check_file(path,line_num=None,no_exit=False):
@@ -166,24 +169,27 @@ def check_file(path,line_num=None,no_exit=False):
         # Print number of attempts remaining.
         if retry_attempts_remaining > 0:
             if retry_attempts_remaining > 1:
-                retry_attempts_string = (f"{info} {retry_attempts_remaining} attempts remaining.")
+                retry_attempts_string = f"{retry_attempts_remaining} attempts remaining."
             else:
-                retry_attempts_string = f"{info} 1 attempt remaining."
+                retry_attempts_string = "1 attempt remaining."
             retry_attempts_remaining -= 1
 
         elif retry_attempts_remaining == 0:
             if config.EXIT_ON_FILE_NOT_FOUND and not no_exit:
-                print(f"{error} Line {line_num}: {path} not found." if line_num is not None else f"{error} {path} not found.")
+                if line_num is not None:
+                    print2("fatal",f"Line {line_num}: {path} not found.")
+                else:
+                    print2("error",f"{path} not found.")
                 raise FileNotFoundError(errno.ENOENT,os.strerror(errno.ENOENT),path)
             else:
-                print(f"{error} Line {line_num}: {path} not found. Continuing." if line_num is not None else f"{error} {path} not found. Continuing.")
+                if line_num is not None:
+                    print2("error",f"Line {line_num}: {path} not found. Continuing.")
+                else:
+                    print2("error",f"{path} not found. Continuing.")
                 return False
 
-        print(
-            f"{error} File not found: {path}.\n"
-            f"{warn} {retry_attempts_string} "
-            f"{warn} Retrying in {config.RETRY_PERIOD} seconds..."
-            )
+        print2("error",f"File not found: {path}.")
+        print2("error",f"{retry_attempts_string} Retrying in {config.RETRY_PERIOD} seconds...")
 
         time.sleep(config.RETRY_PERIOD)
 
@@ -208,14 +214,15 @@ def create_playlist() -> list[Tuple[int,PlaylistEntry]]:
             with open(config.MEDIA_PLAYLIST,"r",encoding="utf-8-sig") as media_playlist_file:
                 media_playlist = media_playlist_file.read().splitlines()
         except FileNotFoundError:
-            print(f"{error} Playlist file {config.MEDIA_PLAYLIST} not found.")
+            print2("fatal",f"Playlist file {config.MEDIA_PLAYLIST} not found.")
             exit(1)
 
     elif isinstance(config.MEDIA_PLAYLIST,list):
         media_playlist = config.MEDIA_PLAYLIST
 
     else:
-        raise TypeError(f"{error} MEDIA_PLAYLIST is not a file or Python list.")
+        print2("error",f"MEDIA_PLAYLIST is not a file or Python list.")
+        exit(1)
 
     # Change blank lines and comment entries in media_playlist to None.
     media_playlist = [i if i != "" and not i.startswith((";","#","//")) else None for i in media_playlist]
@@ -235,26 +242,26 @@ def create_playlist() -> list[Tuple[int,PlaylistEntry]]:
             if isinstance(config.ALT_NAMES[new_entry.name],str):
                 new_entry.name = config.ALT_NAMES[new_entry.name]
             else:
-                print(f"{warn} Alternate name for {new_entry.name} in alt_names.json is not a valid string.")
+                print2("warn",f"Alternate name for {new_entry.name} in alt_names.json is not a valid string.")
 
-        if config.VERBOSE:
+        if config.VERBOSE & 0b1111111:
             if new_entry.type == "normal":
                 if new_entry.info == "":
-                    print(f"{info} Adding normal entry: {index}. {new_entry.name}")
+                    print2("verbose",f"Adding normal entry: {index}. {new_entry.name}")
                 else:
-                    print(f"{info} Adding normal entry: {index}. {new_entry.name} - Extra info: {new_entry.info}")
+                    print2("verbose",f"Adding normal entry: {index}. {new_entry.name} - Extra info: {new_entry.info}")
             elif new_entry.type == "extra":
-                print(f"{info} Adding extra entry: {index}. {new_entry.info}")
+                print2("verbose",f"Adding extra entry: {index}. {new_entry.info}")
             elif new_entry.type == "command":
-                print(f"{info} Adding directive: {index}. {new_entry.info}")
+                print2("verbose",f"Adding directive: {index}. {new_entry.info}")
             elif new_entry.type == "blank":
-                print(f"{info} Blank line or comment: {index}.")
+                print2("verbose",f"Blank line or comment: {index}.")
         playlist.append((index,new_entry))
 
         index += 1
 
     if entry_count == 0:
-        print(f"{error} No valid entries found in {config.MEDIA_PLAYLIST}.")
+        print2("fatal",f"No valid entries found in {config.MEDIA_PLAYLIST}.")
         exit(1)
 
     return playlist
@@ -434,8 +441,7 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,extra_entr
                 # do not add them to the schedule, but calculate their lengths and
                 # add to length_offset.
                 if config.SCHEDULE_EXCLUDE_FILE_PATTERN is not None and entry[1].name.casefold().startswith(config.SCHEDULE_EXCLUDE_FILE_PATTERN):
-                    if config.VERBOSE:
-                        print(f"{info} Not adding entry {entry[0]}. {entry[1].name} to schedule: Name matches SCHEDULE_EXCLUDE_FILE_PATTERN.")
+                    print2("verbose",f"Not adding entry {entry[0]}. {entry[1].name} to schedule: Name matches SCHEDULE_EXCLUDE_FILE_PATTERN.")
                     entry_length += config.VIDEO_PADDING
                     length_offset += entry_length
                     total_duration += entry_length
@@ -485,10 +491,11 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,extra_entr
                 if entry[1].info == "RESTART":
                     length_offset = get_stream_restart_duration()
                 else:
-                    raise ValueError(f"{error} Line {entry[0]}: Playlist directive {entry[1].info} not recognized.")
+                    print2("error",f"Line {entry[0]}: Playlist directive {entry[1].info} not recognized.")
+                    raise ValueError
 
             else:
-                print(f"{warn} Line {entry[0]}: Invalid entry. Skipping.")
+                print2("warn",f"Line {entry[0]}: Invalid entry. Skipping.")
 
     if stats.previous_files is not None:
         prev_total_duration = 0
@@ -532,11 +539,11 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,extra_entr
             schedule_json.write(json.dumps(schedule_json_out))
     except Exception as e:
         print(e)
-        print(f"{error} Error writing schedule file.")
+        print2("warn",f"Error writing schedule file.")
 
 
 @concurrent.thread
-def upload_sftp():
+def upload_ssh():
     """Upload JSON file to a publicly accessible location
     using fabric.
     """

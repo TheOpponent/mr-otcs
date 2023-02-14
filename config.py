@@ -5,15 +5,12 @@ import os
 import sys
 from configparser import ConfigParser
 
-from headers import *
-
 SCRIPT_VERSION = "2.0.0"
 
 ini_defaults = {
     "Paths":{
-        "MEDIA_PLAYER_PATH":"/usr/local/bin/ffmpeg",
+        "MEDIA_PLAYER_PATH":"/usr/bin/ffmpeg",
         "RTMP_STREAMER_PATH":"/usr/local/bin/ffmpeg",
-        "FFPROBE_PATH":"/usr/local/bin/ffprobe",
         "BASE_PATH":"/media/videos/",
         "MEDIA_PLAYLIST":"playlist.txt",
         "PLAY_INDEX_FILE":"%(BASE_PATH)s/play_index.txt",
@@ -48,7 +45,7 @@ ini_defaults = {
         "RETRY_PERIOD":5,
         "EXIT_ON_FILE_NOT_FOUND":False
         },
-    "SFTP":{
+    "SSH":{
         "REMOTE_ADDRESS":"",
         "REMOTE_USERNAME":"",
         "REMOTE_PASSWORD":"",
@@ -59,7 +56,7 @@ ini_defaults = {
         },
     "Misc":{
         "PLAY_HISTORY_LENGTH":10,
-        "VERBOSE":False
+        "VERBOSE":"info"
         }
     }
 
@@ -70,7 +67,7 @@ if len(sys.argv) > 1:
         config_file = sys.argv[1]
     except Exception as e:
         print(e)
-        print(f"{error} Error reading config file {sys.argv[1]}. Using default values.")
+        print(f"Error reading config file {sys.argv[1]}. Using default values.")
         default_ini.read("config.ini")
         config_file = "config.ini"
 else:
@@ -84,21 +81,20 @@ for section in ini_defaults:
             if default_ini.has_option(section,option):
                 continue
             else:
-                print(f"{error} {config_file} is missing option {option}. Using default configuration.")
+                print(f"{config_file} is missing option {option}. Using default configuration.")
                 default_ini.read("config.ini")
                 config_file = "config.ini"
                 break
         else:
             continue
     else:
-        print(f"{error} {config_file} is missing section {section}. Using default configuration.")
+        print(f"{config_file} is missing section {section}. Using default configuration.")
         default_ini.read("config.ini")
         config_file = "config.ini"
         break
 
 MEDIA_PLAYER_PATH = default_ini.get("Paths","MEDIA_PLAYER_PATH")
 RTMP_STREAMER_PATH = default_ini.get("Paths","RTMP_STREAMER_PATH")
-FFPROBE_PATH = default_ini.get("Paths","FFPROBE_PATH")
 BASE_PATH = os.path.expanduser(default_ini.get("Paths","BASE_PATH"))
 PLAY_INDEX_FILE = os.path.expanduser(default_ini.get("Paths","PLAY_INDEX_FILE"))
 PLAY_HISTORY_FILE = os.path.expanduser(default_ini.get("Paths","PLAY_HISTORY_FILE")) if default_ini.get("Paths","PLAY_HISTORY_FILE") != "" else None
@@ -140,16 +136,60 @@ RETRY_ATTEMPTS = default_ini.getint("Retry","RETRY_ATTEMPTS")
 RETRY_PERIOD = default_ini.getint("Retry","RETRY_PERIOD")
 EXIT_ON_FILE_NOT_FOUND = default_ini.getboolean("Retry","EXIT_ON_FILE_NOT_FOUND")
 
-REMOTE_ADDRESS = default_ini.get("SFTP","REMOTE_ADDRESS") if default_ini.get("SFTP","REMOTE_ADDRESS") != "" else None
-REMOTE_USERNAME = default_ini.get("SFTP","REMOTE_USERNAME") if default_ini.get("SFTP","REMOTE_USERNAME") != "" else None
-REMOTE_PASSWORD = default_ini.get("SFTP","REMOTE_PASSWORD") if default_ini.get("SFTP","REMOTE_PASSWORD") != "" else None
-REMOTE_PORT = default_ini.getint("SFTP","REMOTE_PORT") if default_ini.getint("SFTP","REMOTE_PORT") != "" else 22
-REMOTE_KEY_FILE = default_ini.get("SFTP","REMOTE_KEY_FILE") if default_ini.get("SFTP","REMOTE_KEY_FILE") != "" else None
-REMOTE_KEY_FILE_PASSWORD = default_ini.get("SFTP","REMOTE_KEY_FILE_PASSWORD") if default_ini.get("SFTP","REMOTE_KEY_FILE_PASSWORD") != "" else None
-REMOTE_DIRECTORY = default_ini.get("SFTP","REMOTE_DIRECTORY") if default_ini.get("SFTP","REMOTE_DIRECTORY") != "" else None
+REMOTE_ADDRESS = default_ini.get("SSH","REMOTE_ADDRESS") if default_ini.get("SSH","REMOTE_ADDRESS") != "" else None
+REMOTE_USERNAME = default_ini.get("SSH","REMOTE_USERNAME") if default_ini.get("SSH","REMOTE_USERNAME") != "" else None
+REMOTE_PASSWORD = default_ini.get("SSH","REMOTE_PASSWORD") if default_ini.get("SSH","REMOTE_PASSWORD") != "" else None
+REMOTE_PORT = default_ini.getint("SSH","REMOTE_PORT") if default_ini.getint("SSH","REMOTE_PORT") != "" else 22
+REMOTE_KEY_FILE = default_ini.get("SSH","REMOTE_KEY_FILE") if default_ini.get("SSH","REMOTE_KEY_FILE") != "" else None
+REMOTE_KEY_FILE_PASSWORD = default_ini.get("SSH","REMOTE_KEY_FILE_PASSWORD") if default_ini.get("SSH","REMOTE_KEY_FILE_PASSWORD") != "" else None
+REMOTE_DIRECTORY = default_ini.get("SSH","REMOTE_DIRECTORY") if default_ini.get("SSH","REMOTE_DIRECTORY") != "" else None
 
 PLAY_HISTORY_LENGTH = default_ini.getint("Misc","PLAY_HISTORY_LENGTH")
-VERBOSE = default_ini.getboolean("Misc","VERBOSE")
+VERBOSE = default_ini.get("Misc","VERBOSE").lower()
+
+if VERBOSE == "fatal":
+    VERBOSE = 0b1000000
+elif VERBOSE == "error":
+    VERBOSE = 0b1100000
+elif VERBOSE == "warn":
+    VERBOSE = 0b1110000
+elif VERBOSE == "notice":
+    VERBOSE = 0b1111000
+elif VERBOSE == "play":
+    VERBOSE = 0b1111100
+elif VERBOSE == "info":
+    VERBOSE = 0b1111110
+elif VERBOSE == "verbose":
+    VERBOSE = 0b1111111
+else:
+    print("VERBOSE setting not recognized. Using default setting \"info\".")
+    VERBOSE = 0b1111110
+
+reset = '\033[0m'
+info = "[Info]" + reset
+notice = '\033[96m' + "[Notice]" + reset
+warn = '\033[93m' + "[Warn]" + reset
+error = '\033[31m' + "[Error]" + reset
+play = '\033[92m' + "[Play]" + reset
+
+def print2(level: str,message: str, force=False):
+    """Prepend a colored label with a standard print message."""
+
+    if level == "fatal" and VERBOSE & 0b1000000:
+        print(f"{error} {message}")
+    if level == "error" and VERBOSE & 0b100000:
+        print(f"{error} {message}")
+    if level == "warn" and VERBOSE & 0b10000:
+        print(f"{warn} {message}")
+    if level == "notice" and VERBOSE & 0b1000:
+        print(f"{notice} {message}")
+    if level == "play" and VERBOSE & 0b100:
+        print(f"{play} {message}")
+    if level == "info" and VERBOSE & 0b10:
+        print(f"{info} {message}")
+    if level == "verbose" and VERBOSE & 0b1:
+        print(f"{info} {message}")
+
 
 # Validate config settings.
 if ALT_NAMES_JSON_PATH is not None:
@@ -159,11 +199,11 @@ if ALT_NAMES_JSON_PATH is not None:
                 ALT_NAMES = json.load(alt_names_json)
             except json.JSONDecodeError as e:
                 print(e)
-                print(f"{warn} Error loading {ALT_NAMES_JSON_PATH} in ALT_NAMES_JSON_PATH.")
+                print2("error",f"Error loading {ALT_NAMES_JSON_PATH} in ALT_NAMES_JSON_PATH.")
                 ALT_NAMES = {}
 
     except FileNotFoundError:
-        print(f"{warn} {ALT_NAMES_JSON_PATH} in ALT_NAMES_JSON_PATH not found.")
+        print2("error",f"{ALT_NAMES_JSON_PATH} in ALT_NAMES_JSON_PATH not found.")
         ALT_NAMES_JSON_PATH = None
         ALT_NAMES = {}
 else:
@@ -173,17 +213,21 @@ else:
 # as existing once at startup.
 if STREAM_RESTART_BEFORE_VIDEO is not None:
     if not os.path.isfile(STREAM_RESTART_BEFORE_VIDEO):
+        print2("error",f"STREAM_RESTART_BEFORE_VIDEO not found.")
         if not EXIT_ON_FILE_NOT_FOUND:
-            print(f"{warn} STREAM_RESTART_BEFORE_VIDEO not found.")
             STREAM_RESTART_BEFORE_VIDEO = None
+        else:
+            exit(1)
 else:
     STREAM_RESTART_BEFORE_VIDEO = None
 
 if STREAM_RESTART_AFTER_VIDEO is not None:
     if not os.path.isfile(STREAM_RESTART_AFTER_VIDEO):
+        print2("error",f"STREAM_RESTART_AFTER_VIDEO not found.")
         if not EXIT_ON_FILE_NOT_FOUND:
-            print(f"{warn} STREAM_RESTART_AFTER_VIDEO not found.")
             STREAM_RESTART_AFTER_VIDEO = None
+        else:
+            exit(1)
 else:
     STREAM_RESTART_AFTER_VIDEO = None
 
