@@ -1,4 +1,4 @@
-bcrypt==3.2.2
+bcrypt==4.0.1
 cffi==1.15.1
 cryptography==39.0.1
 fabric==3.0.0
@@ -7,4 +7,5 @@ paramiko==3.0.0
 Pebble==5.0.3
 psutil==5.9.4
 pycparser==2.21
+pymediainfo==6.0.1
 PyNaCl==1.5.0
