@@ -110,6 +110,11 @@ class StreamStats():
     stream_time_remaining: int
     "Seconds before automatic stream restart."
 
+    video_resume_point: int
+    "If video encoding is aborted, this is set to elapsed_time. This is the earliest time the video will be allowed to start from. After successful encoding, this is set to 0."
+
+    last_connection_check: datetime.datetime
+    "The most recent internet connection check, used to help ensure checks are not done more often than config.CHECK_INTERVAL."
 
     def __init__(self):
         self.recent_playlist = deque()
@@ -121,6 +126,16 @@ class StreamStats():
         self.elapsed_time = 0
         self.videos_since_restart = 0
         self.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
+        self.video_resume_point = 0
+        self.check_connection_future = None
+        self.last_connection_check = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=config.CHECK_INTERVAL)
+
+    def rewind(self, time):
+        """Subtract this many seconds from elapsed_time, without going below 0."""
+        self.elapsed_time -= time
+        if self.elapsed_time < 0:
+            self.elapsed_time = 0
+        print2("verbose",f"Rewinding {time} seconds to {self.elapsed_time} seconds.")
 
 
 def get_length(video) -> int:

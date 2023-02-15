@@ -20,6 +20,8 @@ ini_defaults = {
         },
     "VideoOptions":{
         "STREAM_URL":"rtmp://localhost:1935/live/",
+        "CHECK_URL":"https://twitch.tv",
+        "CHECK_INTERVAL":60,
         "VIDEO_PADDING":2,
         "MEDIA_PLAYER_ARGUMENTS":"-hide_banner -re -ss {elapsed_time} -i \"{file}\" -filter_complex \"[0:v]scale=1280x720,fps=30[scaled];[scaled]tpad=stop_duration=%(VIDEO_PADDING)s;apad=pad_dur=%(VIDEO_PADDING)s\" -c:v h264_omx -b:v 4000k -acodec aac -b:a 192k -ar 48000 -f flv -g 60 rtmp://localhost:1935/live/",
         "RTMP_ARGUMENTS":"-i rtmp://localhost:1935/live -loglevel error -vcodec copy -acodec copy -f flv %(STREAM_URL)s",
@@ -107,6 +109,8 @@ MEDIA_PLAYER_ARGUMENTS = default_ini.get("VideoOptions","MEDIA_PLAYER_ARGUMENTS"
 RTMP_ARGUMENTS = default_ini.get("VideoOptions","RTMP_ARGUMENTS")
 VIDEO_PADDING = default_ini.getint("VideoOptions","VIDEO_PADDING")
 STREAM_URL = default_ini.get("VideoOptions","STREAM_URL")
+CHECK_URL = default_ini.get("VideoOptions","CHECK_URL")
+CHECK_INTERVAL = default_ini.getint("VideoOptions","CHECK_INTERVAL")
 STREAM_TIME_BEFORE_RESTART = default_ini.getint("VideoOptions","STREAM_TIME_BEFORE_RESTART") * 60
 STREAM_RESTART_WAIT = default_ini.getint("VideoOptions","STREAM_RESTART_WAIT")
 STREAM_RESTART_MINIMUM_TIME = default_ini.getint("VideoOptions","STREAM_RESTART_MINIMUM_TIME") * 60
@@ -230,6 +234,10 @@ if STREAM_RESTART_AFTER_VIDEO is not None:
             exit(1)
 else:
     STREAM_RESTART_AFTER_VIDEO = None
+
+# Enforce a minimum of 10 seconds for safety.
+if CHECK_INTERVAL < 10:
+    CHECK_INTERVAL = 10
 
 
 if __name__ == "__main__":
