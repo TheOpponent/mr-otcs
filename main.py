@@ -53,8 +53,12 @@ def rtmp_task() -> subprocess.Popen:
 
 
 @concurrent.thread
-def check_connection(stats: playlist.StreamStats):
+def check_connection(stats: playlist.StreamStats, skip=False):
     """Check internet connection to config.CHECK_URL."""
+
+    if skip:
+        return True
+
     try:
         requests.get(config.CHECK_URL,timeout=5)
     except requests.exceptions.RequestException as e:
@@ -94,6 +98,7 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,stats: playlist.StreamSta
     check_connection_wait = (datetime.datetime.now(datetime.timezone.utc) - stats.last_connection_check).seconds
     if check_connection_wait < config.CHECK_INTERVAL:
         check_connection_wait = config.CHECK_INTERVAL - check_connection_wait
+        check_connection_future = check_connection(stats,skip=True)
         print2("verbose",f"Skipping connection check as last check was done within the last {config.CHECK_INTERVAL} seconds. Performing next connection check in {check_connection_wait} seconds.")
     else:
         check_connection_wait = config.CHECK_INTERVAL
