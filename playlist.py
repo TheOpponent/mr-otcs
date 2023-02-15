@@ -132,9 +132,10 @@ class StreamStats():
 
     def rewind(self, time):
         """Subtract this many seconds from elapsed_time, without going below 0."""
-        self.elapsed_time -= time
-        if self.elapsed_time < 0:
+        if self.elapsed_time - time < 0:
             self.elapsed_time = 0
+        else:
+            self.elapsed_time -= time
 
 
 def get_length(video) -> int:
@@ -212,12 +213,11 @@ def check_file(path,line_num=None,no_exit=False):
 
 
 def create_playlist() -> list[Tuple[int,PlaylistEntry]]:
-    """
-    Read config.MEDIA_PLAYLIST, which is set to either a text file or a
-    list, containing a sequence of playlist entries.
+    """Read config.MEDIA_PLAYLIST, which is set to either the path to a text 
+    file or a list, containing a sequence of playlist entries.
 
-    Returns an enumerated list containing either PlaylistEntry objects
-    or None.
+    Returns an enumerated list starting from 1 containing PlaylistEntry
+    objects.
     """
 
     playlist = []

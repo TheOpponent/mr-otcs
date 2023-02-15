@@ -99,11 +99,11 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,stats: playlist.StreamSta
     if check_connection_wait < config.CHECK_INTERVAL:
         check_connection_wait = config.CHECK_INTERVAL - check_connection_wait
         check_connection_future = check_connection(stats,skip=True)
-        print2("verbose",f"Skipping connection check as last check was done within the last {config.CHECK_INTERVAL} seconds. Performing next connection check in {check_connection_wait} seconds.")
+        print2("verbose2",f"Skipping connection check as last check was done within the last {config.CHECK_INTERVAL} seconds. Performing next connection check in {check_connection_wait} seconds.")
     else:
         check_connection_wait = config.CHECK_INTERVAL
         check_connection_future = check_connection(stats)
-        print2("verbose",f"Checking connection to {config.CHECK_URL} at {datetime.datetime.now(datetime.timezone.utc)}.")
+        print2("verbose2",f"Checking connection to {config.CHECK_URL} at {datetime.datetime.now(datetime.timezone.utc)}.")
 
     try:
         process = subprocess.Popen(command)
@@ -144,15 +144,15 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,stats: playlist.StreamSta
         else:
             check_connection_wait = config.CHECK_INTERVAL
             check_connection_future = check_connection(stats)
-            print2("verbose",f"Checking connection to {config.CHECK_URL} at {datetime.datetime.now(datetime.timezone.utc)}.")
+            print2("verbose2",f"Checking connection to {config.CHECK_URL} at {datetime.datetime.now(datetime.timezone.utc)}.")
 
         if play_index is not None:
             write_index_wait -= 1
             if write_index_wait <= 0:
                 playlist.write_index(play_index,stats)
+                print2("verbose2",f"Writing {play_index} {stats.elapsed_time} to {config.PLAY_INDEX_FILE}.")
                 write_index_wait = config.TIME_RECORD_INTERVAL
         time.sleep(1)
-
 
     if rtmp_task.poll() is not None:
         process.kill()
@@ -171,7 +171,6 @@ def write_play_history(video_file, play_index, video_time):
     except FileNotFoundError:
         with open(config.PLAY_HISTORY_FILE,"w+") as play_history:
             play_history_buffer = []
-            play_history.close()
     finally:
         try:
             with open(config.PLAY_HISTORY_FILE,"w+") as play_history:
@@ -197,6 +196,7 @@ def stop_stream(executor,restart=True):
     if restart:
         executor = ProcessPool()
         return executor
+
 
 def int_to_time(seconds):
     """Returns a time string containing hours, minutes, and seconds

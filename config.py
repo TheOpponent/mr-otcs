@@ -152,25 +152,26 @@ PLAY_HISTORY_LENGTH = default_ini.getint("Misc","PLAY_HISTORY_LENGTH")
 VERBOSE = default_ini.get("Misc","VERBOSE").lower()
 
 if VERBOSE == "fatal":
-    VERBOSE = 0b1000000
+    VERBOSE = 0b10000000
 elif VERBOSE == "error":
-    VERBOSE = 0b1100000
+    VERBOSE = 0b11000000
 elif VERBOSE == "warn":
-    VERBOSE = 0b1110000
+    VERBOSE = 0b11100000
 elif VERBOSE == "notice":
-    VERBOSE = 0b1111000
+    VERBOSE = 0b11110000
 elif VERBOSE == "play":
-    VERBOSE = 0b1111100
+    VERBOSE = 0b11111000
 elif VERBOSE == "info":
-    VERBOSE = 0b1111110
+    VERBOSE = 0b11111100
 elif VERBOSE == "verbose":
-    VERBOSE = 0b1111111
+    VERBOSE = 0b11111110
+elif VERBOSE == "verbose2":
+    VERBOSE = 0b11111111
 else:
     print("VERBOSE setting not recognized. Using default setting \"info\".")
-    VERBOSE = 0b1111110
+    VERBOSE = 0b11111100
 
 reset = '\033[0m'
-info = "[Info]"
 notice = '\033[96m' + "[Notice]" + reset
 warn = '\033[93m' + "[Warn]" + reset
 error = '\033[31m' + "[Error]" + reset
@@ -179,20 +180,22 @@ play = '\033[92m' + "[Play]" + reset
 def print2(level: str,message: str):
     """Prepend a colored label with a standard print message."""
 
-    if level == "fatal" and VERBOSE & 0b1000000:
+    if level == "fatal" and VERBOSE & 0b10000000:
         print(f"{error} {message}")
-    if level == "error" and VERBOSE & 0b100000:
+    elif level == "error" and VERBOSE & 0b1000000:
         print(f"{error} {message}")
-    if level == "warn" and VERBOSE & 0b10000:
+    elif level == "warn" and VERBOSE & 0b100000:
         print(f"{warn} {message}")
-    if level == "notice" and VERBOSE & 0b1000:
+    elif level == "notice" and VERBOSE & 0b10000:
         print(f"{notice} {message}")
-    if level == "play" and VERBOSE & 0b100:
+    elif level == "play" and VERBOSE & 0b1000:
         print(f"{play} {message}")
-    if level == "info" and VERBOSE & 0b10:
-        print(f"{info} {message}")
-    if level == "verbose" and VERBOSE & 0b1:
-        print(f"{info} {message}")
+    elif level == "info" and VERBOSE & 0b100:
+        print(f"[Info] {message}")
+    elif level == "verbose" and VERBOSE & 0b10:
+        print(f"[Info] {message}")
+    elif level == "verbose2" and VERBOSE & 0b1:
+        print(f"[Info] {message}")
 
 
 # Validate config settings.
