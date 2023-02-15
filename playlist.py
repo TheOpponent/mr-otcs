@@ -135,7 +135,6 @@ class StreamStats():
         self.elapsed_time -= time
         if self.elapsed_time < 0:
             self.elapsed_time = 0
-        print2("verbose",f"Rewinding {time} seconds to {self.elapsed_time} seconds.")
 
 
 def get_length(video) -> int:
@@ -567,18 +566,17 @@ def upload_ssh():
         client.put(config.SCHEDULE_PATH,config.REMOTE_DIRECTORY)
 
 
+@concurrent.thread
 def write_index(play_index, stats):
     """Write play_index and elapsed time to play_index.txt
     at the period set by TIME_RECORD_INTERVAL. A StreamStats object
     is used to track elapsed time.
     """
 
-    while True:
-        with open(config.PLAY_INDEX_FILE,"w") as index_file:
-            index_file.write(f"{play_index}\n{stats.elapsed_time}")
+    with open(config.PLAY_INDEX_FILE,"w") as index_file:
+        index_file.write(f"{play_index}\n{stats.elapsed_time}")
 
-        stats.elapsed_time += config.TIME_RECORD_INTERVAL
-        time.sleep(config.TIME_RECORD_INTERVAL)
+    stats.elapsed_time += config.TIME_RECORD_INTERVAL
 
 
 if __name__ == "__main__":

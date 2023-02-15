@@ -14,7 +14,7 @@ from concurrent.futures import TimeoutError
 
 import psutil
 import requests
-from pebble import ProcessExpired, ProcessPool
+from pebble import ProcessExpired, ProcessPool, concurrent
 
 import config
 import playlist
@@ -27,7 +27,7 @@ class BackgroundProcessError(Exception):
     pass
 
 
-def rtmp_task(process=None) -> subprocess.Popen:
+def rtmp_task() -> subprocess.Popen:
     """Task for starting the RTMP broadcasting process."""
 
     command = shlex.split(f"{config.RTMP_STREAMER_PATH} {config.RTMP_ARGUMENTS}")
@@ -52,7 +52,23 @@ def rtmp_task(process=None) -> subprocess.Popen:
     return process
 
 
-def encoder_task(file: str,rtmp_task: subprocess.Popen,stats: playlist.StreamStats,skip_time=0):
+@concurrent.thread
+def check_connection(stats: playlist.StreamStats):
+    """Check internet connection to config.CHECK_URL."""
+    try:
+        requests.get(config.CHECK_URL,timeout=5)
+    except requests.exceptions.RequestException as e:
+        # If the check fails, force next check to ignore config.CHECK_INTERVAL setting.
+        stats.last_connection_check = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=config.CHECK_INTERVAL)
+        stats.rewind(config.REWIND_LENGTH)
+        print(e)
+        raise BackgroundProcessError(f"Could not establish connection to {config.CHECK_URL}.")
+    else:
+        stats.last_connection_check = datetime.datetime.now(datetime.timezone.utc)
+        return True
+
+
+def encoder_task(file: str,rtmp_task: subprocess.Popen,stats: playlist.StreamStats,play_index=None,skip_time=0):
     """Task for encoding a video file from a playlist.
     Monitors the RTMP process id. If it is not running, or if the encoder
     process exits with a non-zero code, returns False. Otherwise, returns
@@ -60,23 +76,8 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,stats: playlist.StreamSta
 
     This task also handles uploading the schedule file via SSH."""
 
-    def check_connection(stats):
-        """Check internet connection to config.CHECK_URL."""
-        try:
-            print2("verbose",f"Checking connection to {config.CHECK_URL}.")
-            requests.get(config.CHECK_URL,timeout=5)
-        except requests.exceptions.RequestException as e:
-            # If the check fails, force next check to ignore config.CHECK_INTERVAL setting.
-            stats.last_connection_check = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=config.CHECK_INTERVAL)
-            stats.rewind(config.REWIND_LENGTH)
-            print(e)
-            raise BackgroundProcessError(f"Could not establish connection to {config.CHECK_URL}.")
-        else:
-            print2("verbose",f"Connection check successful at {datetime.datetime.now()}. Checking again in {config.CHECK_INTERVAL} seconds.")
-            stats.last_connection_check = datetime.datetime.now(datetime.timezone.utc)
-            return True
-
     command = shlex.split(f"{config.MEDIA_PLAYER_PATH} {config.MEDIA_PLAYER_ARGUMENTS.format(file=file,skip_time=skip_time)}")
+
     # Check if encoding ffmpeg is already running and terminate any processes
     # that match the command line.
     for proc in psutil.process_iter(['cmdline']):
@@ -86,17 +87,21 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,stats: playlist.StreamSta
             proc.kill()
             print2("notice","Old encoder process killed.")
 
-    # Check internet connection before encoding.
+    write_index_wait = config.TIME_RECORD_INTERVAL
+
+    # If the most recent connection check was too recent, ensure the
+    # next check happens after the config.CHECK_INTERVAL delay.
     check_connection_wait = (datetime.datetime.now(datetime.timezone.utc) - stats.last_connection_check).seconds
-    if check_connection_wait >= config.CHECK_INTERVAL:
-        if check_connection(stats):
-            check_connection_wait = config.CHECK_INTERVAL
-    else:
+    if check_connection_wait < config.CHECK_INTERVAL:
         check_connection_wait = config.CHECK_INTERVAL - check_connection_wait
         print2("verbose",f"Skipping connection check as last check was done within the last {config.CHECK_INTERVAL} seconds. Performing next connection check in {check_connection_wait} seconds.")
+    else:
+        check_connection_wait = config.CHECK_INTERVAL
+        check_connection_future = check_connection(stats)
+        print2("verbose",f"Checking connection to {config.CHECK_URL} at {datetime.datetime.now(datetime.timezone.utc)}.")
 
     try:
-        process = subprocess.Popen(command,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+        process = subprocess.Popen(command)
     except subprocess.CalledProcessError as e:
         print(e.stderr)
         print2("error",f"Encoder process ended unexpectedly at {datetime.datetime.now()}, exit code {e.returncode}.")
@@ -123,22 +128,31 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,stats: playlist.StreamSta
     # per minute. Return True if the encode finished successfully and RTMP
     # process is still running. If the connection check fails, rewind
     # config.CHECK_INTERVAL seconds.
+    # Also write to play_index.txt in config.TIME_RECORD_INTERVAL seconds.
     while process.poll() is None and rtmp_task.poll() is None:
-        if check_connection_wait == 0:
-            if check_connection(stats):
-                check_connection_wait = config.CHECK_INTERVAL
+        check_connection_wait -= 1
+        if check_connection_wait > 0:
+            if check_connection_future.done():
+                if check_connection_future.exception() is not None:
+                    process.kill()
+                    raise check_connection_future.exception()
         else:
-            check_connection_wait -= 1
-            time.sleep(1)
+            check_connection_wait = config.CHECK_INTERVAL
+            check_connection_future = check_connection(stats)
+            print2("verbose",f"Checking connection to {config.CHECK_URL} at {datetime.datetime.now(datetime.timezone.utc)}.")
+
+        if play_index is not None:
+            write_index_wait -= 1
+            if write_index_wait <= 0:
+                playlist.write_index(play_index,stats)
+                write_index_wait = config.TIME_RECORD_INTERVAL
+        time.sleep(1)
+
 
     if rtmp_task.poll() is not None:
         process.kill()
         raise BackgroundProcessError(f"RTMP process ended unexpectedly at {datetime.datetime.now()}, exit code {rtmp_task.poll()}. Restarting stream.")
     else:
-        if process.poll() != 0:
-            out, errs = process.communicate()
-            print(out)
-            print(errs)
         return process.poll()
 
 
@@ -202,6 +216,8 @@ def main():
 
     restarted = False
     media_playlist = playlist.create_playlist()
+    media_playlist_length = len(media_playlist)
+    stats = playlist.StreamStats()
     total_elapsed_time = 0
 
     # Start RTMP broadcast task, to be stopped when total_elapsed_time
@@ -213,7 +229,6 @@ def main():
     extra_entries = []
 
     executor = ProcessPool()
-    stats = playlist.StreamStats()
 
     while True:
         try:
@@ -254,15 +269,14 @@ def main():
                     play_index_contents = index_file.readlines()
 
             except FileNotFoundError:
+                print2("notice",f"Play index reset due to {config.PLAY_INDEX_FILE} not found. Generating new file.")
                 with open(config.PLAY_INDEX_FILE,"w+") as index_file:
                     index_file.write("0\n0")
                     play_index = 0
                     stats.elapsed_time = 0
 
-            # Reset index to 0 if it overruns the playlist.
             try:
                 play_index = int(play_index_contents[0])
-                media_playlist[play_index]
             except IndexError:
                 play_index = 0
 
@@ -274,7 +288,8 @@ def main():
             # Get next item in media_playlist that is a PlaylistEntry of type "normal".
             while True:
 
-                if play_index >= len(media_playlist):
+                # Reset index to 0 if it overruns the playlist.
+                if play_index >= media_playlist_length:
                     play_index = 0
 
                 if media_playlist[play_index][1].type == "normal":
@@ -325,7 +340,7 @@ def main():
 
             # Play video file entry. Ensure at least one video will always play each loop
             # regardless of stream time limits.
-            if play_index >= len(media_playlist):
+            if play_index >= media_playlist_length:
                 play_index = 0
             if media_playlist[play_index][1].type == "normal":
                 video_file = media_playlist[play_index][1]
@@ -386,9 +401,7 @@ def main():
                             print2("info",f"Encoding started on {video_time}.")
                             if stats.elapsed_time < config.REWIND_LENGTH:
                                 stats.elapsed_time = 0
-                            write_index_future = executor.schedule(playlist.write_index,[play_index,stats])
-                            encoder_result = encoder_task(video_file.path,rtmp_process,stats,stats.elapsed_time)
-                            write_index_future.cancel()
+                            encoder_result = encoder_task(video_file.path,rtmp_process,stats,play_index,stats.elapsed_time)
 
                             if encoder_result == 0:
                                 print2("info","Video encoded successfully.")
@@ -401,13 +414,13 @@ def main():
                                 stats.video_resume_point = 0
                                 stats.videos_since_restart += 1
                                 print2("info",f"Elapsed stream time: {int_to_time(total_elapsed_time)}.")
-                                if play_index < len(media_playlist):
-                                    play_index += 1
-                                    print2("verbose",f"Incrementing play index: {play_index}")
-                                else:
+                                if play_index > media_playlist_length:
                                     # Reset index at end of playlist.
                                     print2("verbose","Resetting play index: 0")
                                     play_index = 0
+                                else:
+                                    play_index += 1
+                                    print2("verbose",f"Incrementing play index: {play_index}")
 
                                 with open(config.PLAY_INDEX_FILE,"w") as index_file:
                                     index_file.write(str(play_index) + "\n0")
@@ -455,11 +468,10 @@ def main():
             # stop the encoder process immediately and rewind.
             print2("error",e)
             print2("verbose",f"{stats.videos_since_restart} videos played since last restart.")
-            # print2("notice",f"Waiting {config.STREAM_RESTART_WAIT} seconds to restart.")
-            # time.sleep(config.STREAM_RESTART_WAIT)
             if stats.video_resume_point < stats.elapsed_time:
                 stats.video_resume_point = stats.elapsed_time
             executor = stop_stream(executor)
+            time.sleep(1)
             stats.videos_since_restart = 0
             rtmp_process = rtmp_task()
             stats.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART

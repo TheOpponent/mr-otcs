@@ -170,13 +170,13 @@ else:
     VERBOSE = 0b1111110
 
 reset = '\033[0m'
-info = "[Info]" + reset
+info = "[Info]"
 notice = '\033[96m' + "[Notice]" + reset
 warn = '\033[93m' + "[Warn]" + reset
 error = '\033[31m' + "[Error]" + reset
 play = '\033[92m' + "[Play]" + reset
 
-def print2(level: str,message: str, force=False):
+def print2(level: str,message: str):
     """Prepend a colored label with a standard print message."""
 
     if level == "fatal" and VERBOSE & 0b1000000:
@@ -201,6 +201,7 @@ if ALT_NAMES_JSON_PATH is not None:
         with open(ALT_NAMES_JSON_PATH,"r",encoding='utf8') as alt_names_json:
             try:
                 ALT_NAMES = json.load(alt_names_json)
+                print2("verbose",f"f{len(ALT_NAMES)} keys loaded from {ALT_NAMES_JSON_PATH}.")
             except json.JSONDecodeError as e:
                 print(e)
                 print2("error",f"Error loading {ALT_NAMES_JSON_PATH} in ALT_NAMES_JSON_PATH.")
