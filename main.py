@@ -165,7 +165,7 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,stats: playlist.StreamSta
         return process.poll()
 
 
-def write_play_history(video_file, play_index, video_start_time):
+def write_play_history(message):
     """Write history of played video files and timestamps,
     limited to PLAY_HISTORY_LENGTH."""
 
@@ -178,7 +178,7 @@ def write_play_history(video_file, play_index, video_start_time):
     finally:
         try:
             with open(config.PLAY_HISTORY_FILE,"w+") as play_history:
-                play_history_buffer.append(f"{video_start_time} - {play_index}. {video_file}\n")
+                play_history_buffer.append(f"{datetime.datetime.now()} - {message}\n")
                 play_history.writelines(play_history_buffer[-config.PLAY_HISTORY_LENGTH:])
         except Exception as e:
             print(e)
@@ -266,11 +266,13 @@ def main():
 
             if restarted:
                 print2("info",f"Stream restarted at {datetime.datetime.now()}.")
+                write_play_history(f"Stream restarted.")
                 if config.STREAM_RESTART_AFTER_VIDEO is not None:
                     if playlist.check_file(config.STREAM_RESTART_AFTER_VIDEO):
                         next_video_length = playlist.get_length(config.STREAM_RESTART_AFTER_VIDEO)
                         total_elapsed_time += next_video_length + config.VIDEO_PADDING
                         print2("play",f"STREAM_RESTART_AFTER_VIDEO: {config.STREAM_RESTART_AFTER_VIDEO} - Length: {int_to_time(next_video_length)}.")
+                        write_play_history(f"STREAM_RESTART_AFTER_VIDEO: {config.STREAM_RESTART_AFTER_VIDEO}")
                         encoder = encoder_task(config.STREAM_RESTART_AFTER_VIDEO,rtmp_process,stats)
                         if encoder == 0:
                             total_elapsed_time += playlist.get_length(config.STREAM_RESTART_AFTER_VIDEO) + config.VIDEO_PADDING
@@ -331,9 +333,12 @@ def main():
                             restarted = True
 
                             print2("play",f"{media_playlist[play_index][0]}. Executing RESTART command.")
+                            write_play_history(f"{media_playlist[play_index][0]}. %RESTART")
 
                             if config.STREAM_RESTART_BEFORE_VIDEO is not None:
-                                encoder_task(config.STREAM_RESTART_BEFORE_VIDEO,rtmp_process,stats)
+                                print2("play",f"STREAM_RESTART_BEFORE_VIDEO: {config.STREAM_RESTART_BEFORE_VIDEO} - Length: {int_to_time(playlist.get_length(config.STREAM_RESTART_BEFORE_VIDEO))}.")
+                                write_play_history(f"STREAM_RESTART_BEFORE_VIDEO: {config.STREAM_RESTART_BEFORE_VIDEO}")
+                                encoder = encoder_task(config.STREAM_RESTART_BEFORE_VIDEO,rtmp_process,stats)
 
                             stop_stream(executor)
                             stats.videos_since_restart = 0
@@ -396,7 +401,7 @@ def main():
                             print2("notice","STREAM_TIME_BEFORE_RESTART limit reached, but stream restart is deferred as no videos have completed yet.")
                         if config.PLAY_HISTORY_FILE is not None:
                             print2("verbose",f"Writing play history file to {config.PLAY_HISTORY_FILE}.")
-                            write_play_history(video_file.name,media_playlist[play_index][0],video_start_time)
+                            write_play_history(f"{media_playlist[play_index][0]}. {video_file.path}")
 
                         # Write schedule only once per video file.
                         if config.SCHEDULE_PATH is not None:
@@ -470,6 +475,7 @@ def main():
                         restarted = True
                         if config.STREAM_RESTART_BEFORE_VIDEO is not None:
                             print2("play",f"STREAM_RESTART_BEFORE_VIDEO: {config.STREAM_RESTART_BEFORE_VIDEO} - Length: {int_to_time(playlist.get_length(config.STREAM_RESTART_BEFORE_VIDEO))}.")
+                            write_play_history(f"STREAM_RESTART_BEFORE_VIDEO: {config.STREAM_RESTART_BEFORE_VIDEO}")
                             encoder = encoder_task(config.STREAM_RESTART_BEFORE_VIDEO,rtmp_process,stats)
                         print2("verbose",f"{stats.videos_since_restart} videos played since last restart.")
                         executor = stop_stream(executor)
@@ -492,6 +498,8 @@ def main():
             # if it advanced past one rewind interval since last encode,
             # and attempt to restart the stream.
             print2("error",e)
+            write_play_history(f"Stream stopped due to exception: {e}")
+            print2("error","Stream interrupted. Attempting to restart.")
             print2("verbose",f"{stats.videos_since_restart} videos played since last restart.")
             if stats.elapsed_time - config.REWIND_LENGTH > stats.video_resume_point:
                 stats.rewind(config.REWIND_LENGTH)
@@ -507,6 +515,7 @@ def main():
         except KeyboardInterrupt:
             print2("notice","Stopping RTMP process.")
             stop_stream(executor,restart=False)
+            write_play_history(f"Stream ended.")
             print2("verbose",f"{stats.videos_since_restart} videos played since last restart.")
             print2("info","Exiting.")
             exit(130)
@@ -514,6 +523,7 @@ def main():
         except Exception as e:
             print(e)
             stop_stream(executor,restart=False)
+            write_play_history(f"Stream stopped due to exception: {e}")
             # Attempt to terminate remaining ffmpeg processes.
             for proc in psutil.process_iter(['cmdline']):
                 if config.MEDIA_PLAYER_PATH not in proc.info['cmdline']:
