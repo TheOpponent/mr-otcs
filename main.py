@@ -220,6 +220,7 @@ def main():
         exit(1)
 
     restarted = False
+    retried = False
     media_playlist = playlist.create_playlist()
     media_playlist_length = len(media_playlist)
     stats = playlist.StreamStats()
@@ -262,8 +263,7 @@ def main():
                             total_elapsed_time += playlist.get_length(config.STREAM_RESTART_AFTER_VIDEO) + config.VIDEO_PADDING
 
                 restarted = False
-
-            stats.stream_time_remaining -= total_elapsed_time
+                retried = False
 
             # Keep playlist index and elapsed time of current video and store
             # in file play_index.txt. Create it if it does not exist.
@@ -413,8 +413,15 @@ def main():
                                 # Increment play_index and add video length to
                                 # total_elapsed_time upon successful playback.
                                 exit_time = datetime.datetime.now()
-                                total_elapsed_time += next_video_length
-                                stats.stream_time_remaining -= next_video_length
+                                if not retried:
+                                    total_elapsed_time += next_video_length
+                                    stats.stream_time_remaining -= next_video_length
+                                # If the encoding had to be retried, add only the encoded
+                                # portion to total_elapsed_time.
+                                else:
+                                    total_elapsed_time += stats.elapsed_time + config.REWIND_LENGTH
+                                    stats.stream_time_remaining -= stats.elapsed_time + config.REWIND_LENGTH
+                                    retried = False
                                 stats.elapsed_time = 0
                                 stats.video_resume_point = 0
                                 stats.videos_since_restart += 1
@@ -434,10 +441,14 @@ def main():
 
                             # Retry if encoder process fails.
                             else:
+                                retried = True
+                                total_elapsed_time += stats.elapsed_time
                                 stats.stream_time_remaining -= stats.elapsed_time
                                 if stats.stream_time_remaining > (next_video_length - stats.elapsed_time):
                                     if stats.elapsed_time > stats.video_resume_point:
                                         stats.rewind(config.REWIND_LENGTH)
+                                        stats.video_resume_point = stats.elapsed_time
+                                    stats.elapsed_time = 0
                                     print2("warn",f"Encoding failed. Retrying from {int_to_time(stats.elapsed_time)}.")
                                 else:
                                     # If the remaining length of the video is greater than
