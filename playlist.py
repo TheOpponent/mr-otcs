@@ -98,7 +98,7 @@ class StreamStats():
     previous_files: deque
     "Entries from recent_playlist are popped from the left and appended to this deque."
 
-    stream_start_time: datetime.datetime
+    program_start_time: datetime.datetime
     "The time this program was started, in UTC."
 
     elapsed_time: int
@@ -106,6 +106,9 @@ class StreamStats():
 
     videos_since_restart: int
     "Number of videos played since program start or last restart of RTMP process. Does not include STREAM_RESTART_BEFORE_VIDEO or STREAM_RESTART_AFTER_VIDEO."
+
+    stream_start_time: datetime.datetime
+    "The time the current stream was started, in local time. Set only after starting the RTMP process."
 
     stream_time_remaining: int
     "Seconds before automatic stream restart."
@@ -122,9 +125,10 @@ class StreamStats():
             self.previous_files = deque()
         else:
             self.previous_files = None
-        self.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
+        self.program_start_time = datetime.datetime.now(datetime.timezone.utc)
         self.elapsed_time = 0
         self.videos_since_restart = 0
+        self.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
         self.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
         self.video_resume_point = 0
         self.check_connection_future = None
@@ -321,7 +325,7 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,extra_entr
     are currently supported; all others are ignored.
 
     The JSON file includes the following keys:
-    stream_start_time: The time this program began, in UTC.
+    program_start_time: The time this program began, in UTC.
     start_time: The time this function was called, which approximates
     to the time the currently playing video file began, in UTC.
     coming_up_next: Nested JSON objects with a combined duration not
@@ -541,7 +545,7 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,extra_entr
         stats.recent_playlist = deque(coming_up_next_json.copy())
 
     schedule_json_out = {
-        "stream_start_time":stats.stream_start_time.strftime("%Y-%m-%d %H:%M:%S"),
+        "program_start_time":stats.program_start_time.strftime("%Y-%m-%d %H:%M:%S"),
         "video_start_time":start_time.strftime("%Y-%m-%d %H:%M:%S"),
         "coming_up_next":list(coming_up_next_json),
         "previous_files":list(stats.previous_files),

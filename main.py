@@ -42,7 +42,7 @@ def rtmp_task() -> subprocess.Popen:
             print2("notice","Old RTMP process found and killed.")
 
     try:
-        process = subprocess.Popen(command)
+        process = subprocess.Popen(command,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     except subprocess.CalledProcessError as e:
         print2("error",f"RTMP process terminated at {datetime.datetime.now()}, exit code {e.returncode}.")
         return e.returncode
@@ -53,8 +53,10 @@ def rtmp_task() -> subprocess.Popen:
 
 
 @concurrent.thread
-def check_connection(stats: playlist.StreamStats, skip=False):
-    """Check internet connection to config.CHECK_URL."""
+def check_connection(stats: playlist.StreamStats, skip=False, exception=True):
+    """Check internet connection to config.CHECK_URL. If exception is False,
+    return False instead of raising the RequestException from the requests
+    module if the request fails."""
 
     if skip:
         return True
@@ -64,9 +66,11 @@ def check_connection(stats: playlist.StreamStats, skip=False):
     except requests.exceptions.RequestException as e:
         # If the check fails, force next check to ignore config.CHECK_INTERVAL setting.
         stats.last_connection_check = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=config.CHECK_INTERVAL)
-        stats.rewind(config.REWIND_LENGTH)
         print(e)
-        raise BackgroundProcessError(f"Could not establish connection to {config.CHECK_URL}.")
+        if exception:
+            raise BackgroundProcessError(f"Could not establish connection to {config.CHECK_URL}.")
+        else:
+            return False
     else:
         stats.last_connection_check = datetime.datetime.now(datetime.timezone.utc)
         return True
@@ -106,7 +110,7 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,stats: playlist.StreamSta
         print2("verbose2",f"Checking connection to {config.CHECK_URL} at {datetime.datetime.now(datetime.timezone.utc)}.")
 
     try:
-        process = subprocess.Popen(command)
+        process = subprocess.Popen(command,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     except subprocess.CalledProcessError as e:
         print(e.stderr)
         print2("error",f"Encoder process ended unexpectedly at {datetime.datetime.now()}, exit code {e.returncode}.")
@@ -161,7 +165,7 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,stats: playlist.StreamSta
         return process.poll()
 
 
-def write_play_history(video_file, play_index, video_time):
+def write_play_history(video_file, play_index, video_start_time):
     """Write history of played video files and timestamps,
     limited to PLAY_HISTORY_LENGTH."""
 
@@ -174,7 +178,7 @@ def write_play_history(video_file, play_index, video_time):
     finally:
         try:
             with open(config.PLAY_HISTORY_FILE,"w+") as play_history:
-                play_history_buffer.append(f"{video_time} - {play_index}. {video_file}\n")
+                play_history_buffer.append(f"{video_start_time} - {play_index}. {video_file}\n")
                 play_history.writelines(play_history_buffer[-config.PLAY_HISTORY_LENGTH:])
         except Exception as e:
             print(e)
@@ -226,9 +230,23 @@ def main():
     stats = playlist.StreamStats()
     total_elapsed_time = 0
 
+    print2("verbose",f"Checking connection to {config.CHECK_URL} at {datetime.datetime.now(datetime.timezone.utc)}.")
+    init_connection_check = check_connection(stats,exception=False)
+    while True:
+        try:
+            if init_connection_check.result(timeout=6):
+                break
+        except (TimeoutError) as e:
+            print2("error","Initial connection check failed. Retrying in 5 seconds.")
+            time.sleep(5)
+            init_connection_check = check_connection(stats,exception=False)
+        else:
+            break
+
     # Start RTMP broadcast task, to be stopped when total_elapsed_time
     # will exceed STREAM_TIME_BEFORE_RESTART.
     rtmp_process = rtmp_task()
+    stats.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
 
     # Keep list of extra entries that get passed over, and pass it to
     # write_schedule().
@@ -238,11 +256,6 @@ def main():
 
     while True:
         try:
-
-            # Set initial exit_time. exit_time is set to elapsed time since
-            # playback began and compared to start time stored in video_time in
-            # next loop.
-            exit_time = datetime.datetime.now()
 
             # If config.STREAM_RESTART_BEFORE_VIDEO is defined, add its
             # length to total_elapsed_time ahead of time.
@@ -329,6 +342,7 @@ def main():
                             time.sleep(config.STREAM_RESTART_WAIT)
                             play_index += 1
                             rtmp_process = rtmp_task()
+                            stats.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
                             break
 
                         else:
@@ -349,7 +363,7 @@ def main():
                 play_index = 0
             if media_playlist[play_index][1].type == "normal":
                 video_file = media_playlist[play_index][1]
-                video_time = datetime.datetime.now()
+                video_start_time = datetime.datetime.now()
                 result = playlist.check_file(video_file.path)
 
                 if result:
@@ -366,7 +380,7 @@ def main():
                             # If video took less than REWIND_LENGTH to play
                             # (e.g. repeatedly failing to start or first loop
                             # of script), do not rewind.
-                            if ((exit_time - video_time).seconds > config.REWIND_LENGTH) and stats.elapsed_time > stats.video_resume_point:
+                            if stats.elapsed_time > stats.video_resume_point:
                                 stats.rewind(config.REWIND_LENGTH)
                             else:
                                 stats.elapsed_time = stats.video_resume_point
@@ -382,7 +396,7 @@ def main():
                             print2("notice","STREAM_TIME_BEFORE_RESTART limit reached, but stream restart is deferred as no videos have completed yet.")
                         if config.PLAY_HISTORY_FILE is not None:
                             print2("verbose",f"Writing play history file to {config.PLAY_HISTORY_FILE}.")
-                            write_play_history(video_file.name,media_playlist[play_index][0],video_time)
+                            write_play_history(video_file.name,media_playlist[play_index][0],video_start_time)
 
                         # Write schedule only once per video file.
                         if config.SCHEDULE_PATH is not None:
@@ -403,25 +417,19 @@ def main():
                         # If playlist.elapsed_time is less than config.REWIND_LENGTH, assume the
                         # encoder failed and restart from stats.elapsed_time again.
                         while True:
-                            print2("info",f"Encoding started on {video_time}.")
-                            if stats.elapsed_time < config.REWIND_LENGTH:
-                                stats.elapsed_time = 0
+                            print2("info",f"Encoding started on {video_start_time}.")
                             encoder_result = encoder_task(video_file.path,rtmp_process,stats,play_index,stats.elapsed_time)
 
+                            # Calculate total time of encoding in seconds and update
+                            # total_elapsed_time and stats.stream_time_remaining.
+                            exit_time = (datetime.datetime.now() - video_start_time).seconds
+                            total_elapsed_time += exit_time
+                            stats.stream_time_remaining -= exit_time
+
+                            # Increment play_index if encode succeeded.
                             if encoder_result == 0:
+                                retried = False
                                 print2("info","Video encoded successfully.")
-                                # Increment play_index and add video length to
-                                # total_elapsed_time upon successful playback.
-                                exit_time = datetime.datetime.now()
-                                if not retried:
-                                    total_elapsed_time += next_video_length
-                                    stats.stream_time_remaining -= next_video_length
-                                # If the encoding had to be retried, add only the encoded
-                                # portion to total_elapsed_time.
-                                else:
-                                    total_elapsed_time += stats.elapsed_time + config.REWIND_LENGTH
-                                    stats.stream_time_remaining -= stats.elapsed_time + config.REWIND_LENGTH
-                                    retried = False
                                 stats.elapsed_time = 0
                                 stats.video_resume_point = 0
                                 stats.videos_since_restart += 1
@@ -442,14 +450,12 @@ def main():
                             # Retry if encoder process fails.
                             else:
                                 retried = True
-                                total_elapsed_time += stats.elapsed_time
-                                stats.stream_time_remaining -= stats.elapsed_time
-                                if stats.stream_time_remaining > (next_video_length - stats.elapsed_time):
-                                    if stats.elapsed_time > stats.video_resume_point:
+                                if stats.stream_time_remaining > (next_video_length - exit_time):
+                                    if stats.elapsed_time - config.REWIND_LENGTH > stats.video_resume_point:
                                         stats.rewind(config.REWIND_LENGTH)
                                         stats.video_resume_point = stats.elapsed_time
-                                    stats.elapsed_time = 0
                                     print2("warn",f"Encoding failed. Retrying from {int_to_time(stats.elapsed_time)}.")
+                                    print2("info",f"{int_to_time(stats.stream_time_remaining - (next_video_length - stats.elapsed_time))} left before restart.")
                                 else:
                                     # If the remaining length of the video is greater than
                                     # stats.stream_time_remaining, force a restart by breaking
@@ -472,6 +478,7 @@ def main():
                         print2("notice",f"Waiting {config.STREAM_RESTART_WAIT} seconds to restart stream.")
                         time.sleep(config.STREAM_RESTART_WAIT)
                         rtmp_process = rtmp_task()
+                        stats.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
                         stats.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
                         continue
 
@@ -481,15 +488,19 @@ def main():
 
         except (ProcessExpired, BackgroundProcessError) as e:
             # If the RTMP process is terminated for any reason,
-            # stop the encoder process immediately and rewind.
+            # stop the encoder process immediately, rewind the video
+            # if it advanced past one rewind interval since last encode,
+            # and attempt to restart the stream.
             print2("error",e)
             print2("verbose",f"{stats.videos_since_restart} videos played since last restart.")
-            if stats.video_resume_point < stats.elapsed_time:
+            if stats.elapsed_time - config.REWIND_LENGTH > stats.video_resume_point:
+                stats.rewind(config.REWIND_LENGTH)
                 stats.video_resume_point = stats.elapsed_time
             executor = stop_stream(executor)
             time.sleep(1)
             stats.videos_since_restart = 0
             rtmp_process = rtmp_task()
+            stats.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
             stats.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
             continue
 
