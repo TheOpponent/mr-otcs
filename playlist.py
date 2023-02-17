@@ -532,7 +532,7 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,extra_entr
                 if i["type"] == "normal":
                     prev_total_duration += i["length"]
 
-            if sum([i["type"] == "normal" for i in stats.previous_files]) > config.SCHEDULE_PREVIOUS_MAX_VIDEOS:
+            while sum([i["type"] == "normal" for i in stats.previous_files]) > config.SCHEDULE_PREVIOUS_MAX_VIDEOS:
                 while stats.previous_files[-1]["type"] != "normal":
                     stats.previous_files.popleft()
                 stats.previous_files.popleft()
