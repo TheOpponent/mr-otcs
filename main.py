@@ -7,6 +7,7 @@
 # https://twitter.com/TheOpponent
 
 import datetime
+import os
 import shlex
 import subprocess
 import time
@@ -215,9 +216,6 @@ def int_to_time(seconds):
 def main():
 
     video_file: playlist.PlaylistEntry
-
-    print2("info",f"Mr. OTCS version {config.SCRIPT_VERSION}")
-    print2("info","https://github.com/TheOpponent/mr-otcs")
 
     if config.STREAM_URL == "":
         print2("error",f"STREAM_URL in {config.config_file} is blank. Enter a valid stream location and run main.py again.")
@@ -518,6 +516,7 @@ def main():
             write_play_history(f"Stream ended.")
             print2("verbose",f"{stats.videos_since_restart} videos played since last restart.")
             print2("info","Exiting.")
+            os.system("stty sane")
             exit(130)
 
         except Exception as e:
@@ -531,6 +530,7 @@ def main():
                 else:
                     proc.kill()
             print2("fatal",f"Fatal error encountered on {datetime.datetime.now()}. Terminating stream.")
+            os.system("stty sane")
             raise e
 
 

@@ -198,6 +198,9 @@ def print2(level: str,message: str):
         print(f"[Info] {message}")
 
 
+print2("info",f"Mr. OTCS version {SCRIPT_VERSION}")
+print2("info","https://github.com/TheOpponent/mr-otcs")
+
 # Validate config settings.
 if ALT_NAMES_JSON_PATH is not None:
     try:
