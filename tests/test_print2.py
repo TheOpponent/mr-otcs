@@ -4,15 +4,19 @@ from config import print2
 
 def test_print2(capsys):
 
-    config.VERBOSE = 0b1111111
+    config.VERBOSE = 0b11111111
+
+    print2("verbose2","Super Verbose message")
+    capture = capsys.readouterr()
+    assert capture.out == "[Info]" + " Super Verbose message\n"
 
     print2("verbose","Verbose message")
     capture = capsys.readouterr()
-    assert capture.out == "[Info]" + '\033[0m' + " Verbose message\n"
+    assert capture.out == "[Info]" + " Verbose message\n"
 
     print2("info","Info message")
     capture = capsys.readouterr()
-    assert capture.out == "[Info]" + '\033[0m' + " Info message\n"
+    assert capture.out == "[Info]" + " Info message\n"
 
     print2("play","Play message")
     capture = capsys.readouterr()
@@ -38,6 +42,10 @@ def test_print2(capsys):
 def test_print2_nooutput(capsys):
 
     config.VERBOSE = 0
+
+    print2("verbose2","Super Verbose message")
+    capture = capsys.readouterr()
+    assert capture.out == ""
 
     print2("verbose","Verbose message")
     capture = capsys.readouterr()
