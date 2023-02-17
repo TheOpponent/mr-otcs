@@ -4,7 +4,6 @@ import datetime
 import errno
 import itertools
 import json
-import math
 import os
 import time
 from collections import deque
@@ -156,16 +155,8 @@ def get_length(video) -> int:
         return 0
 
     if isinstance(video,str):
-        # result = subprocess.run([config.FFPROBE_PATH,"-v","error","-select_streams","v:0","-show_entries","stream=duration","-of","default=noprint_wrappers=1:nokey=1",video],capture_output=True,text=True).stdout
         mediainfo = MediaInfo.parse(video)
         return int(float(mediainfo.video_tracks[0].duration) // 1000)
-
-
-        # if result == "":
-        #     print2("error",f"ffprobe was unable to read duration of: {video}")
-        #     exit(1)
-
-        # return int(float(result))
 
 
 def check_file(path,line_num=None,no_exit=False):
