@@ -204,7 +204,7 @@ if ALT_NAMES_JSON_PATH is not None:
         with open(ALT_NAMES_JSON_PATH,"r",encoding='utf8') as alt_names_json:
             try:
                 ALT_NAMES = json.load(alt_names_json)
-                print2("verbose",f"f{len(ALT_NAMES)} keys loaded from {ALT_NAMES_JSON_PATH}.")
+                print2("verbose",f"{len(ALT_NAMES)} keys loaded from {ALT_NAMES_JSON_PATH}.")
             except json.JSONDecodeError as e:
                 print(e)
                 print2("error",f"Error loading {ALT_NAMES_JSON_PATH} in ALT_NAMES_JSON_PATH.")
