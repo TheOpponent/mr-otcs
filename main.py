@@ -223,6 +223,7 @@ def main():
 
     restarted = False
     retried = False
+    instant_restarted = False
     media_playlist = playlist.create_playlist()
     media_playlist_length = len(media_playlist)
     stats = playlist.StreamStats()
@@ -276,6 +277,12 @@ def main():
                             total_elapsed_time += playlist.get_length(config.STREAM_RESTART_AFTER_VIDEO) + config.VIDEO_PADDING
 
                 restarted = False
+                retried = False
+
+            if instant_restarted:
+                print2("info",f"Stream restarted at {datetime.datetime.now()}.")
+                write_play_history(f"Stream restarted.")
+                instant_restarted = False
                 retried = False
 
             # Keep playlist index and elapsed time of current video and store
@@ -353,11 +360,30 @@ def main():
                             play_index += 1
                             continue
 
+                    elif media_playlist[play_index][1].info == "INSTANT_RESTART":
+                        if total_elapsed_time > config.STREAM_RESTART_MINIMUM_TIME:
+                            instant_restarted = True
+                            print2("play",f"{media_playlist[play_index][0]}. Executing INSTANT_RESTART command.")
+                            write_play_history(f"{media_playlist[play_index][0]}. %INSTANT_RESTART")
+                            stop_stream(executor)
+                            stats.videos_since_restart = 0
+                            total_elapsed_time = 0
+                            print2("info",f"Waiting {config.STREAM_RESTART_WAIT} seconds to restart.")
+                            time.sleep(config.STREAM_RESTART_WAIT)
+                            play_index += 1
+                            rtmp_process = rtmp_task()
+                            stats.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
+                            break
+                        else:
+                            print2("notice",f"{media_playlist[play_index][0]}. INSTANT_RESTART command found, but not executing as less than {config.STREAM_RESTART_MINIMUM_TIME} minutes have passed.")
+                            play_index += 1
+                            continue
+
                 else:
                     break
 
-            # If stream was just restarted due to %RESTART directive, restart loop.
-            if restarted:
+            # If stream was just restarted due to %RESTART or %INSTANT_RESTART directive, restart loop.
+            if restarted or instant_restarted:
                 continue
 
             # Play video file entry. Ensure at least one video will always play each loop
@@ -416,9 +442,8 @@ def main():
 
                         # Always start video no earlier than stats.elapsed_time, which is read from
                         # play_index.txt file at the start of the loop.
-                        # playlist.elapsed_time is incremented in playlist.write_index as a global.
-                        # If playlist.elapsed_time is less than config.REWIND_LENGTH, assume the
-                        # encoder failed and restart from stats.elapsed_time again.
+                        # If stats.elapsed_time is less than config.REWIND_LENGTH, assume the
+                        # encoder failed and restart from stats.video_restart_point.
                         while True:
                             print2("info",f"Encoding started on {video_start_time}.")
                             encoder_result = encoder_task(video_file.path,rtmp_process,stats,play_index,stats.elapsed_time)

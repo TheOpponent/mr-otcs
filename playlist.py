@@ -108,7 +108,7 @@ class StreamStats():
     "Number of videos played since program start or last restart of RTMP process. Does not include STREAM_RESTART_BEFORE_VIDEO or STREAM_RESTART_AFTER_VIDEO."
 
     stream_start_time: datetime.datetime
-    "The time the current stream was started, in local time. Set only after starting the RTMP process."
+    "The time the current stream was started, in UTC. Set only after starting the RTMP process."
 
     stream_time_remaining: int
     "Seconds before automatic stream restart."
@@ -264,7 +264,7 @@ def create_playlist() -> list[Tuple[int,PlaylistEntry]]:
             elif new_entry.type == "extra":
                 print2("verbose",f"Adding extra entry: {index}. {new_entry.info}")
             elif new_entry.type == "command":
-                print2("verbose",f"Adding directive: {index}. {new_entry.info}")
+                print2("verbose",f"Adding command: {index}. {new_entry.info}")
             elif new_entry.type == "blank":
                 print2("verbose",f"Blank line or comment: {index}.")
         playlist.append((index,new_entry))
@@ -501,6 +501,8 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,extra_entr
             elif entry[1].type == "command":
                 if entry[1].info == "RESTART":
                     length_offset = get_stream_restart_duration()
+                elif entry[1].info == "INSTANT_RESTART":
+                    length_offset = config.STREAM_RESTART_WAIT
                 else:
                     print2("error",f"Line {entry[0]}: Playlist directive {entry[1].info} not recognized.")
                     raise ValueError
