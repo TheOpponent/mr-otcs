@@ -3,7 +3,7 @@
 import json
 import os
 import sys
-from configparser import ConfigParser
+import configparser
 
 SCRIPT_VERSION = "2.0.0"
 
@@ -62,19 +62,19 @@ ini_defaults = {
         }
     }
 
-default_ini = ConfigParser(defaults=ini_defaults)
+default_ini = configparser.ConfigParser(defaults=ini_defaults)
 if len(sys.argv) > 1:
     try:
-        default_ini.read(sys.argv[1])
         config_file = sys.argv[1]
-    except Exception as e:
+        default_ini.read(sys.argv[1])
+    except configparser.Error as e:
         print(e)
         print(f"Error reading config file {sys.argv[1]}. Using default values.")
-        default_ini.read("config.ini")
-        config_file = "config.ini"
+        config_file = os.getenv("MR_OTCS_CONFIG_INI","config.ini")
+        default_ini.read(config_file)
 else:
-    default_ini.read("config.ini")
-    config_file = "config.ini"
+    config_file = os.getenv("MR_OTCS_CONFIG_INI","config.ini")
+    default_ini.read(config_file)
 
 # Basic validation of config file structure.
 for section in ini_defaults:
@@ -84,15 +84,15 @@ for section in ini_defaults:
                 continue
             else:
                 print(f"{config_file} is missing option {option}. Using default configuration.")
-                default_ini.read("config.ini")
-                config_file = "config.ini"
+                default_ini.read(config_file)
+                config_file = os.getenv("MR_OTCS_CONFIG_INI","config.ini")
                 break
         else:
             continue
     else:
         print(f"{config_file} is missing section {section}. Using default configuration.")
+        config_file = os.getenv("MR_OTCS_CONFIG_INI","config.ini")
         default_ini.read("config.ini")
-        config_file = "config.ini"
         break
 
 MEDIA_PLAYER_PATH = default_ini.get("Paths","MEDIA_PLAYER_PATH")
