@@ -70,7 +70,7 @@ class PlaylistEntry():
             self.type = "normal"
             split_name = entry.split(" :",1)
             self.name = os.path.splitext(split_name[0])[0]
-            self.path = os.path.join(config.BASE_PATH,''.join(split_name[0]))
+            self.path = os.path.join(config.BASE_PATH,''.join(split_name[0])) if not os.path.isabs(split_name[0]) else split_name[0]
             if len(split_name) > 1:
                 self.info = split_name[1]
             else:

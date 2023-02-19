@@ -115,11 +115,16 @@ STREAM_TIME_BEFORE_RESTART = default_ini.getint("VideoOptions","STREAM_TIME_BEFO
 STREAM_RESTART_WAIT = default_ini.getint("VideoOptions","STREAM_RESTART_WAIT")
 STREAM_RESTART_MINIMUM_TIME = default_ini.getint("VideoOptions","STREAM_RESTART_MINIMUM_TIME") * 60
 if default_ini.get("VideoOptions","STREAM_RESTART_BEFORE_VIDEO") != "":
-    STREAM_RESTART_BEFORE_VIDEO = os.path.join(BASE_PATH,default_ini.get("VideoOptions","STREAM_RESTART_BEFORE_VIDEO"))
+    STREAM_RESTART_BEFORE_VIDEO = default_ini.get("VideoOptions","STREAM_RESTART_BEFORE_VIDEO")
+    if not os.path.isabs(STREAM_RESTART_BEFORE_VIDEO):
+        STREAM_RESTART_BEFORE_VIDEO = os.path.join(BASE_PATH,STREAM_RESTART_BEFORE_VIDEO)
 else:
     STREAM_RESTART_BEFORE_VIDEO = None
 if default_ini.get("VideoOptions","STREAM_RESTART_AFTER_VIDEO") != "":
-    STREAM_RESTART_AFTER_VIDEO = os.path.join(BASE_PATH,default_ini.get("VideoOptions","STREAM_RESTART_AFTER_VIDEO"))
+    STREAM_RESTART_AFTER_VIDEO = default_ini.get("VideoOptions","STREAM_RESTART_AFTER_VIDEO")
+    if not os.path.isabs(STREAM_RESTART_AFTER_VIDEO):
+        STREAM_RESTART_AFTER_VIDEO = os.path.join(BASE_PATH,STREAM_RESTART_AFTER_VIDEO)
+
 else:
     STREAM_RESTART_AFTER_VIDEO = None
 
