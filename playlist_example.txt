@@ -7,5 +7,6 @@
 # See alt_names.json for examples on how to change how video names are written into the schedule.
 
 # Lines starting with % are commands that control the stream.
-# There is currently one command:
+# There are currently two commands:
 # %RESTART: Force the stream to restart. The videos defined in STREAM_RESTART_BEFORE_VIDEO and STREAM_RESTART_AFTER_VIDEO, if any, will be played.
+# %INSTANT_RESTART: Force the stream to restart immediately. The videos defined in STREAM_RESTART_BEFORE_VIDEO and STREAM_RESTART_AFTER_VIDEO will not be played.
