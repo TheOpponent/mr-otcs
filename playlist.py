@@ -466,7 +466,7 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,extra_entr
                 # If this video would run over config.STREAM_TIME_BEFORE_RESTART,
                 # simulate a stream restart and add its length to length_offset before
                 # calculating next timestamp.
-                if stream_duration >= config.STREAM_TIME_BEFORE_RESTART:
+                if stream_duration + entry_length + config.VIDEO_PADDING >= config.STREAM_TIME_BEFORE_RESTART:
                     length_offset = get_stream_restart_duration()
                     stream_duration = 0
                 else:
