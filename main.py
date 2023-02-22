@@ -8,6 +8,7 @@
 
 import datetime
 import os
+import random
 import shlex
 import subprocess
 import time
@@ -45,36 +46,43 @@ def rtmp_task() -> subprocess.Popen:
     try:
         process = subprocess.Popen(command,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     except subprocess.CalledProcessError as e:
-        print2("error",f"RTMP process terminated at {datetime.datetime.now()}, exit code {e.returncode}.")
+        print2("error",f"RTMP process terminated on {datetime.datetime.now()}, exit code {e.returncode}.")
         return e.returncode
 
-    print2("info",f"RTMP process started at {datetime.datetime.now()}.")
+    print2("info",f"RTMP process started on {datetime.datetime.now()}.")
 
     return process
 
 
 @concurrent.thread
 def check_connection(stats: playlist.StreamStats, skip=False, exception=True):
-    """Check internet connection to config.CHECK_URL. If exception is False,
-    return False instead of raising the RequestException from the requests
-    module if the request fails."""
+    """Check internet connection to links in config.CHECK_URL, tried in random
+    order. Returns True if one request succeeds. If all links fail to respond,
+    raise BackgroundProcessError. If exception is False, return False instead.
+    """
 
     if skip:
         return True
 
-    try:
-        requests.get(config.CHECK_URL,timeout=5)
-    except requests.exceptions.RequestException as e:
+    random.shuffle(config.CHECK_URL)
+
+    for link in config.CHECK_URL:
+        try:
+            requests.get(link,timeout=5)
+            stats.last_connection_check = datetime.datetime.now(datetime.timezone.utc)
+            print2("verbose2",f"Connection to {link} succeeded on {datetime.datetime.now()}.")
+            return True
+        except requests.exceptions.RequestException as e:
+            print(e)
+            print2("warn",f"Could not establish connection to {link}.")
+            continue
+
+    if exception:
         # If the check fails, force next check to ignore config.CHECK_INTERVAL setting.
         stats.last_connection_check = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=config.CHECK_INTERVAL)
-        print(e)
-        if exception:
-            raise BackgroundProcessError(f"Could not establish connection to {config.CHECK_URL}.")
-        else:
-            return False
+        raise BackgroundProcessError("Could not establish connection to any links in CHECK_URL.")
     else:
-        stats.last_connection_check = datetime.datetime.now(datetime.timezone.utc)
-        return True
+        return False
 
 
 def encoder_task(file: str,rtmp_task: subprocess.Popen,stats: playlist.StreamStats,play_index=None,skip_time=0):
@@ -108,13 +116,13 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,stats: playlist.StreamSta
     else:
         check_connection_wait = config.CHECK_INTERVAL
         check_connection_future = check_connection(stats)
-        print2("verbose2",f"Checking connection to {config.CHECK_URL} at {datetime.datetime.now(datetime.timezone.utc)}.")
+        print2("verbose2",f"Checking connection on {datetime.datetime.now(datetime.timezone.utc)}.")
 
     try:
         process = subprocess.Popen(command,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     except subprocess.CalledProcessError as e:
         print(e.stderr)
-        print2("error",f"Encoder process ended unexpectedly at {datetime.datetime.now()}, exit code {e.returncode}.")
+        print2("error",f"Encoder process ended unexpectedly on {datetime.datetime.now()}, exit code {e.returncode}.")
         return e.returncode
 
     # Upload schedule file to SSH server after starting encoding.
@@ -149,19 +157,19 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,stats: playlist.StreamSta
         else:
             check_connection_wait = config.CHECK_INTERVAL
             check_connection_future = check_connection(stats)
-            print2("verbose2",f"Checking connection to {config.CHECK_URL} at {datetime.datetime.now(datetime.timezone.utc)}.")
+            print2("verbose2",f"Checking connection on {datetime.datetime.now()}.")
 
         if play_index is not None:
             write_index_wait -= 1
             if write_index_wait <= 0:
                 playlist.write_index(play_index,stats)
-                print2("verbose2",f"Writing {play_index} {stats.elapsed_time} to {config.PLAY_INDEX_FILE}.")
+                print2("verbose2",f"Writing {play_index}, {stats.elapsed_time} to {config.PLAY_INDEX_FILE}.")
                 write_index_wait = config.TIME_RECORD_INTERVAL
         time.sleep(1)
 
     if rtmp_task.poll() is not None:
         process.kill()
-        raise BackgroundProcessError(f"RTMP process ended unexpectedly at {datetime.datetime.now()}, exit code {rtmp_task.poll()}. Restarting stream.")
+        raise BackgroundProcessError(f"RTMP process ended unexpectedly on {datetime.datetime.now()}, exit code {rtmp_task.poll()}. Restarting stream.")
     else:
         return process.poll()
 
@@ -229,13 +237,13 @@ def main():
     stats = playlist.StreamStats()
     total_elapsed_time = 0
 
-    print2("verbose",f"Checking connection to {config.CHECK_URL} at {datetime.datetime.now(datetime.timezone.utc)}.")
+    print2("verbose",f"Checking connection on {datetime.datetime.now(datetime.timezone.utc)}.")
     init_connection_check = check_connection(stats,exception=False)
     while True:
         try:
-            if init_connection_check.result(timeout=6):
+            if init_connection_check.result():
                 break
-        except (TimeoutError) as e:
+        except TimeoutError as e:
             print2("error","Initial connection check failed. Retrying in 5 seconds.")
             time.sleep(5)
             init_connection_check = check_connection(stats,exception=False)
@@ -264,7 +272,7 @@ def main():
                     total_elapsed_time += next_video_length + config.VIDEO_PADDING
 
             if restarted:
-                print2("info",f"Stream restarted at {datetime.datetime.now()}.")
+                print2("info",f"Stream restarted on {datetime.datetime.now()}.")
                 write_play_history(f"Stream restarted.")
                 if config.STREAM_RESTART_AFTER_VIDEO is not None:
                     if playlist.check_file(config.STREAM_RESTART_AFTER_VIDEO):
@@ -280,7 +288,7 @@ def main():
                 retried = False
 
             if instant_restarted:
-                print2("info",f"Stream restarted at {datetime.datetime.now()}.")
+                print2("info",f"Stream restarted on {datetime.datetime.now()}.")
                 write_play_history(f"Stream restarted.")
                 instant_restarted = False
                 retried = False

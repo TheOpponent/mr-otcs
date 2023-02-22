@@ -109,7 +109,7 @@ MEDIA_PLAYER_ARGUMENTS = default_ini.get("VideoOptions","MEDIA_PLAYER_ARGUMENTS"
 RTMP_ARGUMENTS = default_ini.get("VideoOptions","RTMP_ARGUMENTS")
 VIDEO_PADDING = default_ini.getint("VideoOptions","VIDEO_PADDING")
 STREAM_URL = default_ini.get("VideoOptions","STREAM_URL")
-CHECK_URL = default_ini.get("VideoOptions","CHECK_URL")
+CHECK_URL = [i.strip() for i in default_ini.get("VideoOptions","CHECK_URL").split(",")]
 CHECK_INTERVAL = default_ini.getint("VideoOptions","CHECK_INTERVAL")
 STREAM_TIME_BEFORE_RESTART = default_ini.getint("VideoOptions","STREAM_TIME_BEFORE_RESTART") * 60
 STREAM_RESTART_WAIT = default_ini.getint("VideoOptions","STREAM_RESTART_WAIT")
@@ -247,7 +247,10 @@ if STREAM_RESTART_AFTER_VIDEO is not None:
 else:
     STREAM_RESTART_AFTER_VIDEO = None
 
-# Enforce a minimum of 10 seconds for safety.
+# Enforce a minimum CHECK_INTERVAL time of the number of links provided in
+# CHECK_URL times 5 seconds, and no less than 10 seconds for safety.
+if CHECK_INTERVAL < (len(CHECK_URL) * 5):
+    CHECK_INTERVAL = len(CHECK_URL) * 5
 if CHECK_INTERVAL < 10:
     CHECK_INTERVAL = 10
 
