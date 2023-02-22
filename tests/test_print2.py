@@ -1,8 +1,11 @@
-import config
-from config import print2
+def test_print2_functions(monkeypatch,capsys):
 
+    monkeypatch.setattr("sys.argv", ["main.py", "./tests/test_config.ini"])
+    
+    import config
+    from config import print2
 
-def test_print2(capsys):
+    capture = capsys.readouterr()
 
     config.VERBOSE = 0b11111111
 
@@ -37,9 +40,6 @@ def test_print2(capsys):
     print2("fatal","Fatal message")
     capture = capsys.readouterr()
     assert capture.out == '\033[31m' + "[Error]" + '\033[0m' + " Fatal message\n"
-
-
-def test_print2_nooutput(capsys):
 
     config.VERBOSE = 0
 
