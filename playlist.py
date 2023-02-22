@@ -575,8 +575,6 @@ def write_index(play_index, stats):
     with open(config.PLAY_INDEX_FILE,"w") as index_file:
         index_file.write(f"{play_index}\n{stats.elapsed_time}")
 
-    stats.elapsed_time += config.TIME_RECORD_INTERVAL
-
 
 if __name__ == "__main__":
     print("Run python3 main.py to start this program.")

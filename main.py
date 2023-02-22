@@ -162,8 +162,14 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,stats: playlist.StreamSta
         if play_index is not None:
             write_index_wait -= 1
             if write_index_wait <= 0:
-                playlist.write_index(play_index,stats)
                 print2("verbose2",f"Writing {play_index}, {stats.elapsed_time} to {config.PLAY_INDEX_FILE}.")
+                try:
+                    write_index_future = playlist.write_index(play_index,stats)
+                    write_index_future.result()
+                except OSError as e:
+                    print(e)
+                    print2("error",f"Unable to write to {config.PLAY_INDEX_FILE}.")
+                stats.elapsed_time += config.TIME_RECORD_INTERVAL
                 write_index_wait = config.TIME_RECORD_INTERVAL
         time.sleep(1)
 
