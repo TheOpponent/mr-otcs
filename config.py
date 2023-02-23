@@ -176,14 +176,15 @@ else:
     print("VERBOSE setting not recognized. Using default setting \"info\".")
     VERBOSE = 0b11111100
 
-reset = '\033[0m'
-notice = '\033[96m' + "[Notice]" + reset
-warn = '\033[93m' + "[Warn]" + reset
-error = '\033[31m' + "[Error]" + reset
-play = '\033[92m' + "[Play]" + reset
 
 def print2(level: str,message: str):
     """Prepend a colored label with a standard print message."""
+
+    reset = '\033[0m'
+    notice = '\033[96m' + "[Notice]" + reset
+    warn = '\033[93m' + "[Warn]" + reset
+    error = '\033[31m' + "[Error]" + reset
+    play = '\033[92m' + "[Play]" + reset
 
     if level == "fatal" and VERBOSE & 0b10000000:
         print(f"{error} {message}")
@@ -202,9 +203,6 @@ def print2(level: str,message: str):
     elif level == "verbose2" and VERBOSE & 0b1:
         print(f"[Info] {message}")
 
-
-print2("info",f"Mr. OTCS version {SCRIPT_VERSION}")
-print2("info","https://github.com/TheOpponent/mr-otcs")
 
 # Validate config settings.
 if ALT_NAMES_JSON_PATH is not None:

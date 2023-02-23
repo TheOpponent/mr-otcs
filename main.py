@@ -195,7 +195,7 @@ def write_play_history(message):
             with open(config.PLAY_HISTORY_FILE,"w+") as play_history:
                 play_history_buffer.append(f"{datetime.datetime.now()} - {message}\n")
                 play_history.writelines(play_history_buffer[-config.PLAY_HISTORY_LENGTH:])
-        except Exception as e:
+        except OSError as e:
             print(e)
             print2("error",f"Unable to write play history file to {config.PLAY_HISTORY_FILE}.")
 
@@ -225,6 +225,30 @@ def int_to_time(seconds):
     min, sec = divmod(min,60)
 
     return f"{hr}:{min:02d}:{sec:02d}"
+
+
+def int_to_total_time(seconds):
+    """Returns a plain time string containing days, hours, minutes, and
+    seconds from an amount of seconds."""
+
+    if seconds < 1:
+        return "less than a second"
+
+    days, hr = divmod(int(seconds),86400)
+    hr, min = divmod(hr,3600)
+    min, sec = divmod(min,60)
+    string = []
+
+    if days > 0:
+        string.append(f"{days} days" if days != 1 else f"{days} day")
+    if hr > 0:
+        string.append(f"{hr} hours" if hr != 1 else f"{hr} hour")
+    if min > 0:
+        string.append(f"{min} minutes" if min != 1 else f"{min} minute")
+    if sec > 0:
+        string.append(f"{sec} seconds" if sec != 1 else f"{sec} second")
+
+    return ', '.join(string)
 
 
 def main():
@@ -306,7 +330,6 @@ def main():
             try:
                 with open(config.PLAY_INDEX_FILE,"r") as index_file:
                     play_index_contents = index_file.readlines()
-
             except FileNotFoundError:
                 print2("notice",f"Play index reset due to {config.PLAY_INDEX_FILE} not found. Generating new file.")
                 with open(config.PLAY_INDEX_FILE,"w+") as index_file:
@@ -552,9 +575,11 @@ def main():
         except KeyboardInterrupt:
             print2("notice","Stopping RTMP process.")
             stop_stream(executor,restart=False)
-            write_play_history(f"Stream ended.")
+            total_time = int_to_total_time((datetime.datetime.now(datetime.timezone.utc) - stats.program_start_time).total_seconds())
+            write_play_history(f"Stream ended after {total_time}.")
             print2("verbose",f"{stats.videos_since_restart} videos played since last restart.")
-            print2("info","Exiting.")
+            print2("notice",f"Mr. OTCS ran for {total_time}.")
+            print2("notice","Exiting.")
             if os.name == "posix":
                 os.system("stty sane")
             exit(130)
@@ -562,7 +587,9 @@ def main():
         except Exception as e:
             print(e)
             stop_stream(executor,restart=False)
+            total_time = int_to_total_time((datetime.datetime.now(datetime.timezone.utc) - stats.program_start_time).total_seconds())
             write_play_history(f"Stream stopped due to exception: {e}")
+            write_play_history(f"Stream ended after {total_time}.")
             # Attempt to terminate remaining ffmpeg processes.
             for proc in psutil.process_iter(['cmdline']):
                 if config.MEDIA_PLAYER_PATH not in proc.info['cmdline']:
@@ -570,10 +597,14 @@ def main():
                 else:
                     proc.kill()
             print2("fatal",f"Fatal error encountered on {datetime.datetime.now()}. Terminating stream.")
+            print2("notice",f"Mr. OTCS ran for {total_time}.")
             if os.name == "posix":
                 os.system("stty sane")
             raise e
 
 
 if __name__ == "__main__":
+    print2("info",f"Mr. OTCS version {config.SCRIPT_VERSION}")
+    print2("info","https://github.com/TheOpponent/mr-otcs")
+    print2("info","========================================")
     main()

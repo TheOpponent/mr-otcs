@@ -5,8 +5,6 @@ def test_print2_functions(monkeypatch,capsys):
     import config
     from config import print2
 
-    capture = capsys.readouterr()
-
     config.VERBOSE = 0b11111111
 
     print2("verbose2","Super Verbose message")
