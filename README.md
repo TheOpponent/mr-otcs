@@ -20,10 +20,14 @@ Commercial 1.mp4
 :Lines beginning with a colon are treated as special lines that act as separators
 Video Name 4.mp4 :(Rerun)
 A Movie.mp4 :(Premiere)
+
+# Command keywords to control the stream
+%RESTART
+
 Video Name 5.mp4
 ```
 
-In its default configuration, Mr. OTCS consists of a Python script that reads this file and starts a video player (ffmpeg by default) for each video in turn, streaming it to a local RTMP server. A shell script run alongside launches an nginx server and another ffmpeg process that relays the transcoded video a third-party service. This is made possible with [ffmpeg-hls-pts-discontinuity-reclock](https://github.com/jjustman/ffmpeg-hls-pts-discontinuity-reclock), a fork of ffmpeg with support for repairing HLS discontinuities.
+In its default configuration, Mr. OTCS consists of a Python script that reads this file and starts a video encoder (ffmpeg by default) for each video in turn, streaming it to a local RTMP server such as nginx. Another ffmpeg process relays the transcoded video a third-party video streaming service. This is made possible with [ffmpeg-hls-pts-discontinuity-reclock](https://github.com/jjustman/ffmpeg-hls-pts-discontinuity-reclock), a fork of ffmpeg with support for repairing HLS discontinuities. Because some services automatically terminate streams after a certain amount of time (e.g. Twitch ends streams after 48 consecutive hours), Mr. OTCS tracks the total streaming time and automatically restarts the stream to prevent the forced stream termination from interrupting a video.
 
 ## Example schedule
 ![Example schedule](https://user-images.githubusercontent.com/8432212/116021273-def42b80-a615-11eb-96ba-3ad4d8f5375a.png)

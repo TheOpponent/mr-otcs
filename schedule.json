@@ -1,51 +1,69 @@
 {
+  "program_start_time": "2023-02-13 16:41:19",
+  "video_start_time": "2023-02-13 16:41:19",
   "coming_up_next": [
     {
       "type": "normal",
       "name": "Sample Video Title #1",
-      "time": "2021-04-25 22:31:23",
+      "time": "2023-02-13 16:41:19",
+      "unixtime": 1676306479.582329,
+      "length": 971,
       "extra_info": ""
     },
     {
       "type": "normal",
       "name": "Sample Video Title #2",
-      "time": "2021-04-25 22:39:46",
+      "time": "2023-02-13 16:57:30",
+      "unixtime": 1676307450.582329,
+      "length": 360,
       "extra_info": "Extra info from inline comment"
     },
     {
       "type": "extra",
       "name": "",
       "time": "",
+      "unixtime": 0,
+      "length": 0,
       "extra_info": "Programming Block #1"
     },
     {
       "type": "normal",
       "name": "Sample Video Title #3",
-      "time": "2021-04-25 22:49:39",
+      "time": "2023-02-13 17:03:30",
+      "unixtime": 1676307810.582329,
+      "length": 2835,
       "extra_info": ""
     },
     {
       "type": "normal",
       "name": "Sample Video Title #4",
-      "time": "2021-04-25 22:58:07",
-      "extra_info": "(Rerun)"
-    },
-    {
-      "type": "normal",
-      "name": "Sample Video Title #5",
-      "time": "2021-04-25 23:02:25",
+      "time": "2023-02-13 17:57:45",
+      "unixtime": 1676311065.582329,
+      "length": 1810,
       "extra_info": "(Rerun)"
     },
     {
       "type": "extra",
       "name": "",
       "time": "",
+      "unixtime": 0,
+      "length": 0,
       "extra_info": "Programming Block #2"
     },
     {
       "type": "normal",
+      "name": "Sample Video Title #5",
+      "time": "2023-02-13 18:27:55",
+      "unixtime": 1676312875.582329,
+      "length": 2528,
+      "extra_info": "(Rerun)"
+    },
+    {
+      "type": "normal",
       "name": "Sample Video Title #6",
-      "time": "2021-04-25 23:08:20",
+      "time": "2023-02-13 19:17:03",
+      "unixtime": 1676315823.582329,
+      "length": 6399,
       "extra_info": ""
     }
   ],
@@ -53,9 +71,11 @@
     {
       "type": "normal",
       "name": "Sample Video Title #6",
-      "time": "2021-04-25 22:05:19",
+      "time": "2023-02-13 16:41:19",
+      "unixtime": 1676300080.58133,
+      "length": 6399,
       "extra_info": "(Premiere)"
     }
   ],
-  "script_version": "1.4.0" 
+  "script_version": "2.0.0"
 }

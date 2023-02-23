@@ -34,7 +34,7 @@ Times are converted to your local time zone: <div id="timezone"></div>
         if (i.type == "normal") {
         return [
             '<div class="gridtime">', time, '</div>',
-            '<div class="gridname"><strong>', i.name, '</strong> <i>', i.extra_info, '</i></div>',
+            '<div class="gridname"><strong>', i.name, '</strong> <i>', i.extra_info, '</i><br />Length: ',secondsToTimeString(i.length),'</div>',
             '<br />',
         ].join('');
         // Default extra line type handling creates a header row in the table.
@@ -44,6 +44,15 @@ Times are converted to your local time zone: <div id="timezone"></div>
             '<br />',
         ].join('');
     }};
+
+    function secondsToTimeString(seconds) {
+        seconds = Number(seconds)
+        var hr = Math.floor(seconds / 3600)
+        var min = Math.floor(seconds % 3600 / 60)
+        var sec = Math.floor(seconds % 3600 % 60)
+
+        return (hr > 0 ? hr.toString() + ":" : "") + (min.toString().padStart(2,"0")) + ":" + (sec.toString().padStart(2,"0"))
+    }
 
     var request = new XMLHttpRequest();
     var json_exported = "";
