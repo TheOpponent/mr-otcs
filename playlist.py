@@ -121,7 +121,7 @@ class StreamStats():
     video_resume_point: int
     "If video encoding is aborted, this is set to elapsed_time. This is the earliest time the video will be allowed to start from. After successful encoding, this is set to 0."
 
-    check_connection_future: concurrent.futures.Future
+    check_connection_future: futures.Future
     "A Future for the check_connection() function, to ensure only one check is run at a time."
 
     last_connection_check: datetime.datetime
