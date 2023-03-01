@@ -550,9 +550,9 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,extra_entr
     try:
         with open(config.SCHEDULE_PATH,"w+") as schedule_json:
             schedule_json.write(json.dumps(schedule_json_out))
-    except Exception as e:
+    except OSError as e:
         print(e)
-        print2("warn",f"Error writing schedule file.")
+        print2("error",f"Error writing schedule file.")
 
 
 @concurrent.thread
