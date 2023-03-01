@@ -7,6 +7,7 @@ import json
 import os
 import time
 from collections import deque
+from concurrent import futures
 from typing import Generator, Tuple
 
 import fabric
@@ -25,10 +26,14 @@ class PlaylistEntry():
     "normal": Contains a path to a video file.
     "extra": A comment to be printed in the schedule page.
     "command": A directive to control the stream.
+    "blank": A blank line in the playlist file, to keep line numbers aligned.
 
     The commands currently include:
-    %RESTART: Force the stream to play the video defined in
-    config.STREAM_RESTART_BEFORE_VIDEO, if any, and then restart.
+    %RESTART: Force the stream to restart. The video files defined in
+    config.STREAM_RESTART_BEFORE_VIDEO and config.STREAM_RESTART_AFTER_VIDEO,
+    if any, will play before and after the restart.
+    %INSTANTRESTART: Similar to %RESTART, but the above optional videos will
+    not play.
 
     When a PlaylistEntry is created, it stores only information based on the
     provided string. Video files may change before they are played, so
@@ -115,6 +120,9 @@ class StreamStats():
 
     video_resume_point: int
     "If video encoding is aborted, this is set to elapsed_time. This is the earliest time the video will be allowed to start from. After successful encoding, this is set to 0."
+
+    check_connection_future: concurrent.futures.Future
+    "A Future for the check_connection() function, to ensure only one check is run at a time."
 
     last_connection_check: datetime.datetime
     "The most recent internet connection check, used to help ensure checks are not done more often than config.CHECK_INTERVAL."
@@ -210,7 +218,7 @@ def check_file(path,line_num=None,no_exit=False):
 
 
 def create_playlist() -> list[Tuple[int,PlaylistEntry]]:
-    """Read config.MEDIA_PLAYLIST, which is set to either the path to a text 
+    """Read config.MEDIA_PLAYLIST, which is set to either the path to a text
     file or a list, containing a sequence of playlist entries.
 
     Returns an enumerated list starting from 1 containing PlaylistEntry
