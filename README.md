@@ -1,7 +1,7 @@
 # Mr. OTCS
 A script to play a list of video files in a continuous loop, transcode it to RTMP, and produce schedules based on upcoming videos in the playlist. Requires Python 3.7 or later. 
 
-See the [wiki](https://github.com/TheOpponent/mr-otcs/wiki) for installation instructions on Raspberry Pi.
+The recommended environment is a headless Raspberry Pi, but conventional Linux systems, including WSL2, can also run Mr. OTCS. See the [wiki](https://github.com/TheOpponent/mr-otcs/wiki) for installation instructions.
 
 The playlist is a text file with filenames:
 ```
@@ -27,12 +27,12 @@ A Movie.mp4 :(Premiere)
 Video Name 5.mp4
 ```
 
-In its default configuration, Mr. OTCS consists of a Python script that reads this file and starts a video encoder (ffmpeg by default) for each video in turn, streaming it to a local RTMP server such as nginx. Another ffmpeg process relays the transcoded video a third-party video streaming service. This is made possible with [ffmpeg-hls-pts-discontinuity-reclock](https://github.com/jjustman/ffmpeg-hls-pts-discontinuity-reclock), a fork of ffmpeg with support for repairing HLS discontinuities. Because some services automatically terminate streams after a certain amount of time (e.g. Twitch ends streams after 48 consecutive hours), Mr. OTCS tracks the total streaming time and automatically restarts the stream to prevent the forced stream termination from interrupting a video.
+Mr. OTCS is a Python program that reads this file and starts a video encoder (ffmpeg by default) for each video in turn, streaming it to a local RTMP server such as nginx. Another ffmpeg process relays the transcoded video a third-party video streaming service. This is made possible with [**ffmpeg-hls-pts-discontinuity-reclock**](https://github.com/jjustman/ffmpeg-hls-pts-discontinuity-reclock), a fork of ffmpeg with support for repairing HLS discontinuities. These two processes together create an endless, seamless stream of video content from any number of video files supported by ffmpeg. Because some services automatically terminate streams after a certain amount of time (e.g. Twitch ends streams after 48 consecutive hours), Mr. OTCS tracks the total streaming time and automatically restarts the stream between video files, so no interruption happens in the middle of a video.
 
 ## Example schedule
-![Example schedule](https://user-images.githubusercontent.com/8432212/116021273-def42b80-a615-11eb-96ba-3ad4d8f5375a.png)
+![Example schedule](https://user-images.githubusercontent.com/8432212/222037873-c182c36b-5896-4822-8003-1c7f613296ba.png)
 
-The generated schedule runs up to a user-defined combined length of upcoming videos and/or any number of videos. The script writes an array of JavaScript objects that contain video names and timestamps for their scheduled start times. A basic HTML file is provided as a template for JSON usage, including parsing metadata in the playlist.
+The generated schedule runs up to a user-defined combined length of upcoming videos and/or any number of videos. The script writes an array of JavaScript objects that contain video names and timestamps for their scheduled start times. A basic HTML file is provided as a quick demonstration of such JSON usage, including parsing metadata in the playlist.
 
 # Disclaimer
 Use this script at your own risk. The authors assume no responsibility for any administrative action taken on streaming accounts as a result of this script.
