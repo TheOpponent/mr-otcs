@@ -33,9 +33,7 @@ Times are converted to your local time zone: <div id="timezone"></div>
         var time = new dayjs.utc(i.time).tz(timezone).format('LT');
         if (i.type == "normal") {
         return [
-            '<div class="gridtime">', time, '</div>',
-            '<div class="gridname"><strong>', i.name, '</strong> <i>', i.extra_info, '</i><br />Length: ',secondsToTimeString(i.length),'</div>',
-            '<br />',
+            '<div class="grid">', time, ' - <strong>', i.name, '</strong> <i>', i.extra_info, '</i><br />Length: ',secondsToTimeString(i.length),'</div>', '<br />',
         ].join('');
         // Default extra line type handling creates a header row in the table.
         } else if (i.type == "extra") {
