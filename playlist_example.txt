@@ -1,15 +1,18 @@
 # Mr. OTCS version 2.0.0 playlist file example
 # https://github.com/TheOpponent/mr-otcs
 
-# Insert file names of videos in this file, one per line.
-# Blank lines and comment lines like this one are ignored.
-# Comments can begin with #, ;, or //.
-
-# Lines starting with : are extra entries, which are comments that get inserted into the schedule.
-# Add a space and a : after a file name to attach extra info to it, which is inserted into the schedule. Everything that follows the : will be included.
+# Insert file names of videos in this file, one per line, then rename it to playlist.txt.
 # See alt_names_examples.json for examples on how to change how video names are written into the schedule.
+# Add a space and a : after a file name to attach extra info to it, which is inserted into the JSON schedule file in the key "extra_info". Everything that follows the : will be included as is.
+# /media/Example.mp4 :Extra info to be written into schedule
+
+# Lines starting with : are extra entries, which are comments that get inserted into the JSON schedule file.
+# See the wiki for more information: https://github.com/TheOpponent/mr-otcs/wiki/Customization#schedule-page
 
 # Lines starting with % are commands that control the stream.
 # There are currently two commands:
 # %RESTART: Force the stream to restart. The videos defined in STREAM_RESTART_BEFORE_VIDEO and STREAM_RESTART_AFTER_VIDEO, if any, will be played.
 # %INSTANT_RESTART: Force the stream to restart immediately. The videos defined in STREAM_RESTART_BEFORE_VIDEO and STREAM_RESTART_AFTER_VIDEO will not be played.
+
+# Blank lines and comment lines like this one are ignored.
+# Comments can begin with #, ;, or //.

@@ -23,7 +23,7 @@ ini_defaults = {
         "CHECK_URL":"https://google.com",
         "CHECK_INTERVAL":60,
         "VIDEO_PADDING":2,
-        "MEDIA_PLAYER_ARGUMENTS":"-hide_banner -re -ss {elapsed_time} -i \"{file}\" -filter_complex \"[0:v]scale=1280x720,fps=30[scaled];[scaled]tpad=stop_duration=%(VIDEO_PADDING)s;apad=pad_dur=%(VIDEO_PADDING)s\" -c:v h264_omx -b:v 4000k -acodec aac -b:a 192k -ar 48000 -f flv -g 60 rtmp://localhost:1935/live/",
+        "MEDIA_PLAYER_ARGUMENTS":"-hide_banner -re -ss {elapsed_time} -i {file} -filter_complex \"[0:v]scale=1280x720,fps=30[scaled];[scaled]tpad=stop_duration={video_padding};apad=pad_dur={video_padding}\" -c:v h264_omx -b:v 4000k -acodec aac -b:a 192k -ar 48000 -f flv -g 60 rtmp://localhost:1935/live/",
         "RTMP_ARGUMENTS":"-i rtmp://localhost:1935/live -loglevel error -vcodec copy -acodec copy -f flv %(STREAM_URL)s",
         "STREAM_TIME_BEFORE_RESTART":1440,
         "STREAM_RESTART_WAIT":10,
@@ -156,7 +156,9 @@ REMOTE_DIRECTORY = default_ini.get("SSH","REMOTE_DIRECTORY") if default_ini.get(
 PLAY_HISTORY_LENGTH = default_ini.getint("Misc","PLAY_HISTORY_LENGTH")
 VERBOSE = default_ini.get("Misc","VERBOSE").lower()
 
-if VERBOSE == "fatal":
+if VERBOSE == "silent":
+    VERBOSE = 0
+elif VERBOSE == "fatal":
     VERBOSE = 0b10000000
 elif VERBOSE == "error":
     VERBOSE = 0b11000000

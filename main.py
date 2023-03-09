@@ -93,7 +93,7 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,stats: playlist.StreamSta
 
     This task also handles uploading the schedule file via SSH."""
 
-    command = shlex.split(f"{config.MEDIA_PLAYER_PATH} {config.MEDIA_PLAYER_ARGUMENTS.format(file=file,skip_time=skip_time)}")
+    command = shlex.split(f"{config.MEDIA_PLAYER_PATH} {config.MEDIA_PLAYER_ARGUMENTS.format(file=shlex.quote(file),skip_time=skip_time,video_padding=config.VIDEO_PADDING)}")
 
     # Check if encoding ffmpeg is already running and terminate any processes
     # that match the command line.
@@ -143,9 +143,9 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,stats: playlist.StreamSta
             print2("warn","SSH upload failed.")
 
     # Poll both encoder and RTMP processes, and check internet connection once
-    # per minute. Return True if the encode finished successfully and RTMP
-    # process is still running. If the connection check fails, rewind
-    # config.CHECK_INTERVAL seconds.
+    # per config.CHECK_INTERVAL. Return True if the encode finished
+    # successfully and RTMP process is still running. If the connection check
+    # fails, rewind config.CHECK_INTERVAL seconds.
     # Also write to play_index.txt in config.TIME_RECORD_INTERVAL seconds.
     while process.poll() is None and rtmp_task.poll() is None:
         check_connection_wait -= 1
