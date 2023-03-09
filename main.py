@@ -548,6 +548,24 @@ def main():
                         stats.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
                         continue
 
+                # If a video could not be found and config.EXIT_ON_FILE_NOT_FOUND is not True,
+                # skip to next file.
+                else:
+                    stats.elapsed_time = 0
+                    stats.video_resume_point = 0
+                    if play_index > media_playlist_length:
+                        # Reset index at end of playlist.
+                        print2("verbose","Resetting play index: 0")
+                        play_index = 0
+                    else:
+                        play_index += 1
+                        print2("verbose",f"Incrementing play index: {play_index}")
+
+                    with open(config.PLAY_INDEX_FILE,"w") as index_file:
+                        index_file.write(str(play_index) + "\n0")
+
+                    continue
+
             else:
                 print2("warn",f"{media_playlist[play_index][0]}. Unrecognized entry type.")
                 play_index += 1
