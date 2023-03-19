@@ -144,10 +144,8 @@ class StreamStats():
 
     def rewind(self, time):
         """Subtract this many seconds from elapsed_time, without going below 0."""
-        if self.elapsed_time - time < 0:
-            self.elapsed_time = 0
-        else:
-            self.elapsed_time -= time
+
+        self.elapsed_time = max(0,self.elapsed_time - time)
 
 
 def get_length(video) -> int:
