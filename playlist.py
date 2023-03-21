@@ -164,6 +164,8 @@ def get_length(video) -> int:
         mediainfo = MediaInfo.parse(video)
         return int(float(mediainfo.video_tracks[0].duration) // 1000)
 
+    raise ValueError("Expected PlaylistEntry, path, or None.")
+
 
 def check_file(path,line_num=None,no_exit=False):
     """Retry opening nonexistent files up to RETRY_ATTEMPTS.
@@ -511,7 +513,7 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,extra_entr
                     length_offset = config.STREAM_RESTART_WAIT
                 else:
                     print2("error",f"Line {entry[0]}: Playlist directive {entry[1].info} not recognized.")
-                    raise ValueError
+                    raise ValueError("Unrecognized command entry.")
 
             else:
                 print2("warn",f"Line {entry[0]}: Invalid entry. Skipping.")
