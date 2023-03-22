@@ -562,6 +562,22 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,extra_entr
         print(e)
         print2("error",f"Error writing schedule file.")
 
+    if config.REMOTE_ADDRESS is not None:
+        print2("verbose",f"Uploading {config.SCHEDULE_PATH} to SSH server {config.REMOTE_ADDRESS}.")
+        ssh_future = upload_ssh()
+
+        try:
+            err = ssh_future.exception(timeout=10)
+            if err is None:
+                print2("verbose","SSH upload successful.")
+            else:
+                raise err
+        except TimeoutError:
+            print2("warn","SSH upload timed out.")
+        except Exception as e:
+            print(e)
+            print2("warn","SSH upload failed.")
+
 
 @concurrent.thread
 def upload_ssh():

@@ -90,8 +90,7 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,stats: playlist.StreamSta
     Monitors the RTMP process id. If it is not running, or if the encoder
     process exits with a non-zero code, returns False. Otherwise, returns
     True.
-
-    This task also handles uploading the schedule file via SSH."""
+    """
 
     command = shlex.split(f"{config.MEDIA_PLAYER_PATH} {config.MEDIA_PLAYER_ARGUMENTS.format(file=shlex.quote(file),skip_time=skip_time,video_padding=config.VIDEO_PADDING)}")
 
@@ -124,23 +123,6 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,stats: playlist.StreamSta
         print(e.stderr)
         print2("error",f"Encoder process ended unexpectedly on {datetime.datetime.now()}, exit code {e.returncode}.")
         return e.returncode
-
-    # Upload schedule file to SSH server after starting encoding.
-    if config.SCHEDULE_PATH is not None and config.REMOTE_ADDRESS is not None:
-        print2("verbose",f"Uploading {config.SCHEDULE_PATH} to SSH server {config.REMOTE_ADDRESS}.")
-        ssh_future = playlist.upload_ssh()
-
-        try:
-            err = ssh_future.exception(timeout=10)
-            if err is None:
-                print2("verbose","SSH upload successful.")
-            else:
-                raise err
-        except TimeoutError:
-            print2("warn","SSH upload timed out.")
-        except Exception as e:
-            print(e)
-            print2("warn","SSH upload failed.")
 
     # Poll both encoder and RTMP processes, and check internet connection once
     # per config.CHECK_INTERVAL. Return True if the encode finished
@@ -471,7 +453,7 @@ def main():
                             # Check if current video name matches config.SCHEDULE_EXCLUDE_FILE_PATTERN,
                             # and only generate a schedule file if it does not.
                             if config.SCHEDULE_EXCLUDE_FILE_PATTERN is not None and not video_file.name.casefold().startswith(config.SCHEDULE_EXCLUDE_FILE_PATTERN):
-                                schedule_future = playlist.write_schedule(media_playlist,play_index,stats,extra_entries)
+                                stats.schedule_future = playlist.write_schedule(media_playlist,play_index,stats,extra_entries)
                                 # Clear extra_entries after writing schedule.
                                 extra_entries = []
                             else:
