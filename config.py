@@ -229,7 +229,7 @@ else:
 # as existing once at startup.
 if STREAM_RESTART_BEFORE_VIDEO is not None:
     if not os.path.isfile(STREAM_RESTART_BEFORE_VIDEO):
-        print2("error",f"STREAM_RESTART_BEFORE_VIDEO not found.")
+        print2("error","STREAM_RESTART_BEFORE_VIDEO not found.")
         if not EXIT_ON_FILE_NOT_FOUND:
             STREAM_RESTART_BEFORE_VIDEO = None
         else:
@@ -239,13 +239,17 @@ else:
 
 if STREAM_RESTART_AFTER_VIDEO is not None:
     if not os.path.isfile(STREAM_RESTART_AFTER_VIDEO):
-        print2("error",f"STREAM_RESTART_AFTER_VIDEO not found.")
+        print2("error","STREAM_RESTART_AFTER_VIDEO not found.")
         if not EXIT_ON_FILE_NOT_FOUND:
             STREAM_RESTART_AFTER_VIDEO = None
         else:
             exit(1)
 else:
     STREAM_RESTART_AFTER_VIDEO = None
+
+if REMOTE_ADDRESS is not None and REMOTE_USERNAME is None:
+    print2("error","REMOTE_ADDRESS was specified, but REMOTE_USERNAME is blank.")
+    exit(1)
 
 # Enforce a minimum CHECK_INTERVAL time of the number of links provided in
 # CHECK_URL times 5 seconds, and no less than 10 seconds for safety.
