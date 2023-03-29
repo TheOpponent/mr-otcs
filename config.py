@@ -20,7 +20,7 @@ ini_defaults = {
         },
     "VideoOptions":{
         "STREAM_URL":"rtmp://localhost:1935/live/",
-        "CHECK_URL":"https://google.com",
+        "CHECK_URL":"https://google.com, https://twitch.tv, https://github.com, https://amazon.com, https://canhazip.com, https://1.1.1.1, https://8.8.8.8",
         "CHECK_INTERVAL":60,
         "VIDEO_PADDING":2,
         "MEDIA_PLAYER_ARGUMENTS":"-hide_banner -re -ss {elapsed_time} -i {file} -filter_complex \"[0:v]scale=1280x720,fps=30[scaled];[scaled]tpad=stop_duration={video_padding};apad=pad_dur={video_padding}\" -c:v h264_omx -b:v 4000k -acodec aac -b:a 192k -ar 48000 -f flv -g 60 rtmp://localhost:1935/live/",
