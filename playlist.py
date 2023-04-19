@@ -22,7 +22,7 @@ class PlaylistEntry():
     """Definition for playlist entries, parsed from a list or text file
     containing formatted playlist entry strings.
 
-    A PlaylistEntry can be three types:
+    A PlaylistEntry can be one of these types:
     "normal": Contains a path to a video file.
     "extra": A comment to be printed in the schedule page.
     "command": A directive to control the stream.
@@ -149,7 +149,7 @@ class StreamStats():
 
 
 def get_length(video) -> int:
-    """Run ffprobe and retrieve length of a video file."""
+    """Retrieve length of a video file using pymediainfo."""
 
     if isinstance(video,PlaylistTestEntry):
         return video.length
