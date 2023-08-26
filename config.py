@@ -168,8 +168,14 @@ REMOTE_PORT = default_ini.getint("SSH","REMOTE_PORT") if default_ini.getint("SSH
 REMOTE_KEY_FILE = default_ini.get("SSH","REMOTE_KEY_FILE") if default_ini.get("SSH","REMOTE_KEY_FILE") != "" else None
 REMOTE_KEY_FILE_PASSWORD = default_ini.get("SSH","REMOTE_KEY_FILE_PASSWORD") if default_ini.get("SSH","REMOTE_KEY_FILE_PASSWORD") != "" else None
 REMOTE_DIRECTORY = default_ini.get("SSH","REMOTE_DIRECTORY") if default_ini.get("SSH","REMOTE_DIRECTORY") != "" else None
-REMOTE_UPLOAD_ATTEMPTS = default_ini.getint("SSH","REMOTE_UPLOAD_ATTEMPTS") if default_ini.getint("SSH","REMOTE_UPLOAD_ATTEMPTS") != 0 else 1
-REMOTE_RETRY_PERIOD = default_ini.getint("SSH","REMOTE_RETRY_PERIOD") if default_ini.getint("SSH","REMOTE_RETRY_PERIOD") != 0 else 5
+if default_ini.has_option("SSH","REMOTE_UPLOAD_ATTEMPTS"): # Added in 2.1.0.
+    REMOTE_UPLOAD_ATTEMPTS = default_ini.getint("SSH","REMOTE_UPLOAD_ATTEMPTS") if default_ini.getint("SSH","REMOTE_UPLOAD_ATTEMPTS") != 0 else 1
+else:
+    REMOTE_UPLOAD_ATTEMPTS = 1
+if default_ini.has_option("SSH","REMOTE_RETRY_PERIOD"): # Added in 2.1.0.
+    REMOTE_RETRY_PERIOD = default_ini.getint("SSH","REMOTE_RETRY_PERIOD") if default_ini.getint("SSH","REMOTE_RETRY_PERIOD") != 0 else 5
+else:
+    REMOTE_RETRY_PERIOD = 5
 
 PLAY_HISTORY_LENGTH = default_ini.getint("Misc","PLAY_HISTORY_LENGTH")
 VERBOSE = default_ini.get("Misc","VERBOSE").lower()
