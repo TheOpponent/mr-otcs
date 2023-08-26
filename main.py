@@ -166,6 +166,9 @@ def write_play_history(message):
     """Write history of played video files and timestamps,
     limited to PLAY_HISTORY_LENGTH."""
 
+    if config.PLAY_HISTORY_FILE is None:
+        return
+
     try:
         with open(config.PLAY_HISTORY_FILE,"r") as play_history:
             play_history_buffer = play_history.readlines()

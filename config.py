@@ -5,7 +5,7 @@ import os
 import sys
 import configparser
 
-SCRIPT_VERSION = "2.0.1"
+SCRIPT_VERSION = "2.1.0"
 
 ini_defaults = {
     "Paths":{
@@ -36,11 +36,13 @@ ini_defaults = {
         "REWIND_LENGTH":30
         },
     "Schedule":{
+        "SCHEDULE_MIN_VIDEOS":1,
         "SCHEDULE_MAX_VIDEOS":15,
         "SCHEDULE_UPCOMING_LENGTH":240,
         "SCHEDULE_PREVIOUS_MAX_VIDEOS":3,
         "SCHEDULE_UPCOMING_LENGTH":30,
-        "SCHEDULE_EXCLUDE_FILE_PATTERN":""
+        "SCHEDULE_EXCLUDE_FILE_PATTERN":"",
+        "SCHEDULE_OFFSET":0
         },
     "Retry":{
         "RETRY_ATTEMPTS":0,
@@ -54,7 +56,9 @@ ini_defaults = {
         "REMOTE_PORT":22,
         "REMOTE_KEY_FILE":"",
         "REMOTE_KEY_FILE_PASSWORD":"",
-        "REMOTE_DIRECTORY":""
+        "REMOTE_DIRECTORY":"",
+        "REMOTE_RETRY_ATTEMPTS":5,
+        "REMOTE_RETRY_PERIOD":5
         },
     "Misc":{
         "PLAY_HISTORY_LENGTH":10,
@@ -131,10 +135,22 @@ else:
 TIME_RECORD_INTERVAL = default_ini.getint("PlayIndex","TIME_RECORD_INTERVAL")
 REWIND_LENGTH = default_ini.getint("PlayIndex","REWIND_LENGTH")
 
-SCHEDULE_MAX_VIDEOS = default_ini.getint("Schedule","SCHEDULE_MAX_VIDEOS")
+if default_ini.has_option("Schedule","SCHEDULE_MIN_VIDEOS"): # Added in 2.1.0.
+    SCHEDULE_MIN_VIDEOS = default_ini.getint("Schedule","SCHEDULE_MIN_VIDEOS") if default_ini.getint("Schedule","SCHEDULE_MIN_VIDEOS") >= 1 else 1
+else:
+    SCHEDULE_MIN_VIDEOS = 1
+SCHEDULE_MAX_VIDEOS = default_ini.getint("Schedule","SCHEDULE_MAX_VIDEOS") if default_ini.getint("Schedule","SCHEDULE_MAX_VIDEOS") >= 1 else 1
 SCHEDULE_UPCOMING_LENGTH = default_ini.getint("Schedule","SCHEDULE_UPCOMING_LENGTH") * 60
+if default_ini.has_option("Schedule","SCHEDULE_PREVIOUS_MIN_VIDEOS"): # Added in 2.1.0.
+    SCHEDULE_PREVIOUS_MIN_VIDEOS = default_ini.getint("Schedule","SCHEDULE_PREVIOUS_MIN_VIDEOS")
+else:
+    SCHEDULE_PREVIOUS_MIN_VIDEOS = 1
 SCHEDULE_PREVIOUS_MAX_VIDEOS = default_ini.getint("Schedule","SCHEDULE_PREVIOUS_MAX_VIDEOS")
 SCHEDULE_PREVIOUS_LENGTH = default_ini.getint("Schedule","SCHEDULE_PREVIOUS_LENGTH") * 60
+if default_ini.has_option("Schedule","SCHEDULE_OFFSET"): # Added in 2.1.0.
+    SCHEDULE_OFFSET = default_ini.getint("Schedule","SCHEDULE_OFFSET")
+else:
+    SCHEDULE_OFFSET = 0
 
 if default_ini.get("Schedule","SCHEDULE_EXCLUDE_FILE_PATTERN") != "":
     SCHEDULE_EXCLUDE_FILE_PATTERN = tuple([i.strip().casefold().replace("\\","/") for i in default_ini.get("Schedule","SCHEDULE_EXCLUDE_FILE_PATTERN").split(",")])
@@ -142,7 +158,7 @@ else:
     SCHEDULE_EXCLUDE_FILE_PATTERN = None
 
 RETRY_ATTEMPTS = default_ini.getint("Retry","RETRY_ATTEMPTS")
-RETRY_PERIOD = default_ini.getint("Retry","RETRY_PERIOD")
+RETRY_PERIOD = default_ini.getint("Retry","RETRY_PERIOD") if default_ini.getint("Retry","RETRY_PERIOD") != 0 else 5
 EXIT_ON_FILE_NOT_FOUND = default_ini.getboolean("Retry","EXIT_ON_FILE_NOT_FOUND")
 
 REMOTE_ADDRESS = default_ini.get("SSH","REMOTE_ADDRESS") if default_ini.get("SSH","REMOTE_ADDRESS") != "" else None
@@ -152,6 +168,8 @@ REMOTE_PORT = default_ini.getint("SSH","REMOTE_PORT") if default_ini.getint("SSH
 REMOTE_KEY_FILE = default_ini.get("SSH","REMOTE_KEY_FILE") if default_ini.get("SSH","REMOTE_KEY_FILE") != "" else None
 REMOTE_KEY_FILE_PASSWORD = default_ini.get("SSH","REMOTE_KEY_FILE_PASSWORD") if default_ini.get("SSH","REMOTE_KEY_FILE_PASSWORD") != "" else None
 REMOTE_DIRECTORY = default_ini.get("SSH","REMOTE_DIRECTORY") if default_ini.get("SSH","REMOTE_DIRECTORY") != "" else None
+REMOTE_UPLOAD_ATTEMPTS = default_ini.getint("SSH","REMOTE_UPLOAD_ATTEMPTS") if default_ini.getint("SSH","REMOTE_UPLOAD_ATTEMPTS") != 0 else 1
+REMOTE_RETRY_PERIOD = default_ini.getint("SSH","REMOTE_RETRY_PERIOD") if default_ini.getint("SSH","REMOTE_RETRY_PERIOD") != 0 else 5
 
 PLAY_HISTORY_LENGTH = default_ini.getint("Misc","PLAY_HISTORY_LENGTH")
 VERBOSE = default_ini.get("Misc","VERBOSE").lower()
