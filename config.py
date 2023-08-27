@@ -57,7 +57,7 @@ ini_defaults = {
         "REMOTE_KEY_FILE":"",
         "REMOTE_KEY_FILE_PASSWORD":"",
         "REMOTE_DIRECTORY":"",
-        "REMOTE_RETRY_ATTEMPTS":5,
+        "REMOTE_UPLOAD_ATTEMPTS":5,
         "REMOTE_RETRY_PERIOD":5
         },
     "Misc":{
