@@ -545,8 +545,8 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,extra_entr
             if len(stats.previous_files) == 0 or stats.previous_files[-1] != stats.recent_playlist[0]:
 
                 # Pop left from recent_playlist and append until a normal entry is added.
-                print2("verbose",f"Adding {stats.recent_playlist[0].name} to the previous_files array.")
                 stats.previous_files.append(stats.recent_playlist.popleft())
+                print2("verbose",f"Added {stats.previous_files[0]['name']} to the previous_files array.")
                 while stats.previous_files[-1]["type"] != "normal":
                     stats.previous_files.append(stats.recent_playlist.popleft())
 
