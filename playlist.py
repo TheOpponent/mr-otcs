@@ -123,7 +123,7 @@ class StreamStats():
 
     check_connection_future: futures.Future
     "A Future for the check_connection() function, to ensure only one check is run at a time."
-    
+
     schedule_future: futures.Future
     "A Future for the write_schedule() function, to ensure only one schedule is written at a time. If a write_schedule does not complete before the next video in the playlist starts, the current future is cancelled."
 
@@ -143,6 +143,7 @@ class StreamStats():
         self.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
         self.video_resume_point = 0
         self.check_connection_future = None
+        self.schedule_future = None
         self.last_connection_check = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=config.CHECK_INTERVAL)
 
     def rewind(self, time):
@@ -442,10 +443,15 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,extra_entr
     for entry in sub_playlist:
 
         # Break when the number of minimum entries is reached and either entry or
-        # duration limit is reached. Entries that were skipped for matching SCHEDULE_EXCLUDE_FILE_PATTERN are not counted.
-        if (len([i for i in coming_up_next if i.type == "normal"]) >= config.SCHEDULE_MIN_VIDEOS) and \
-            (len([i for i in coming_up_next if i.type == "normal"]) >= (config.SCHEDULE_MAX_VIDEOS + skipped_normal_entries) or total_duration > config.SCHEDULE_UPCOMING_LENGTH):
-            break
+        # duration limit is reached. Entries that were skipped for matching
+        # SCHEDULE_EXCLUDE_FILE_PATTERN are not counted.
+        if (len([i for i in coming_up_next if i.type == "normal"]) >= config.SCHEDULE_MIN_VIDEOS):
+            if len([i for i in coming_up_next if i.type == "normal"]) >= (config.SCHEDULE_MAX_VIDEOS + skipped_normal_entries):
+                print2("verbose","Ending schedule generation: SCHEDULE_MAX_VIDEOS reached.")
+                break
+            elif total_duration > config.SCHEDULE_UPCOMING_LENGTH:
+                print2("verbose","Ending schedule generation: SCHEDULE_UPCOMING_LENGTH reached.")
+                break
 
         if entry[1].type == "blank":
             continue
@@ -493,6 +499,7 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,extra_entr
                     "length":entry_length,
                     "extra_info":entry[1].info
                 })
+                print2("verbose",f"Added normal entry {entry[0]}. {entry[1].name} to the schedule file.")
 
                 entry_length += config.VIDEO_PADDING
                 total_duration += entry_length
@@ -509,6 +516,7 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,extra_entr
                 "length":0,
                 "extra_info":entry[1].info
                 })
+                print2("verbose",f"Added extra entry {entry[0]}. {entry[1].name} to the schedule file.")
 
             elif entry[1].type == "command":
                 if entry[1].info == "RESTART":
@@ -522,18 +530,22 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,extra_entr
             else:
                 print2("warn",f"Line {entry[0]}: Invalid entry. Skipping.")
 
+    print2("verbose","Schedule generation finished.") 
+
     if stats.previous_files is not None:
+        print2("verbose","Updating previous_files array.")
         prev_total_duration = 0
 
         # When the program starts, recent_playlist will be empty.
         if len(stats.recent_playlist):
 
-            # If the current video is the same as the most recent entry in previous_files
-            # (as can happen when encoding restarts due to an error), do not change the 
-            # previous_files deque.
-            if stats.previous_files[-1] != stats.recent_playlist[0]:
+        # If the current video is the same as the most recent entry in previous_files
+        # (as can happen when encoding restarts due to an error), do not change the
+        # previous_files deque.
+            if len(stats.previous_files) == 0 or stats.previous_files[-1] != stats.recent_playlist[0]:
 
                 # Pop left from recent_playlist and append until a normal entry is added.
+                print2("verbose",f"Adding {stats.recent_playlist[0].name} to the previous_files array.")
                 stats.previous_files.append(stats.recent_playlist.popleft())
                 while stats.previous_files[-1]["type"] != "normal":
                     stats.previous_files.append(stats.recent_playlist.popleft())
@@ -555,8 +567,10 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,extra_entr
                     pop = stats.previous_files.popleft()
                     if pop["type"] == "normal":
                         prev_total_duration -= pop["length"]
+    else:
+        print2("verbose","previous_files is empty.")
 
-        stats.recent_playlist = deque(coming_up_next_json.copy())
+    stats.recent_playlist = deque(coming_up_next_json.copy())
 
     schedule_json_out = {
         "program_start_time":stats.program_start_time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -568,15 +582,50 @@ def write_schedule(playlist: list,entry_index: int,stats: StreamStats,extra_entr
         }
 
     try:
+        print2("verbose","Writing schedule file.")
         with open(config.SCHEDULE_PATH,"w+") as schedule_json:
             schedule_json.write(json.dumps(schedule_json_out))
+            print2("verbose",f"Wrote schedule file to {config.SCHEDULE_PATH}.")
     except OSError as e:
         print(e)
         print2("error",f"Error writing schedule file.")
 
     if config.REMOTE_ADDRESS is not None:
         print2("verbose",f"Uploading {config.SCHEDULE_PATH} to SSH server {config.REMOTE_ADDRESS}.")
-        upload_ssh()
+        upload_attempts_remaining = config.REMOTE_UPLOAD_ATTEMPTS
+
+        if upload_attempts_remaining < 0:
+            upload_attempts_string = ""
+
+        while upload_attempts_remaining != 0:
+            if upload_attempts_remaining > 0:
+                if upload_attempts_remaining > 1:
+                    upload_attempts_string = f"{upload_attempts_remaining} attempts remaining."
+                else:
+                    upload_attempts_string = "1 attempt remaining."
+                upload_attempts_remaining -= 1
+            try:
+                ssh_future = upload_ssh()
+                err = ssh_future.exception(timeout=10)
+                if err is None:
+                    print2("verbose","SSH upload successful.")
+                else:
+                    raise err
+            except TimeoutError:
+                print2("error","SSH upload timed out.")
+            except Exception as e:
+                print2("error",e)
+                print2("warn","SSH upload failed.")
+            else:
+                break
+
+            if upload_attempts_remaining != 0:
+                print2("error",f"{upload_attempts_string} Retrying in {config.REMOTE_RETRY_PERIOD} seconds...")
+                time.sleep(config.REMOTE_RETRY_PERIOD)
+                continue
+            else:
+                print2("error",f"SSH upload failed after {config.REMOTE_UPLOAD_ATTEMPTS} attempts. Skipping SSH upload for this video.")
+                return
 
 
 @concurrent.thread
@@ -585,33 +634,8 @@ def upload_ssh():
     using fabric.
     """
 
-    upload_attempts_remaining = config.REMOTE_UPLOAD_ATTEMPTS
-
-    if upload_attempts_remaining < 0:
-        upload_attempts_string = ""
-
-    while upload_attempts_remaining != 0:
-        if upload_attempts_remaining > 0:
-            if upload_attempts_remaining > 1:
-                upload_attempts_string = f"{upload_attempts_remaining} attempts remaining."
-            else:
-                upload_attempts_string = "1 attempt remaining."
-            upload_attempts_remaining -= 1
-        try:
-            with fabric.Connection(config.REMOTE_ADDRESS,user=config.REMOTE_USERNAME,port=config.REMOTE_PORT,connect_kwargs={'password':config.REMOTE_PASSWORD,'key_filename':config.REMOTE_KEY_FILE,'passphrase':config.REMOTE_KEY_FILE_PASSWORD}) as client:
-                client.put(config.SCHEDULE_PATH,config.REMOTE_DIRECTORY)
-            print2("verbose","SSH upload successful.")
-            break
-        except Exception as e:
-            print2("error",e)
-            print2("warn","SSH upload failed.")
-            if upload_attempts_remaining != 0:
-                print2("error",f"{upload_attempts_string} Retrying in {config.REMOTE_RETRY_PERIOD} seconds...")
-                time.sleep(config.REMOTE_RETRY_PERIOD)
-                continue
-            else:
-                print2("error",f"SSH upload failed after {config.REMOTE_UPLOAD_ATTEMPTS} attempts. Skipping SSH upload for this video.")
-                break
+    with fabric.Connection(config.REMOTE_ADDRESS,user=config.REMOTE_USERNAME,port=config.REMOTE_PORT,connect_timeout=10,connect_kwargs={'password':config.REMOTE_PASSWORD,'key_filename':config.REMOTE_KEY_FILE,'passphrase':config.REMOTE_KEY_FILE_PASSWORD}) as client:
+        client.put(config.SCHEDULE_PATH,config.REMOTE_DIRECTORY)
 
 
 @concurrent.thread

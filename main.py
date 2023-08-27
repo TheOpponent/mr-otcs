@@ -451,11 +451,12 @@ def main():
 
                         # Write schedule only once per video file.
                         if config.SCHEDULE_PATH is not None:
-                            print2("verbose",f"Writing schedule file to {config.SCHEDULE_PATH}.")
-
                             # Check if current video name matches config.SCHEDULE_EXCLUDE_FILE_PATTERN,
                             # and only generate a schedule file if it does not.
                             if config.SCHEDULE_EXCLUDE_FILE_PATTERN is not None and not video_file.name.casefold().startswith(config.SCHEDULE_EXCLUDE_FILE_PATTERN):
+                                if stats.schedule_future is not None and not stats.schedule_future.done():
+                                    print2("warn","Aborting schedule file upload for the previous video.")
+                                    stats.schedule_future.cancel()
                                 stats.schedule_future = playlist.write_schedule(media_playlist,play_index,stats,extra_entries)
                                 # Clear extra_entries after writing schedule.
                                 extra_entries = []
