@@ -441,7 +441,7 @@ def main():
                         if stats.elapsed_time > 0:
                             print2("notice",f"Starting from {int_to_time(stats.elapsed_time)}.")
 
-                        if stats.stream_time_remaining - (next_video_length - stats.elapsed_time) > 0:
+                        if stats.stream_time_remaining - (next_video_length - stats.elapsed_time) > 0 and config.STREAM_TIME_BEFORE_RESTART > 0:
                             print2("info",f"{int_to_time(stats.stream_time_remaining - (next_video_length - stats.elapsed_time))} left before restart.")
                         else:
                             print2("notice","STREAM_TIME_BEFORE_RESTART limit reached, but stream restart is deferred as no videos have completed yet.")
