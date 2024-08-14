@@ -13,6 +13,7 @@
 # There are currently two commands:
 # %RESTART: Force the stream to restart. The videos defined in STREAM_RESTART_BEFORE_VIDEO and STREAM_RESTART_AFTER_VIDEO, if any, will be played.
 # %INSTANT_RESTART: Force the stream to restart immediately. The videos defined in STREAM_RESTART_BEFORE_VIDEO and STREAM_RESTART_AFTER_VIDEO will not be played.
+# %STOP: End the stream and exit Mr. OTCS. The index in play_index.txt will be set to the line after this one after exiting.
 
 # Blank lines and comment lines like this one are ignored.
 # Comments can begin with #, ;, or //.
