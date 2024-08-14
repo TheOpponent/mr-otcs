@@ -5,7 +5,7 @@ import os
 import sys
 import configparser
 
-SCRIPT_VERSION = "2.1.2"
+SCRIPT_VERSION = "2.2.0"
 
 ini_defaults = {
     "Paths":{
