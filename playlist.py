@@ -676,59 +676,91 @@ def write_schedule(
             else:
                 print2("warn", f"Line {entry[0]}: Invalid entry. Skipping.")
 
-    print2("verbose", "Schedule generation finished.")
-
-    # TODO: Ensure previous_files is only updated once, and not after a retry.
-    if stats.previous_files is not None and not ignore_previous_files:
-        print2("verbose", "Updating previous_files array.")
-        prev_total_duration = 0
-
+    if (
+        stats.previous_files is not None
+        and not ignore_previous_files
+        and len(stats.recent_playlist)
+    ):
         # When the program starts, recent_playlist will be empty.
-        if len(stats.recent_playlist):
-            # If the current video is the same as the most recent entry in previous_files
-            # (as can happen when encoding restarts due to an error), do not change the
-            # previous_files deque.
-            if (
-                len(stats.previous_files) == 0
-                or stats.previous_files[-1] != stats.recent_playlist[0]
-            ):
-                # Pop left from recent_playlist and append until a normal entry is added.
+        print2("verbose", "Updating previous_files array.")
+
+        # If the current video is the same as the most recent entry in previous_files
+        # (as can happen when encoding restarts due to an error), do not change the
+        # previous_files deque.
+        if (
+            len(stats.previous_files) == 0
+            or stats.previous_files[-1] != stats.recent_playlist[0]
+        ):
+            # Pop left from recent_playlist and append until a normal entry is added.
+            while stats.recent_playlist[0]["type"] != "normal":
                 stats.previous_files.append(stats.recent_playlist.popleft())
                 print2(
                     "verbose",
-                    f"Added {stats.previous_files[0]['name']} to the previous_files array.",
+                    f"Added {stats.previous_files[-1]['type']} entry {stats.previous_files[-1]['name']} to the previous_files array.",
                 )
-                while stats.previous_files[-1]["type"] != "normal":
-                    stats.previous_files.append(stats.recent_playlist.popleft())
+            stats.previous_files.append(stats.recent_playlist.popleft())
+            print2(
+                "verbose",
+                f"Added {stats.previous_files[-1]['name']} to the previous_files array.",
+            )
 
-                # If combined length of previous_files exceeds SCHEDULE_PREVIOUS_LENGTH,
-                # or number of videos exceeds SCHEDULE_PREVIOUS_MAX_VIDEOS, pop left.
-                for i in stats.previous_files:
-                    if i["type"] == "normal":
-                        prev_total_duration += i["length"]
-
-                while (
-                    sum([i["type"] == "normal" for i in stats.previous_files])
-                    > config.SCHEDULE_PREVIOUS_MAX_VIDEOS
-                ):
-                    if (
-                        sum([i["type"] == "normal" for i in stats.previous_files]) - 1
-                        <= config.SCHEDULE_PREVIOUS_MIN_VIDEOS
-                    ):
-                        break
-                    while stats.previous_files[-1]["type"] != "normal":
-                        stats.previous_files.popleft()
+            # If combined length of previous_files exceeds SCHEDULE_PREVIOUS_LENGTH,
+            # or number of videos exceeds SCHEDULE_PREVIOUS_MAX_VIDEOS, prune
+            # previous_files.
+            total_normal_previous_files = sum(
+                [i["type"] == "normal" for i in stats.previous_files]
+            )
+            while total_normal_previous_files > config.SCHEDULE_PREVIOUS_MAX_VIDEOS:
+                while stats.previous_files[0]["type"] != "normal":
                     stats.previous_files.popleft()
+                stats.previous_files.popleft()
+                total_normal_previous_files -= 1
+
+            if total_normal_previous_files > config.SCHEDULE_PREVIOUS_MIN_VIDEOS:
+                if config.SCHEDULE_PREVIOUS_PRUNE_TIGHT:
+                    files_to_prune = 0
+                else:
+                    files_to_prune = -1
+                for i in stats.previous_files:
+                    if int(i["unixtime"]) == 0:
+                        continue
+
+                    entry_timestamp = datetime.datetime.fromtimestamp(
+                        i["unixtime"], tz=datetime.timezone.utc
+                    )
+                    previous_time_difference = int(
+                        (start_time - entry_timestamp).total_seconds()
+                    )
+                    print2(
+                        "verbose",
+                        f"Schedule generation start time: {int(start_time.timestamp())} ({start_time.strftime('%Y-%m-%d %H:%M:%S')}). {i['name']} start time: {int(entry_timestamp.timestamp())} ({entry_timestamp.strftime('%Y-%m-%d %H:%M:%S')}).",
+                    )
+                    print2(
+                        "verbose",
+                        f"Previous time difference: {str(datetime.timedelta(seconds=previous_time_difference))}.",
+                    )
+                    if (
+                        previous_time_difference > config.SCHEDULE_PREVIOUS_LENGTH
+                        and len(stats.previous_files) - files_to_prune
+                        > config.SCHEDULE_PREVIOUS_MIN_VIDEOS
+                    ):
+                        files_to_prune += 1
+                        print2("verbose", f"{files_to_prune} file(s) to prune.")
+                    else:
+                        break
 
                 while (
-                    len(stats.previous_files) > 1
-                    and prev_total_duration > config.SCHEDULE_PREVIOUS_LENGTH
+                    total_normal_previous_files > config.SCHEDULE_PREVIOUS_MIN_VIDEOS
+                    and files_to_prune > 0
                 ):
                     pop = stats.previous_files.popleft()
+                    print2("verbose", f"Removed {pop['name']} from previous_files.")
                     if pop["type"] == "normal":
-                        prev_total_duration -= pop["length"]
-    else:
-        print2("verbose", "previous_files is empty.")
+                        files_to_prune -= 1
+                        total_normal_previous_files -= 1
+
+    elif ignore_previous_files:
+        print2("verbose", "Not updating previous_files.")
 
     stats.recent_playlist = deque(coming_up_next_json.copy())
 
@@ -740,6 +772,8 @@ def write_schedule(
         "previous_files": list(stats.previous_files),
         "script_version": config.SCRIPT_VERSION,
     }
+
+    print2("verbose", "Schedule generation finished.")
 
     try:
         print2("verbose", "Writing schedule file.")
