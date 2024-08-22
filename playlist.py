@@ -191,6 +191,14 @@ class StreamStats:
 
         self.elapsed_time = max(0, self.elapsed_time - time)
 
+    def force_connection_check(self):
+        """Set the last connection check time to now, to force the next
+        connection check to take place immediately."""
+
+        self.last_connection_check = datetime.datetime.now(
+            datetime.timezone.utc
+        ) - datetime.timedelta(seconds=config.CHECK_INTERVAL)
+
 
 def get_length(video) -> int:
     """Retrieve length of a video file using pymediainfo."""
