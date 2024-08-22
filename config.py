@@ -47,6 +47,7 @@ ini_defaults = {
         "SCHEDULE_UPCOMING_LENGTH":240,
         "SCHEDULE_PREVIOUS_MAX_VIDEOS":3,
         "SCHEDULE_PREVIOUS_LENGTH":30,
+        "SCHEDULE_PREVIOUS_PRUNE_TIGHT":False,
         "SCHEDULE_EXCLUDE_FILE_PATTERN":"",
         "SCHEDULE_OFFSET":0
         },
@@ -191,6 +192,10 @@ else:
     SCHEDULE_PREVIOUS_MIN_VIDEOS = 1
 SCHEDULE_PREVIOUS_MAX_VIDEOS = default_ini.getint("Schedule","SCHEDULE_PREVIOUS_MAX_VIDEOS")
 SCHEDULE_PREVIOUS_LENGTH = default_ini.getint("Schedule","SCHEDULE_PREVIOUS_LENGTH") * 60
+if default_ini.has_option("Schedule","SCHEDULE_PREVIOUS_PRUNE_TIGHT"): # Added in 2.2.0.
+    SCHEDULE_PREVIOUS_PRUNE_TIGHT = default_ini.getboolean("Schedule","SCHEDULE_PREVIOUS_PRUNE_TIGHT") 
+else:
+    SCHEDULE_PREVIOUS_PRUNE_TIGHT = False
 if default_ini.has_option("Schedule","SCHEDULE_OFFSET"): # Added in 2.1.0.
     SCHEDULE_OFFSET = default_ini.getint("Schedule","SCHEDULE_OFFSET")
 else:
