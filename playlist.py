@@ -496,7 +496,6 @@ def write_schedule(
     # First entry is the video playing now and is added unconditionally.
     entry = playlist[entry_index]
     entry_length = get_length(entry[1])
-
     coming_up_next_json.append(
         {
             "type": "normal",
@@ -538,13 +537,13 @@ def write_schedule(
             ):
                 print2(
                     "verbose",
-                    "Ending schedule generation: SCHEDULE_MAX_VIDEOS reached.",
+                    "SCHEDULE_MAX_VIDEOS reached.",
                 )
                 break
             elif total_duration > config.SCHEDULE_UPCOMING_LENGTH:
                 print2(
                     "verbose",
-                    "Ending schedule generation: SCHEDULE_UPCOMING_LENGTH reached.",
+                    "SCHEDULE_UPCOMING_LENGTH reached.",
                 )
                 break
 
@@ -560,13 +559,13 @@ def write_schedule(
                     try:
                         entry_length = get_length(entry[1])
                         coming_up_next.append(entry[1])
-                    except FileNotFoundError as e:
+                    except FileNotFoundError:
                         print2(
                             "error",
                             f"Line {entry[0]}. {entry[1].path} cannot be found. Not adding to schedule.",
                         )
                         continue
-                    except IndexError as e:
+                    except IndexError:
                         print2(
                             "error",
                             f"Line {entry[0]}. {entry[1].path} contains no video tracks. Not adding to schedule.",
@@ -781,8 +780,7 @@ def write_schedule(
             schedule_json.write(json.dumps(schedule_json_out))
             print2("verbose", f"Wrote schedule file to {config.SCHEDULE_PATH}.")
     except OSError as e:
-        print(e)
-        print2("error", f"Error writing schedule file to {config.SCHEDULE_PATH}.")
+        print2("error", f"Error writing schedule file to {config.SCHEDULE_PATH}: {e}.")
 
     if config.REMOTE_ADDRESS is not None:
         print2(
@@ -814,17 +812,23 @@ def write_schedule(
                 else:
                     raise err
             except TimeoutError:
-                print2("error","SSH upload timed out.")
+                print2("error", "SSH upload timed out.")
             except Exception as e:
-                print2("error",f"SSH upload failed: {str(e)}")
+                print2("error", f"SSH upload failed: {e}")
             finally:
                 if err is not None:
                     if upload_attempts_remaining != 0:
-                        print2("error",f"{upload_attempts_string} Retrying in {config.REMOTE_RETRY_PERIOD} seconds...")
+                        print2(
+                            "error",
+                            f"{upload_attempts_string} Retrying in {config.REMOTE_RETRY_PERIOD} seconds...",
+                        )
                         sleep_event.wait(timeout=config.REMOTE_RETRY_PERIOD)
                         continue
                     else:
-                        print2("error",f"SSH upload failed after {config.REMOTE_UPLOAD_ATTEMPTS} attempts. Skipping SSH upload for this video.")
+                        print2(
+                            "error",
+                            f"SSH upload failed after {config.REMOTE_UPLOAD_ATTEMPTS} attempts. Skipping SSH upload for this video.",
+                        )
 
 
 @concurrent.thread
@@ -833,8 +837,18 @@ def upload_ssh():
     using fabric.
     """
 
-    with fabric.Connection(config.REMOTE_ADDRESS,user=config.REMOTE_USERNAME,port=config.REMOTE_PORT,connect_timeout=10,connect_kwargs={'password':config.REMOTE_PASSWORD,'key_filename':config.REMOTE_KEY_FILE,'passphrase':config.REMOTE_KEY_FILE_PASSWORD}) as client:
-        client.put(config.SCHEDULE_PATH,config.REMOTE_DIRECTORY)
+    with fabric.Connection(
+        config.REMOTE_ADDRESS,
+        user=config.REMOTE_USERNAME,
+        port=config.REMOTE_PORT,
+        connect_timeout=10,
+        connect_kwargs={
+            "password": config.REMOTE_PASSWORD,
+            "key_filename": config.REMOTE_KEY_FILE,
+            "passphrase": config.REMOTE_KEY_FILE_PASSWORD,
+        },
+    ) as client:
+        client.put(config.SCHEDULE_PATH, config.REMOTE_DIRECTORY)
 
 
 @concurrent.thread
