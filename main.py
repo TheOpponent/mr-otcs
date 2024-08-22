@@ -34,7 +34,7 @@ class ConnectionCheckError(Exception):
     pass
 
 
-def rtmp_task() -> subprocess.Popen:
+def rtmp_task(stats: playlist.StreamStats) -> subprocess.Popen:
     """Task for starting the RTMP broadcasting process."""
 
     command = shlex.split(f"{config.RTMP_STREAMER_PATH} {config.RTMP_ARGUMENTS}")
@@ -46,12 +46,30 @@ def rtmp_task() -> subprocess.Popen:
             continue
         else:
             proc.kill()
-            print2("notice","Old RTMP process found and killed.")
+            print2("notice","Old RTMP process killed.")
+
+    # Perform connection check regardless of previous check time, and only
+    # continue once the check succeeds.
+    print2("verbose2","Checking connection before starting RTMP process.")
+    stats.force_connection_check()
+    connection_check = check_connection(stats,exception=False)
+    while True:
+        try:
+            if connection_check.result():
+                break
+        except TimeoutError:
+            print2("error","Connection check failed. Retrying in 5 seconds.")
+            time.sleep(5)
+            connection_check = check_connection(stats,exception=False)
+        else:
+            break
 
     try:
-        process = subprocess.Popen(command,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
-
-
+        if config.RTMP_STREAMER_LOG is not None:
+            with open(config.RTMP_STREAMER_LOG,"a") as log:
+                process = subprocess.Popen(command,stdout=log,stderr=log,text=True)
+        else:
+            process = subprocess.Popen(command,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
     except subprocess.CalledProcessError as e:
         print2("error",f"RTMP process terminated, exit code {e.returncode}.")
         return e.returncode
@@ -269,22 +287,12 @@ def main():
     stats = playlist.StreamStats()
     total_elapsed_time = 0
 
-    print2("verbose","Checking connection.")
-    init_connection_check = check_connection(stats,exception=False)
-    while True:
-        try:
-            if init_connection_check.result():
-                break
-        except TimeoutError as e:
-            print2("error","Initial connection check failed. Retrying in 5 seconds.")
-            time.sleep(5)
-            init_connection_check = check_connection(stats,exception=False)
-        else:
-            break
+
+
 
     # Start RTMP broadcast task, to be stopped when total_elapsed_time
     # will exceed STREAM_TIME_BEFORE_RESTART.
-    rtmp_process = rtmp_task()
+    rtmp_process = rtmp_task(stats)
     stats.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
 
     # Keep list of extra entries that get passed over, and pass it to
@@ -410,7 +418,7 @@ def main():
                             print2("info",f"Waiting {config.STREAM_RESTART_WAIT} seconds to restart.")
                             time.sleep(config.STREAM_RESTART_WAIT)
                             play_index += 1
-                            rtmp_process = rtmp_task()
+                            rtmp_process = rtmp_task(stats)
                             stats.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
                             break
 
@@ -430,7 +438,7 @@ def main():
                             print2("info",f"Waiting {config.STREAM_RESTART_WAIT} seconds to restart.")
                             time.sleep(config.STREAM_RESTART_WAIT)
                             play_index += 1
-                            rtmp_process = rtmp_task()
+                            rtmp_process = rtmp_task(stats)
                             stats.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
                             break
                         else:
@@ -599,7 +607,7 @@ def main():
                         total_elapsed_time = 0
                         print2("notice",f"Waiting {config.STREAM_RESTART_WAIT} seconds to restart stream.")
                         time.sleep(config.STREAM_RESTART_WAIT)
-                        rtmp_process = rtmp_task()
+                        rtmp_process = rtmp_task(stats)
                         stats.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
                         stats.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
                         continue
@@ -640,7 +648,7 @@ def main():
             executor = stop_stream(executor)
             time.sleep(2)
             stats.videos_since_restart = 0
-            rtmp_process = rtmp_task()
+            rtmp_process = rtmp_task(stats)
             stats.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
             stats.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
             continue
