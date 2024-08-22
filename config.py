@@ -73,65 +73,21 @@ ini_defaults = {
         }
     }
 
-
-def print2(level: str,message: str):
-    """Prepend a colored label with a standard print message."""
-
-    current_time = datetime.datetime.now()
-
-    reset = '\033[0m'
-    notice = '\033[96m' + "[Notice]" + reset
-    warn = '\033[93m' + "[Warn]" + reset
-    error = '\033[31m' + "[Error]" + reset
-    play = '\033[92m' + "[Play]" + reset
-
-    if level == "fatal" and VERBOSE & 0b10000000:
-        print(f"{current_time} {error} {message}")
-    elif level == "error" and VERBOSE & 0b1000000:
-        print(f"{current_time} {error} {message}")
-    elif level == "warn" and VERBOSE & 0b100000:
-        print(f"{current_time} {warn} {message}")
-    elif level == "notice" and VERBOSE & 0b10000:
-        print(f"{current_time} {notice} {message}")
-    elif level == "play" and VERBOSE & 0b1000:
-        print(f"{current_time} {play} {message}")
-    elif level == "info" and VERBOSE & 0b100:
-        print(f"{current_time} [Info] {message}")
-    elif level == "verbose" and VERBOSE & 0b10:
-        print(f"{current_time} [Info] {message}")
-    elif level == "verbose2" and VERBOSE & 0b1:
-        print(f"{current_time} [Info] {message}")
-
-
 default_ini = configparser.ConfigParser(defaults=ini_defaults)
+
 if len(sys.argv) > 1:
     try:
         config_file = sys.argv[1]
+        default_ini.read_dict(ini_defaults)
         default_ini.read(sys.argv[1])
     except configparser.Error as e:
-        print(e)
-        print2("error",f"Error reading config file {sys.argv[1]}.")
+        print(f"Error reading config file {sys.argv[1]}: {e}")
         exit(1)
 else:
     config_file = os.getenv("MR_OTCS_CONFIG_INI","config.ini")
+    default_ini.read_dict(ini_defaults)
     default_ini.read(config_file)
 
-# Basic validation of config file structure.
-for section in ini_defaults:
-    if default_ini.has_section(section):
-        for option in ini_defaults[section]:
-            if default_ini.has_option(section,option):
-                continue
-            else:
-                print2("warn",f"{config_file} is missing option {option} in [{section}] section. Using default value.")
-                break
-        else:
-            continue
-    else:
-        print2("warn",f"{config_file} is missing [{section}] section. Using default values.")
-        config_file = os.getenv("MR_OTCS_CONFIG_INI","config.ini")
-        default_ini.read("config.ini")
-        break
 
 MEDIA_PLAYER_PATH = default_ini.get("Paths","MEDIA_PLAYER_PATH")
 RTMP_STREAMER_PATH = default_ini.get("Paths","RTMP_STREAMER_PATH")
@@ -156,7 +112,10 @@ RTMP_ARGUMENTS = default_ini.get("VideoOptions","RTMP_ARGUMENTS")
 VIDEO_PADDING = default_ini.getint("VideoOptions","VIDEO_PADDING")
 STREAM_URL = default_ini.get("VideoOptions","STREAM_URL")
 CHECK_URL = [i.strip() for i in default_ini.get("VideoOptions","CHECK_URL").split(",")]
-CHECK_INTERVAL = default_ini.getint("VideoOptions","CHECK_INTERVAL")
+if default_ini.has_option("VideoOptions","CHECK_INTERVAL"):
+    CHECK_INTERVAL = default_ini.getint("VideoOptions","CHECK_INTERVAL") 
+else:
+    CHECK_INTERVAL = 60
 CHECK_STRICT = default_ini.getboolean("VideoOptions","CHECK_STRICT")
 STREAM_TIME_BEFORE_RESTART = default_ini.getint("VideoOptions","STREAM_TIME_BEFORE_RESTART") * 60
 STREAM_RESTART_WAIT = default_ini.getint("VideoOptions","STREAM_RESTART_WAIT")
@@ -251,6 +210,51 @@ else:
     print("VERBOSE setting not recognized. Using default setting \"info\".")
     VERBOSE = 0b11111100
 
+def print2(level: str,message: str):
+    """Prepend a colored label with a standard print message."""
+
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    reset = '\033[0m'
+    notice = '\033[96m' + "[Notice]" + reset
+    warn = '\033[93m' + "[Warn]" + reset
+    error = '\033[31m' + "[Error]" + reset
+    play = '\033[92m' + "[Play]" + reset
+
+    if level == "fatal" and VERBOSE & 0b10000000:
+        print(f"{current_time} {error} {message}")
+    elif level == "error" and VERBOSE & 0b1000000:
+        print(f"{current_time} {error} {message}")
+    elif level == "warn" and VERBOSE & 0b100000:
+        print(f"{current_time} {warn} {message}")
+    elif level == "notice" and VERBOSE & 0b10000:
+        print(f"{current_time} {notice} {message}")
+    elif level == "play" and VERBOSE & 0b1000:
+        print(f"{current_time} {play} {message}")
+    elif level == "info" and VERBOSE & 0b100:
+        print(f"{current_time} [Info] {message}")
+    elif level == "verbose" and VERBOSE & 0b10:
+        print(f"{current_time} [Info] {message}")
+    elif level == "verbose2" and VERBOSE & 0b1:
+        print(f"{current_time} [Info] {message}")
+
+# Basic validation of config file structure.
+for section in ini_defaults:
+    if default_ini.has_section(section):
+        for option in ini_defaults[section]:
+            if default_ini.has_option(section,option):
+                continue
+            else:
+                print2("warn",f"{config_file} is missing option {option} in [{section}] section. Using default value.")
+                break
+        else:
+            continue
+    else:
+        print2("warn",f"{config_file} is missing [{section}] section. Using default values.")
+        config_file = os.getenv("MR_OTCS_CONFIG_INI","config.ini")
+        default_ini.read("config.ini")
+        break
+
 # Validate config settings.
 if ALT_NAMES_JSON_PATH is not None:
     try:
@@ -302,6 +306,14 @@ if CHECK_INTERVAL < (len(CHECK_URL) * 5):
     CHECK_INTERVAL = len(CHECK_URL) * 5
 if CHECK_INTERVAL < 10:
     CHECK_INTERVAL = 10
+
+if SCHEDULE_MAX_VIDEOS < SCHEDULE_MIN_VIDEOS:
+    print2("error","SCHEDULE_MAX_VIDEOS is less than SCHEDULE_MIN_VIDEOS.")
+    exit(1)
+
+if SCHEDULE_PREVIOUS_MAX_VIDEOS < SCHEDULE_PREVIOUS_MIN_VIDEOS:
+    print2("error","SCHEDULE_PREVIOUS_MAX_VIDEOS is less than SCHEDULE_PREVIOUS_MIN_VIDEOS.")
+    exit(1)
 
 
 if __name__ == "__main__":
