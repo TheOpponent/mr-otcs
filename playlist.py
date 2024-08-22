@@ -809,7 +809,8 @@ def write_schedule(
             try:
                 err = upload_ssh().result(timeout=10)
                 if err is None:
-                    print2("verbose","SSH upload successful.")
+                    print2("verbose", "SSH upload successful.")
+                    break
                 else:
                     raise err
             except TimeoutError:
