@@ -17,7 +17,9 @@ ini_defaults = {
         "PLAY_INDEX_FILE":"%(BASE_PATH)s/play_index.txt",
         "PLAY_HISTORY_FILE":"%(BASE_PATH)s/play_history.txt",
         "SCHEDULE_PATH":"schedule.json",
-        "ALT_NAMES_JSON_PATH":"alt_names.json"
+        "ALT_NAMES_JSON_PATH":"alt_names.json",
+        "MEDIA_PLAYER_LOG":"ffmpeg_media.log",
+        "RTMP_STREAMER_LOG":"ffmpeg_rtmp.log"
         },
     "VideoOptions":{
         "STREAM_URL":"rtmp://localhost:1935/live/",
@@ -137,6 +139,14 @@ PLAY_INDEX_FILE = os.path.expanduser(default_ini.get("Paths","PLAY_INDEX_FILE"))
 PLAY_HISTORY_FILE = os.path.expanduser(default_ini.get("Paths","PLAY_HISTORY_FILE")) if default_ini.get("Paths","PLAY_HISTORY_FILE") != "" else None
 SCHEDULE_PATH = os.path.expanduser(default_ini.get("Paths","SCHEDULE_PATH")) if default_ini.get("Paths","SCHEDULE_PATH") != "" else None
 ALT_NAMES_JSON_PATH = os.path.expanduser(default_ini.get("Paths","ALT_NAMES_JSON_PATH")) if default_ini.get("Paths","ALT_NAMES_JSON_PATH") != "" else None
+if default_ini.has_option("Paths","MEDIA_PLAYER_LOG"): # Added in 2.2.0.
+    MEDIA_PLAYER_LOG = os.path.expanduser(default_ini.get("Paths","MEDIA_PLAYER_LOG")) if default_ini.get("Paths","MEDIA_PLAYER_LOG") != "" else None 
+else:
+    MEDIA_PLAYER_LOG = "ffmpeg_media.log"
+if default_ini.has_option("Paths","RTMP_STREAMER_LOG"): # Added in 2.2.0.
+    RTMP_STREAMER_LOG = os.path.expanduser(default_ini.get("Paths","RTMP_STREAMER_LOG")) if default_ini.get("Paths","RTMP_STREAMER_LOG") != "" else None 
+else:
+    RTMP_STREAMER_LOG = "ffmpeg_rtmp.log"
 
 MEDIA_PLAYLIST = os.path.expanduser(default_ini.get("Paths","MEDIA_PLAYLIST"))
 

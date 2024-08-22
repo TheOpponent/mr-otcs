@@ -71,7 +71,10 @@ def rtmp_task(stats: playlist.StreamStats) -> subprocess.Popen:
         else:
             process = subprocess.Popen(command,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
     except subprocess.CalledProcessError as e:
-        print2("error",f"RTMP process terminated, exit code {e.returncode}.")
+        if config.RTMP_STREAMER_LOG is not None:
+            print2("error",f"RTMP process terminated, exit code {e.returncode}. Check {config.RTMP_STREAMER_LOG} for details.")
+        else:
+            print2("error",f"RTMP process terminated, exit code {e.returncode}.")
         return e.returncode
 
     print2("info","RTMP process started.")
@@ -151,7 +154,11 @@ def encoder_task(file: str,rtmp_task: subprocess.Popen,stats: playlist.StreamSta
         print2("verbose2","Checking connection.")
 
     try:
-        process = subprocess.Popen(command,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        if config.MEDIA_PLAYER_LOG is not None:
+            with open(config.MEDIA_PLAYER_LOG,"a") as log:
+                process = subprocess.Popen(command,stdout=log,stderr=log,text=True)
+        else:
+            process = subprocess.Popen(command,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
     except subprocess.CalledProcessError as e:
         print(e.stderr)
         print2("error",f"Encoder process ended unexpectedly, exit code {e.returncode}.")
