@@ -18,8 +18,7 @@ def test_write_schedule(monkeypatch):
     config.STREAM_RESTART_WAIT = 420
     config.SCHEDULE_EXCLUDE_FILE_PATTERN = "Test file 7".casefold()
     config.SCHEDULE_PREVIOUS_MAX_VIDEOS = 1
-    config.SCHEDULE_MAX_VIDEOS = 6
-    config.VERBOSE = True
+    config.SCHEDULE_PREVIOUS_LENGTH = 20
 
     test_playlist = [
         (1,PlaylistTestEntry("Test file 1.mp4",length=1000)),
@@ -36,18 +35,6 @@ def test_write_schedule(monkeypatch):
         (12,PlaylistTestEntry("Test file 8.mp4",length=180)),
         (13,PlaylistTestEntry("Test file 9.mp4",length=270))
         ]
-
-    # test_playlist = [
-    #     (0,PlaylistTestEntry("Sample Video Title #6.mp4 :(Premiere)",length=6399)),
-    #     (1,PlaylistTestEntry("Sample Video Title #1.mp4",length=971)),
-    #     (2,PlaylistTestEntry("Sample Video Title #2.mp4 :Extra info from inline comment",length=360)),
-    #     (3,PlaylistTestEntry(":Programming Block #1")),
-    #     (4,PlaylistTestEntry("Sample Video Title #3",length=2835)),
-    #     (5,PlaylistTestEntry("Sample Video Title #4 :(Rerun)",length=1810)),
-    #     (6,PlaylistTestEntry(":Programming Block #2")),
-    #     (7,PlaylistTestEntry("Sample Video Title #5.mp4 :(Rerun)",length=2528)),
-    #     (8,PlaylistTestEntry("Sample Video Title #6.mp4",length=6399))
-    # ]
 
     for new_entry in test_playlist:
         if new_entry[1].type == "normal" and new_entry[1].name in config.ALT_NAMES:
