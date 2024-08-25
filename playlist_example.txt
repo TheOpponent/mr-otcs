@@ -1,4 +1,4 @@
-# Mr. OTCS version 2.0.0 playlist file example
+# Mr. OTCS version 2.2.0 playlist file example
 # https://github.com/TheOpponent/mr-otcs
 
 # Insert file names of videos in this file, one per line, then rename it to playlist.txt.
