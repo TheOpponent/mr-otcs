@@ -781,6 +781,7 @@ def write_schedule(
             print2("verbose", f"Wrote schedule file to {config.SCHEDULE_PATH}.")
     except OSError as e:
         print2("error", f"Error writing schedule file to {config.SCHEDULE_PATH}: {e}.")
+        return
 
     if config.REMOTE_ADDRESS is not None:
         print2(
