@@ -431,7 +431,7 @@ def main():
                         write_play_history(f"Stream ended after {total_time}.")
                         print2(
                             "verbose",
-                            f"{stats.videos_since_restart} videos played since last restart.",
+                            f"{stats.videos_since_restart} video(s) played since last restart.",
                         )
                         print2("notice", f"Mr. OTCS ran for {total_time}.")
                         try:
@@ -573,7 +573,7 @@ def main():
                         write_play_history(f"Stream ended after {total_time}.")
                         print2(
                             "verbose",
-                            f"{stats.videos_since_restart} videos played since last restart.",
+                            f"{stats.videos_since_restart} video(s) played since last restart.",
                         )
                         print2("notice", f"Mr. OTCS ran for {total_time}.")
                         try:
@@ -821,7 +821,7 @@ def main():
                             )
                         print2(
                             "verbose",
-                            f"{stats.videos_since_restart} videos played since last restart.",
+                            f"{stats.videos_since_restart} video(s) played since last restart.",
                         )
                         executor = stop_stream(executor)
                         stats.videos_since_restart = 0
@@ -870,7 +870,7 @@ def main():
             print2("error", "Stream interrupted. Attempting to restart.")
             print2(
                 "verbose",
-                f"{stats.videos_since_restart} videos played since last restart.",
+                f"{stats.videos_since_restart} video(s) played since last restart.",
             )
             retried = True
             if stats.elapsed_time - config.REWIND_LENGTH > stats.video_resume_point:
@@ -885,24 +885,53 @@ def main():
             continue
 
         except KeyboardInterrupt:
-            print2("notice", "Stopping RTMP process.")
-            stop_stream(executor, restart=False)
-            total_time = int_to_total_time(
-                (
-                    datetime.datetime.now(datetime.timezone.utc)
-                    - stats.program_start_time
-                ).total_seconds()
-            )
-            write_play_history(f"Stream ended after {total_time}.")
-            print2(
-                "verbose",
-                f"{stats.videos_since_restart} videos played since last restart.",
-            )
-            print2("notice", f"Mr. OTCS ran for {total_time}.")
-            print2("notice", "Exiting.")
-            if os.name == "posix":
-                os.system("stty sane")
-            exit(130)
+            try:
+                if config.STREAM_MANUAL_RESTART_DELAY > 0:
+                    print2("notice", f"Restarting stream. Press Ctrl-C again within {config.STREAM_MANUAL_RESTART_DELAY} second(s) to exit.")
+                    print2(
+                        "verbose",
+                        f"{stats.videos_since_restart} video(s) played since last restart.",
+                    )
+                    retried = True
+                    if stats.elapsed_time - config.REWIND_LENGTH > stats.video_resume_point:
+                        stats.rewind(config.REWIND_LENGTH)
+                        stats.video_resume_point = stats.elapsed_time
+                    executor = stop_stream(executor)
+                    # Attempt to terminate remaining ffmpeg processes.
+                    for proc in psutil.process_iter(["cmdline"]):
+                        if config.MEDIA_PLAYER_PATH not in proc.info["cmdline"]:
+                            continue
+                        else:
+                            proc.kill()
+                    time.sleep(5)
+
+                    stats.videos_since_restart = 0
+                    rtmp_process = rtmp_task(stats)
+                    stats.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
+                    stats.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
+                    continue
+                else:
+                    raise KeyboardInterrupt
+
+            except KeyboardInterrupt:
+                print2("notice", "Exiting Mr. OTCS. Stopping RTMP process.")
+                stop_stream(executor, restart=False)
+                total_time = int_to_total_time(
+                    (
+                        datetime.datetime.now(datetime.timezone.utc)
+                        - stats.program_start_time
+                    ).total_seconds()
+                )
+                write_play_history(f"Stream ended after {total_time}.")
+                print2(
+                    "verbose",
+                    f"{stats.videos_since_restart} video(s) played since last restart.",
+                )
+                print2("notice", f"Mr. OTCS ran for {total_time}.")
+                print2("notice", "Exiting.")
+                if os.name == "posix":
+                    os.system("stty sane")
+                exit(130)
 
         except Exception as e:
             print(e)

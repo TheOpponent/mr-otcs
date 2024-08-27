@@ -70,6 +70,7 @@ ini_defaults = {
     "Misc": {
         "PLAY_HISTORY_LENGTH": 10,
         "VERBOSE": "info",
+        "STREAM_MANUAL_RESTART_DELAY": 5,
     },
 }
 
@@ -309,6 +310,7 @@ else:
     print('VERBOSE setting not recognized. Using default setting "info".')
     VERBOSE = 0b11111100
 
+STREAM_MANUAL_RESTART_DELAY = default_ini.getint("Misc", "STREAM_MANUAL_RESTART_DELAY")
 
 def print2(level: str, message: str):
     """Prepend a colored label with a standard print message."""
