@@ -324,8 +324,8 @@ if default_ini.has_section("Mail"):
         MAIL_USE_STARTTLS = default_ini.getboolean("Mail", "MAIL_USE_STARTTLS")
         MAIL_SERVER = default_ini.get("Mail", "MAIL_SERVER")
         MAIL_PORT = default_ini.getint("Mail", "MAIL_PORT")
-        MAIL_LOGIN = default_ini.get("Mail", "MAIL_LOGIN")
-        MAIL_PASSWORD = default_ini.get("Mail", "MAIL_PASSWORD")
+        MAIL_LOGIN = default_ini.get("Mail", "MAIL_LOGIN", raw=True)
+        MAIL_PASSWORD = default_ini.get("Mail", "MAIL_PASSWORD", raw=True)
         MAIL_FROM_ADDRESS = default_ini.get("Mail", "MAIL_FROM_ADDRESS")
         MAIL_TO_ADDRESS = default_ini.get("Mail", "MAIL_TO_ADDRESS")
     MAIL_PROGRAM_NAME = default_ini.get("Mail", "MAIL_PROGRAM_NAME") if default_ini.get("Mail", "MAIL_PROGRAM_NAME") != "" else "Mr. OTCS"
