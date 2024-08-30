@@ -345,8 +345,11 @@ def main():
 
     if config.MAIL_ENABLE:
         mail_daemon = mail.EMailDaemon()
-        print2("verbose",f"Logging in to e-mail server {config.MAIL_SERVER}.")
-        mail_daemon.test_login()
+        print2("info",f"Logging in to e-mail server {config.MAIL_SERVER}.")
+        if mail_daemon.test_login():
+            print2("info","Mail server login succeeded.")
+        else:
+            print2("error","Mail server login failed.")
     else:
         mail_daemon = None
 
@@ -414,12 +417,12 @@ def main():
 
             try:
                 play_index = int(play_index_contents[0])
-            except IndexError:
+            except (IndexError,ValueError):
                 play_index = 0
 
             try:
                 stats.elapsed_time = int(play_index_contents[1])
-            except IndexError:
+            except (IndexError,ValueError):
                 stats.elapsed_time = 0
 
             # Get next item in media_playlist that is a PlaylistEntry of type "normal".
@@ -460,9 +463,14 @@ def main():
                         exit(0)
                     else:
                         play_index = 0
+                        stats.elapsed_time = 0
 
                 if media_playlist[play_index][1].type == "normal":
                     break
+
+                # If the program starts on a non-normal entry, ignore the elapsed time in play_index.txt.
+                if stats.videos_since_restart == 0:
+                    stats.elapsed_time = 0
 
                 if media_playlist[play_index][1].type == "blank":
                     print2(
@@ -611,7 +619,7 @@ def main():
                                 mail_daemon.add_alert("mail_command",bypass_interval=True)
                                 print2("notice",f"{play_index+1}. Sending manual e-mail alert.")
                         else:
-                            print2("verbose","E-mail alerts are disabled.")
+                            print2("verbose",f"{play_index+1}. Not reading %MAIL command: E-mail alerts are disabled.")
 
                         play_index += 1
                         continue
