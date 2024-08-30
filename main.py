@@ -345,6 +345,8 @@ def main():
 
     if config.MAIL_ENABLE:
         mail_daemon = mail.EMailDaemon()
+        print2("verbose",f"Logging in to e-mail server {config.MAIL_SERVER}.")
+        mail_daemon.test_login()
     else:
         mail_daemon = None
 
