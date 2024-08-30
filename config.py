@@ -508,6 +508,14 @@ if MAIL_ENABLE:
     if MAIL_USE_SSL and MAIL_USE_STARTTLS:
         print2("error", "MAIL_USE_SSL and MAIL_USE_STARTTLS cannot both be enabled.")
         mail_config_error = True
+
+    if MAIL_FROM_ADDRESS is None or MAIL_FROM_ADDRESS == "":
+        print2("error", "MAIL_FROM_ADDRESS is blank.")
+        mail_config_error = True
+    
+    if MAIL_TO_ADDRESS is None or MAIL_TO_ADDRESS == "":
+        print2("error", "MAIL_TO_ADDRESS is blank.")
+        mail_config_error = True
     
     if mail_config_error:
         MAIL_ENABLE = False
