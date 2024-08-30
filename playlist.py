@@ -667,6 +667,8 @@ def write_schedule(
                     length_offset = get_stream_restart_duration()
                 elif entry[1].info == "INSTANT_RESTART":
                     length_offset = config.STREAM_RESTART_WAIT
+                elif entry[1].info.startswith("MAIL") and entry[1].info.split(' ')[0] == "MAIL":
+                    continue
                 elif entry[1].info == "STOP":
                     break
                 else:
