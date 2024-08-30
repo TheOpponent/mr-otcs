@@ -600,12 +600,14 @@ def main():
                         exit(0)
 
                     elif media_playlist[play_index][1].info.startswith("MAIL"):
-                        if mail_daemon is not None and config.MAIL_ALERT_ON_STREAM_COMMAND:
+                        if mail_daemon is not None and config.MAIL_ALERT_ON_COMMAND:
                             mail_command = media_playlist[play_index][1].info.split(' ',1)
                             if len(mail_command) > 1 and not mail_command[1].isspace():
-                                mail_daemon.add_alert("mail_command",message=mail_command[1],bypass_interval=True)
+                                mail_daemon.add_alert("mail_command",message=mail_command[1],bypass_interval=True,line_num=play_index)
+                                print2("notice",f"{play_index}. Sending manual e-mail alert: {mail_command[1]}")
                             else:
                                 mail_daemon.add_alert("mail_command",bypass_interval=True)
+                                print2("notice",f"{play_index}. Sending manual e-mail alert.")
                         else:
                             print2("verbose","E-mail alerts are disabled.")
 
