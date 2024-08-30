@@ -20,6 +20,7 @@ from pebble import ProcessExpired, ProcessPool, concurrent
 
 import config
 import playlist
+import mail
 from config import print2
 
 
@@ -342,6 +343,11 @@ def main():
 
     executor = ProcessPool()
 
+    if config.MAIL_ENABLE:
+        mail_daemon = mail.EMailDaemon()
+    else:
+        mail_daemon = None
+
     while True:
         try:
             # If config.STREAM_RESTART_BEFORE_VIDEO is defined, add its
@@ -592,6 +598,19 @@ def main():
                         if os.name == "posix":
                             os.system("stty sane")
                         exit(0)
+
+                    elif media_playlist[play_index][1].info.startswith("MAIL"):
+                        if mail_daemon is not None and config.MAIL_ALERT_ON_STREAM_COMMAND:
+                            mail_command = media_playlist[play_index][1].info.split(' ',1)
+                            if len(mail_command) > 1 and not mail_command[1].isspace():
+                                mail_daemon.add_alert("mail_command",message=mail_command[1],bypass_interval=True)
+                            else:
+                                mail_daemon.add_alert("mail_command",bypass_interval=True)
+                        else:
+                            print2("verbose","E-mail alerts are disabled.")
+
+                        play_index += 1
+                        continue
 
                 else:
                     break
@@ -867,6 +886,8 @@ def main():
             # and attempt to restart the stream.
             print2("error", e)
             write_play_history(f"Stream stopped due to exception: {e}")
+            if mail_daemon is not None and config.MAIL_ALERT_ON_STREAM_DOWN:
+                mail_daemon.add_alert("stream_down",e,bypass_interval=True)
             print2("error", "Stream interrupted. Attempting to restart.")
             print2(
                 "verbose",
@@ -887,6 +908,7 @@ def main():
         except KeyboardInterrupt:
             print2("notice", "Stopping RTMP process.")
             stop_stream(executor, restart=False)
+            mail_daemon.stop()
             total_time = int_to_total_time(
                 (
                     datetime.datetime.now(datetime.timezone.utc)
@@ -905,7 +927,6 @@ def main():
             exit(130)
 
         except Exception as e:
-            print(e)
             stop_stream(executor, restart=False)
             total_time = int_to_total_time(
                 (
@@ -913,6 +934,9 @@ def main():
                     - stats.program_start_time
                 ).total_seconds()
             )
+            if mail_daemon is not None and config.MAIL_ALERT_ON_STREAM_DOWN:
+                mail_daemon.add_alert("program_error",message=e,urgent=True,total_time=total_time)
+            mail_daemon.stop()
             write_play_history(f"Stream stopped due to exception: {e}")
             write_play_history(f"Stream ended after {total_time}.")
             # Attempt to terminate remaining ffmpeg processes.
@@ -921,7 +945,7 @@ def main():
                     continue
                 else:
                     proc.kill()
-            print2("fatal", "Fatal error encountered. Terminating stream.")
+            print2("fatal", f"Fatal error encountered: {e}. Terminating stream.")
             print2("notice", f"Mr. OTCS ran for {total_time}.")
             if os.name == "posix":
                 os.system("stty sane")

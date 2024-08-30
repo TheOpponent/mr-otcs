@@ -17,7 +17,7 @@ from pymediainfo import MediaInfo
 
 import config
 from config import print2
-
+import mail
 
 class PlaylistEntry:
     """Definition for playlist entries, parsed from a list or text file
@@ -162,6 +162,9 @@ class StreamStats:
     are not done more often than config.CHECK_INTERVAL.
     """
 
+    email_daemon: mail.EMailDaemon
+    """An e-mail daemon that will send e-mail alerts."""
+
     def __init__(self):
         self.recent_playlist = deque()
         if (
@@ -183,6 +186,7 @@ class StreamStats:
         self.last_connection_check = datetime.datetime.now(
             datetime.timezone.utc
         ) - datetime.timedelta(seconds=config.CHECK_INTERVAL)
+        self.email_daemon = None
 
     def rewind(self, time):
         """Subtract this many seconds from elapsed_time, without going below
