@@ -12,10 +12,12 @@ from config import print2
 from dataclasses import dataclass, field
 from typing import Any
 
+
 @dataclass(order=True)
 class PrioritizedItem:
     priority: int
-    item: Any=field(compare=False)
+    item: Any = field(compare=False)
+
 
 class EMailDaemon:
     def __init__(self):
@@ -41,7 +43,7 @@ class EMailDaemon:
     def run(self):
         while self.running:
             try:
-                msg, alert_type, bypass_interval = self.queue.get(timeout=1)[1]
+                msg, alert_type, bypass_interval = self.queue.get(timeout=1).item
                 self._send_email_if_allowed(msg, alert_type, bypass_interval)
             except queue.Empty:
                 pass
@@ -88,7 +90,7 @@ class EMailDaemon:
             else:
                 print2(
                     "verbose",
-                    f"Alert {alert_type} not sent: Less than 1 hour since last alert was sent ({last_sent_time.strftime("%Y-%m-%d %H:%M:%S")}).",
+                    f"Alert {alert_type} not sent: Less than 1 hour since last alert was sent ({last_sent_time.strftime('%Y-%m-%d %H:%M:%S')}).",
                 )
 
     def _send_email(self, msg: MIMEMultipart, timeout=10):
@@ -134,27 +136,6 @@ class EMailDaemon:
             f"Failed to send e-mail alert \"{msg['Subject']}\" after {self.retries} attempts.",
         )
         return False
-
-    def _process_message(
-        self, subject, body, alert_type, priority=10, bypass_interval=False, urgent=False
-    ):
-        msg = MIMEMultipart()
-        msg["From"] = self.from_address
-        msg["To"] = self.to_address
-        msg["Subject"] = f"[{config.MAIL_PROGRAM_NAME}] {subject}"
-        msg.attach(MIMEText(body, "plain"))
-
-        if not urgent:
-            try:
-                with self._lock:
-                    self.queue.put_nowait(PrioritizedItem(priority,(msg, alert_type, bypass_interval)))
-            except queue.Full:
-                print2("error",f"E-mail alert queue is full. Message \"{msg["Subject"]}\" discarded.")
-        else:
-            sent = self._send_email(msg)
-            if sent:
-                with self._lock:
-                    self.last_sent[alert_type] = datetime.datetime.now()
 
     def add_alert(
         self, alert_type, message="", bypass_interval=False, urgent=False, **kwargs
@@ -216,13 +197,41 @@ class EMailDaemon:
                 f"The playlist reached a %MAIL command on line {line_num} at {current_time}."
                 + (f" The message is:\n\n{message}" if message else ""),
             ),
-            "new_version": (10, f"New version available: {kwargs.get('version')}", message),
+            "new_version": (
+                10,
+                f"New version available: {kwargs.get('version')}",
+                message,
+            ),
             "general": (10, "General message", message),
         }
 
         if alert_type in alert_types:
             priority, subject, body = alert_types[alert_type]
-            self._process_message(subject, body, alert_type, priority, bypass_interval, urgent)
+            msg = MIMEMultipart()
+            msg["From"] = self.from_address
+            msg["To"] = self.to_address
+            msg["Subject"] = f"[{config.MAIL_PROGRAM_NAME}] {subject}"
+            msg.attach(MIMEText(body, "plain"))
+
+            if not urgent:
+                try:
+                    with self._lock:
+                        self.queue.put_nowait(
+                            PrioritizedItem(
+                                priority, (msg, alert_type, bypass_interval)
+                            )
+                        )
+                except queue.Full:
+                    print2(
+                        "error",
+                        f"E-mail alert queue is full. Message \"{msg['Subject']}\" discarded.",
+                    )
+            else:
+                with self._lock:
+                    sent = self._send_email(msg)
+                    if sent:
+                        with self._lock:
+                            self.last_sent[alert_type] = datetime.datetime.now()
         else:
             raise ValueError(f"Unrecognized alert type: {alert_type}")
 
