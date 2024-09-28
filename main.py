@@ -35,6 +35,9 @@ class ConnectionCheckError(Exception):
 
     pass
 
+class CustomException(Exception):
+    pass
+
 
 def rtmp_task(stats: playlist.StreamStats) -> subprocess.Popen:
     """Task for starting the RTMP broadcasting process."""
@@ -876,8 +879,15 @@ def main():
             if stats.elapsed_time - config.REWIND_LENGTH > stats.video_resume_point:
                 stats.rewind(config.REWIND_LENGTH)
                 stats.video_resume_point = stats.elapsed_time
+                
             executor = stop_stream(executor)
-            time.sleep(2)
+            # Attempt to terminate remaining ffmpeg processes.
+            for proc in psutil.process_iter(["cmdline"]):
+                if config.MEDIA_PLAYER_PATH not in proc.info["cmdline"]:
+                    continue
+                else:
+                    proc.kill()
+            time.sleep(5)
             stats.videos_since_restart = 0
             rtmp_process = rtmp_task(stats)
             stats.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
