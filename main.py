@@ -316,6 +316,17 @@ def int_to_total_time(seconds):
     return ", ".join(string)
 
 
+def kill_media_player():
+    """Attempt to terminate remaining processes with command line
+    defined in config.MEDIA_PLAYER_PATH."""
+
+    for proc in psutil.process_iter(["cmdline"]):
+        if config.MEDIA_PLAYER_PATH not in proc.info["cmdline"]:
+            continue
+        else:
+            proc.kill()
+
+
 def main():
     video_file: playlist.PlaylistEntry
 
@@ -881,12 +892,7 @@ def main():
                 stats.video_resume_point = stats.elapsed_time
                 
             executor = stop_stream(executor)
-            # Attempt to terminate remaining ffmpeg processes.
-            for proc in psutil.process_iter(["cmdline"]):
-                if config.MEDIA_PLAYER_PATH not in proc.info["cmdline"]:
-                    continue
-                else:
-                    proc.kill()
+            kill_media_player()
             time.sleep(5)
             stats.videos_since_restart = 0
             rtmp_process = rtmp_task(stats)
@@ -907,14 +913,8 @@ def main():
                         stats.rewind(config.REWIND_LENGTH)
                         stats.video_resume_point = stats.elapsed_time
                     executor = stop_stream(executor)
-                    # Attempt to terminate remaining ffmpeg processes.
-                    for proc in psutil.process_iter(["cmdline"]):
-                        if config.MEDIA_PLAYER_PATH not in proc.info["cmdline"]:
-                            continue
-                        else:
-                            proc.kill()
+                    kill_media_player()
                     time.sleep(5)
-
                     stats.videos_since_restart = 0
                     rtmp_process = rtmp_task(stats)
                     stats.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
