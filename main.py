@@ -12,7 +12,7 @@ import random
 import shlex
 import subprocess
 import time
-from concurrent.futures import TimeoutError
+import concurrent.futures
 
 import psutil
 import requests
@@ -35,9 +35,6 @@ class ConnectionCheckError(Exception):
 
     pass
 
-class CustomException(Exception):
-    pass
-
 
 def rtmp_task(stats: playlist.StreamStats) -> subprocess.Popen:
     """Task for starting the RTMP broadcasting process."""
@@ -57,17 +54,13 @@ def rtmp_task(stats: playlist.StreamStats) -> subprocess.Popen:
     # continue once the check succeeds.
     print2("verbose2", "Checking connection before starting RTMP process.")
     stats.force_connection_check()
-    connection_check = check_connection(stats, exception=False)
     while True:
-        try:
-            if connection_check.result():
-                break
-        except TimeoutError:
+        if check_connection_block(stats, exception=False):
+            print2("verbose","Connection check succeeded.")
+            break
+        else:
             print2("error", "Connection check failed. Retrying in 5 seconds.")
             time.sleep(5)
-            connection_check = check_connection(stats, exception=False)
-        else:
-            break
 
     try:
         if config.RTMP_STREAMER_LOG is not None:
@@ -92,8 +85,7 @@ def rtmp_task(stats: playlist.StreamStats) -> subprocess.Popen:
     return process
 
 
-@concurrent.thread
-def check_connection(stats: playlist.StreamStats, skip=False, exception=True):
+def _check_connection(stats: playlist.StreamStats, skip=False, exception=True):
     """Check internet connection to links in config.CHECK_URL, tried in random
     order. Returns True if the request succeeds. If skip is true, this always
     returns True.
@@ -131,6 +123,15 @@ def check_connection(stats: playlist.StreamStats, skip=False, exception=True):
         raise ConnectionCheckError("Connection test failed.")
 
     return False
+
+
+@concurrent.thread
+def check_connection(stats: playlist.StreamStats, skip=False):
+    _check_connection(stats, skip)
+
+
+def check_connection_block(stats: playlist.StreamStats, skip=False, exception=True):
+    return _check_connection(stats, skip, exception)
 
 
 def encoder_task(
@@ -912,6 +913,7 @@ def main():
                     if stats.elapsed_time - config.REWIND_LENGTH > stats.video_resume_point:
                         stats.rewind(config.REWIND_LENGTH)
                         stats.video_resume_point = stats.elapsed_time
+
                     executor = stop_stream(executor)
                     kill_media_player()
                     time.sleep(5)
@@ -954,12 +956,7 @@ def main():
             )
             write_play_history(f"Stream stopped due to exception: {e}")
             write_play_history(f"Stream ended after {total_time}.")
-            # Attempt to terminate remaining ffmpeg processes.
-            for proc in psutil.process_iter(["cmdline"]):
-                if config.MEDIA_PLAYER_PATH not in proc.info["cmdline"]:
-                    continue
-                else:
-                    proc.kill()
+            kill_media_player()
             print2("fatal", "Fatal error encountered. Terminating stream.")
             print2("notice", f"Mr. OTCS ran for {total_time}.")
             if os.name == "posix":
