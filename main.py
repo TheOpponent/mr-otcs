@@ -102,7 +102,7 @@ def _check_connection(stats: playlist.StreamStats, skip=False, exception=True):
     for link in config.CHECK_URL:
         try:
             requests.get(link, timeout=5)
-            stats.last_connection_check = datetime.datetime.now(datetime.timezone.utc)
+            stats.set_connection_check_time()
             print2("verbose2", f"Connection to {link} succeeded.")
             return True
         except requests.exceptions.RequestException as e:
@@ -115,9 +115,7 @@ def _check_connection(stats: playlist.StreamStats, skip=False, exception=True):
 
     if exception:
         # If the check fails, force next check to ignore config.CHECK_INTERVAL setting.
-        stats.last_connection_check = datetime.datetime.now(
-            datetime.timezone.utc
-        ) - datetime.timedelta(seconds=config.CHECK_INTERVAL)
+        stats.force_connection_check()
         raise ConnectionCheckError("Connection test failed.")
 
     return False
@@ -876,7 +874,7 @@ def main():
             # and attempt to restart the stream.
             print2("error", e)
             write_play_history(f"Stream stopped due to exception: {e}")
-            print2("error", "Stream interrupted. Attempting to restart.")
+            print2("error", "Stream interrupted. Waiting 5 seconds to restart.")
             print2(
                 "verbose",
                 f"{stats.videos_since_restart} video(s) played since last restart.",
@@ -910,7 +908,7 @@ def main():
 
                     executor = stop_stream(executor)
                     kill_media_player()
-                    time.sleep(5)
+                    time.sleep(config.STREAM_MANUAL_RESTART_DELAY)
                     stats.videos_since_restart = 0
                     rtmp_process = rtmp_task(stats)
                     stats.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
