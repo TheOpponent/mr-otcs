@@ -44,9 +44,7 @@ def rtmp_task(stats: playlist.StreamStats) -> subprocess.Popen:
     # Check if RTMP ffmpeg is already running and terminate any processes
     # that match the command line.
     for proc in psutil.process_iter(["cmdline"]):
-        if proc.info["cmdline"] != command:
-            continue
-        else:
+        if proc.info["cmdline"] == command:
             proc.kill()
             print2("notice", "Old RTMP process killed.")
 
@@ -56,7 +54,7 @@ def rtmp_task(stats: playlist.StreamStats) -> subprocess.Popen:
     stats.force_connection_check()
     while True:
         if check_connection_block(stats, exception=False):
-            print2("verbose","Connection check succeeded.")
+            print2("verbose2","Connection check succeeded.")
             break
         else:
             print2("error", "Connection check failed. Retrying in 5 seconds.")
@@ -154,9 +152,7 @@ def encoder_task(
     # Check if encoding ffmpeg is already running and terminate any processes
     # that match the command line.
     for proc in psutil.process_iter(["cmdline"]):
-        if proc.info["cmdline"] != command:
-            continue
-        else:
+        if proc.info["cmdline"] == command:
             proc.kill()
             print2("notice", "Old encoder process killed.")
 
@@ -322,9 +318,7 @@ def kill_media_player():
     defined in config.MEDIA_PLAYER_PATH."""
 
     for proc in psutil.process_iter(["cmdline"]):
-        if config.MEDIA_PLAYER_PATH not in proc.info["cmdline"]:
-            continue
-        else:
+        if config.MEDIA_PLAYER_PATH in proc.info["cmdline"]:
             proc.kill()
 
 
