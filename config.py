@@ -23,7 +23,7 @@ ini_defaults = {
     },
     "VideoOptions": {
         "STREAM_URL": "rtmp://localhost:1935/live/",
-        "CHECK_URL": "https://google.com, https://twitch.tv, https://github.com, https://amazon.com, https://canhazip.com, https://1.1.1.1, https://8.8.8.8",
+        "CHECK_URL": "https://google.com, https://twitch.tv, https://github.com, https://amazon.com, https://canhazip.com, https://one.one.one.one, https://8.8.8.8",
         "CHECK_INTERVAL": 60,
         "CHECK_STRICT": True,
         "VIDEO_PADDING": 2,
@@ -34,7 +34,7 @@ ini_defaults = {
         "STREAM_RESTART_MINIMUM_TIME": 30,
         "STREAM_RESTART_BEFORE_VIDEO": "",
         "STREAM_RESTART_AFTER_VIDEO": "",
-        "STREAM_WAIT_AFTER_RETRY": 5,
+        "STREAM_WAIT_AFTER_RETRY": 15,
         "STOP_AFTER_LAST_VIDEO": False,
     },
     "PlayIndex": {

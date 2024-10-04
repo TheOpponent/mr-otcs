@@ -88,7 +88,7 @@ def _check_connection(stats: playlist.StreamStats, skip=False, exception=True):
     order. Returns True if the request succeeds. If skip is true, this always
     returns True.
 
-    The connection test fails if the first link attempted times out when
+    The connection check fails if the first link attempted times out when
     config.CHECK_STRICT is true, or if all links time out when it is false.
     If exception is true, ConnectionCheckError is raised. Otherwise, returns
     False.
@@ -116,7 +116,7 @@ def _check_connection(stats: playlist.StreamStats, skip=False, exception=True):
     if exception:
         # If the check fails, force next check to ignore config.CHECK_INTERVAL setting.
         stats.force_connection_check()
-        raise ConnectionCheckError("Connection test failed.")
+        raise ConnectionCheckError("Connection check failed.")
 
     return False
 
