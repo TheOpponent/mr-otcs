@@ -51,8 +51,8 @@ def rtmp_task(stats: playlist.StreamStats) -> subprocess.Popen:
     # Perform connection check regardless of previous check time, and only
     # continue once the check succeeds.
     print2("verbose2", "Checking connection before starting RTMP process.")
-    stats.force_connection_check()
     while True:
+        stats.force_connection_check()
         if check_connection_block(stats, exception=False):
             print2("verbose2","Connection check succeeded.")
             break
