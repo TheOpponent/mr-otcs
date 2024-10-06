@@ -200,7 +200,11 @@ class EMailDaemon:
             "new_version": (
                 10,
                 f"New version available: {kwargs.get('version')}",
-                message,
+                (
+                    f"A new version of Mr. OTCS is available: {kwargs.get('version')}\n"
+                    f"The new version can be found at {kwargs.get('url')}.\n\n"
+                    f"Release notes:\n\n{message}"
+                ),
             ),
             "general": (10, "General message", message),
         }

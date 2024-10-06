@@ -86,11 +86,13 @@ ini_defaults = {
         "MAIL_ALERT_ON_PLAYLIST_LOOP": True,
         "MAIL_ALERT_ON_PLAYLIST_STOP": True,
         "MAIL_ALERT_ON_NEW_VERSION": True,
+        "MAIL_ALERT_ON_NEW_PRERELEASE_VERSION": False,
     },
     "Misc": {
         "PLAY_HISTORY_LENGTH": 10,
         "VERBOSE": "info",
         "STREAM_MANUAL_RESTART_DELAY": 5,
+        "VERSION_CHECK_INTERVAL": "monthly",
     },
 }
 
@@ -344,6 +346,7 @@ if default_ini.has_section("Mail"):
     MAIL_ALERT_ON_PLAYLIST_LOOP = default_ini.getboolean("Mail","MAIL_ALERT_ON_PLAYLIST_LOOP")
     MAIL_ALERT_ON_PLAYLIST_STOP = default_ini.getboolean("Mail","MAIL_ALERT_ON_PLAYLIST_STOP")
     MAIL_ALERT_ON_NEW_VERSION = default_ini.getboolean("Mail","MAIL_ALERT_ON_NEW_VERSION")
+    MAIL_ALERT_ON_NEW_PRERELEASE_VERSION = default_ini.getboolean("Mail","MAIL_ALERT_ON_NEW_PRERELEASE_VERSION")
 else:
     MAIL_ENABLE = False
 
@@ -376,6 +379,25 @@ if default_ini.has_option("Misc", "STREAM_MANUAL_RESTART_DELAY"):  # Added in 2.
     STREAM_MANUAL_RESTART_DELAY = default_ini.getint("Misc", "STREAM_MANUAL_RESTART_DELAY")
 else:
     STREAM_MANUAL_RESTART_DELAY = 5
+
+if default_ini.has_option("Misc", "VERSION_CHECK_INTERVAL"):  # Added in 2.2.0.
+    VERSION_CHECK_INTERVAL = default_ini.get("Misc", "VERSION_CHECK_INTERVAL").lower()
+else:
+    VERSION_CHECK_INTERVAL = 2592000
+
+if VERSION_CHECK_INTERVAL == "off":
+    VERSION_CHECK_INTERVAL = None
+elif VERSION_CHECK_INTERVAL == "monthly":
+    VERSION_CHECK_INTERVAL = 2592000
+elif VERSION_CHECK_INTERVAL == "biweekly":
+    VERSION_CHECK_INTERVAL = 1209600 
+elif VERSION_CHECK_INTERVAL == "weekly":
+    VERSION_CHECK_INTERVAL = 604800
+elif VERSION_CHECK_INTERVAL == "daily":
+    VERSION_CHECK_INTERVAL = 86400
+else: 
+    print('VERSION_CHECK_INTERVAL setting not recognized. Using default setting "monthly".')
+    VERSION_CHECK_INTERVAL = 2592000
 
 def print2(level: str, message: str):
     """Prepend a colored label with a standard print message."""

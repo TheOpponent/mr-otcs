@@ -162,8 +162,17 @@ class StreamStats:
     are not done more often than config.CHECK_INTERVAL.
     """
 
-    email_daemon: mail.EMailDaemon
+    mail_daemon: mail.EMailDaemon
     """An e-mail daemon that will send e-mail alerts."""
+
+    newest_version: str
+    """The most recent version available since the last version check."""
+
+    version_check_wait: int
+    """Wait this many seconds before the next version check."""
+
+    version_check_future: futures.Future
+    """A Future for the check_new_version() function."""
 
     def __init__(self):
         self.recent_playlist = deque()
@@ -186,7 +195,10 @@ class StreamStats:
         self.last_connection_check = datetime.datetime.now(
             datetime.timezone.utc
         ) - datetime.timedelta(seconds=config.CHECK_INTERVAL)
-        self.email_daemon = None
+        self.mail_daemon = None
+        self.newest_version = config.SCRIPT_VERSION
+        self.version_check_wait = 0
+        self.version_check_future = None
 
     def rewind(self, time):
         """Subtract this many seconds from elapsed_time, without going below
