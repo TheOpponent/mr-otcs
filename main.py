@@ -904,13 +904,19 @@ def main():
         except KeyboardInterrupt:
             try:
                 if config.STREAM_MANUAL_RESTART_DELAY > 0:
-                    print2("notice", f"Restarting stream. Press Ctrl-C again within {config.STREAM_MANUAL_RESTART_DELAY} second(s) to exit.")
+                    print2(
+                        "notice",
+                        f"Restarting stream. Press Ctrl-C again within {config.STREAM_MANUAL_RESTART_DELAY} second(s) to exit.",
+                    )
                     print2(
                         "verbose",
                         f"{stats.videos_since_restart} video(s) played since last restart.",
                     )
                     retried = True
-                    if stats.elapsed_time - config.REWIND_LENGTH > stats.video_resume_point:
+                    if (
+                        stats.elapsed_time - config.REWIND_LENGTH
+                        > stats.video_resume_point
+                    ):
                         stats.rewind(config.REWIND_LENGTH)
                         stats.video_resume_point = stats.elapsed_time
 
@@ -919,7 +925,9 @@ def main():
                     time.sleep(config.STREAM_MANUAL_RESTART_DELAY)
                     stats.videos_since_restart = 0
                     rtmp_process = rtmp_task(stats)
-                    stats.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
+                    stats.stream_start_time = datetime.datetime.now(
+                        datetime.timezone.utc
+                    )
                     stats.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
                     continue
                 else:
