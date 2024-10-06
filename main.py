@@ -50,15 +50,16 @@ def rtmp_task(stats: playlist.StreamStats) -> subprocess.Popen:
 
     # Perform connection check regardless of previous check time, and only
     # continue once the check succeeds.
-    print2("verbose2", "Checking connection before starting RTMP process.")
-    while True:
-        stats.force_connection_check()
-        if check_connection_block(stats, exception=False):
-            print2("verbose2","Connection check succeeded.")
-            break
-        else:
-            print2("error", "Connection check failed. Retrying in 5 seconds.")
-            time.sleep(5)
+    if config.CHECK_URL is not None:
+        print2("verbose2", "Checking connection before starting RTMP process.")
+        while True:
+            stats.force_connection_check()
+            if check_connection_block(stats, exception=False):
+                print2("verbose2", "Connection check succeeded.")
+                break
+            else:
+                print2("error", "Connection check failed. Retrying in 5 seconds.")
+                time.sleep(5)
 
     try:
         if config.RTMP_STREAMER_LOG is not None:
@@ -158,20 +159,21 @@ def encoder_task(
 
     # If the most recent connection check was too recent, ensure the
     # next check happens after the config.CHECK_INTERVAL delay.
-    check_connection_wait = (
-        datetime.datetime.now(datetime.timezone.utc) - stats.last_connection_check
-    ).seconds
-    if check_connection_wait < config.CHECK_INTERVAL:
-        check_connection_wait = config.CHECK_INTERVAL - check_connection_wait
-        check_connection_future = check_connection(stats, skip=True)
-        print2(
-            "verbose2",
-            f"Skipping connection check as last check was done within the last {config.CHECK_INTERVAL} seconds. Performing next connection check in {check_connection_wait} seconds.",
-        )
-    else:
-        check_connection_wait = config.CHECK_INTERVAL
-        check_connection_future = check_connection(stats)
-        print2("verbose2", "Checking connection.")
+    if config.CHECK_URL is not None:
+        check_connection_wait = (
+            datetime.datetime.now(datetime.timezone.utc) - stats.last_connection_check
+        ).seconds
+        if check_connection_wait < config.CHECK_INTERVAL:
+            check_connection_wait = config.CHECK_INTERVAL - check_connection_wait
+            check_connection_future = check_connection(stats, skip=True)
+            print2(
+                "verbose2",
+                f"Skipping connection check as last check was done within the last {config.CHECK_INTERVAL} seconds. Performing next connection check in {check_connection_wait} seconds.",
+            )
+        else:
+            check_connection_wait = config.CHECK_INTERVAL
+            check_connection_future = check_connection(stats)
+            print2("verbose2", "Checking connection.")
 
     try:
         if config.MEDIA_PLAYER_LOG is not None:
@@ -194,16 +196,17 @@ def encoder_task(
     # fails, rewind config.CHECK_INTERVAL seconds.
     # Also write to play_index.txt in config.TIME_RECORD_INTERVAL seconds.
     while process.poll() is None and rtmp_task.poll() is None:
-        check_connection_wait -= 1
-        if check_connection_wait > 0:
-            if check_connection_future.done():
-                if check_connection_future.exception() is not None:
-                    process.kill()
-                    raise check_connection_future.exception()
-        else:
-            check_connection_wait = config.CHECK_INTERVAL
-            check_connection_future = check_connection(stats)
-            print2("verbose2", "Checking connection.")
+        if config.CHECK_URL is not None:
+            check_connection_wait -= 1
+            if check_connection_wait > 0:
+                if check_connection_future.done():
+                    if check_connection_future.exception() is not None:
+                        process.kill()
+                        raise check_connection_future.exception()
+            else:
+                check_connection_wait = config.CHECK_INTERVAL
+                check_connection_future = check_connection(stats)
+                print2("verbose2", "Checking connection.")
 
         if play_index is not None:
             write_index_wait -= 1
@@ -724,18 +727,6 @@ def main():
                                     f"Not writing schedule for {video_file.name}: Name matches SCHEDULE_EXCLUDE_FILE_PATTERN.",
                                 )
 
-                        # Always start video no earlier than stats.elapsed_time, which is read from
-                        # play_index.txt file at the start of the loop.
-                        # If stats.elapsed_time is less than config.REWIND_LENGTH, assume the
-                        # encoder failed and restart from stats.video_restart_point.
-                        while True:
-                            if retried and config.STREAM_WAIT_AFTER_RETRY > 0:
-                                print2(
-                                    "notice",
-                                    f"Waiting {config.STREAM_WAIT_AFTER_RETRY} seconds before retrying stream.",
-                                )
-                                time.sleep(config.STREAM_WAIT_AFTER_RETRY)
-
                             print2("info", "Encoding started.")
                             encoder_result = encoder_task(
                                 video_file.path,
@@ -874,7 +865,7 @@ def main():
             # and attempt to restart the stream.
             print2("error", e)
             write_play_history(f"Stream stopped due to exception: {e}")
-            print2("error", "Stream interrupted. Waiting 5 seconds to restart.")
+            print2("error", "Stream interrupted. Restarting.")
             print2(
                 "verbose",
                 f"{stats.videos_since_restart} video(s) played since last restart.",
@@ -883,10 +874,9 @@ def main():
             if stats.elapsed_time - config.REWIND_LENGTH > stats.video_resume_point:
                 stats.rewind(config.REWIND_LENGTH)
                 stats.video_resume_point = stats.elapsed_time
-                
+
             executor = stop_stream(executor)
             kill_media_player()
-            time.sleep(5)
             stats.videos_since_restart = 0
             rtmp_process = rtmp_task(stats)
             stats.stream_start_time = datetime.datetime.now(datetime.timezone.utc)

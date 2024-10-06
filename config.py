@@ -132,7 +132,10 @@ MEDIA_PLAYER_ARGUMENTS = default_ini.get("VideoOptions", "MEDIA_PLAYER_ARGUMENTS
 RTMP_ARGUMENTS = default_ini.get("VideoOptions", "RTMP_ARGUMENTS")
 VIDEO_PADDING = default_ini.getint("VideoOptions", "VIDEO_PADDING")
 STREAM_URL = default_ini.get("VideoOptions", "STREAM_URL")
-CHECK_URL = [i.strip() for i in default_ini.get("VideoOptions", "CHECK_URL").split(",")]
+if default_ini.get("VideoOptions", "CHECK_URL") != "":
+    CHECK_URL = [i.strip() for i in default_ini.get("VideoOptions", "CHECK_URL").split(",")]
+else:
+    CHECK_URL = None
 if default_ini.has_option("VideoOptions", "CHECK_INTERVAL"):
     CHECK_INTERVAL = default_ini.getint("VideoOptions", "CHECK_INTERVAL")
 else:
@@ -164,7 +167,12 @@ if default_ini.get("VideoOptions", "STREAM_RESTART_AFTER_VIDEO") != "":
 
 else:
     STREAM_RESTART_AFTER_VIDEO = None
-STREAM_WAIT_AFTER_RETRY = default_ini.getint("VideoOptions", "STREAM_WAIT_AFTER_RETRY")
+
+if default_ini.has_option("VideoOptions", "STREAM_WAIT_AFTER_RETRY"): # Added in 2.2.0.
+    STREAM_WAIT_AFTER_RETRY = default_ini.getint("VideoOptions", "STREAM_WAIT_AFTER_RETRY")
+else:
+    STREAM_WAIT_AFTER_RETRY = 15
+
 STOP_AFTER_LAST_VIDEO = default_ini.getboolean("VideoOptions", "STOP_AFTER_LAST_VIDEO")
 
 TIME_RECORD_INTERVAL = default_ini.getint("PlayIndex", "TIME_RECORD_INTERVAL")
@@ -310,7 +318,10 @@ else:
     print('VERBOSE setting not recognized. Using default setting "info".')
     VERBOSE = 0b11111100
 
-STREAM_MANUAL_RESTART_DELAY = default_ini.getint("Misc", "STREAM_MANUAL_RESTART_DELAY")
+if default_ini.has_option("Misc", "STREAM_MANUAL_RESTART_DELAY"):  # Added in 2.2.0.
+    STREAM_MANUAL_RESTART_DELAY = default_ini.getint("Misc", "STREAM_MANUAL_RESTART_DELAY")
+else:
+    STREAM_MANUAL_RESTART_DELAY = 5
 
 def print2(level: str, message: str):
     """Prepend a colored label with a standard print message."""
@@ -388,6 +399,9 @@ if ALT_NAMES_JSON_PATH is not None:
 else:
     ALT_NAMES = {}
 
+if CHECK_URL == ['']:
+    CHECK_URL = None
+
 # STREAM_RESTART_BEFORE_VIDEO and STREAM_RESTART_AFTER_VIDEO are only checked
 # as existing once at startup.
 if STREAM_RESTART_BEFORE_VIDEO is not None:
@@ -416,10 +430,11 @@ if REMOTE_ADDRESS is not None and REMOTE_USERNAME is None:
 
 # Enforce a minimum CHECK_INTERVAL time of the number of links provided in
 # CHECK_URL times 5 seconds, and no less than 10 seconds for safety.
-if CHECK_INTERVAL < (len(CHECK_URL) * 5):
-    CHECK_INTERVAL = len(CHECK_URL) * 5
-if CHECK_INTERVAL < 10:
-    CHECK_INTERVAL = 10
+if CHECK_URL is not None:
+    if CHECK_INTERVAL < (len(CHECK_URL) * 5):
+        CHECK_INTERVAL = len(CHECK_URL) * 5
+    if CHECK_INTERVAL < 10:
+        CHECK_INTERVAL = 10
 
 if SCHEDULE_MAX_VIDEOS < SCHEDULE_MIN_VIDEOS:
     print2("error", "SCHEDULE_MAX_VIDEOS is less than SCHEDULE_MIN_VIDEOS.")
