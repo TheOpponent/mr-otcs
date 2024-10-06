@@ -195,9 +195,15 @@ class StreamStats:
 
         self.elapsed_time = max(0, self.elapsed_time - time)
 
+    def set_connection_check_time(self):
+        """Set the last connection check time to the current time."""
+
+        self.last_connection_check = datetime.datetime.now(datetime.timezone.utc)
+
     def force_connection_check(self):
-        """Set the last connection check time to now, to force the next
-        connection check to take place immediately."""
+        """Set the last connection check time to the current time, minus
+        config.CHECK_INTERVAL, to force the next connection check to take
+        place immediately."""
 
         self.last_connection_check = datetime.datetime.now(
             datetime.timezone.utc

@@ -12,7 +12,7 @@ import random
 import shlex
 import subprocess
 import time
-from concurrent.futures import TimeoutError
+import concurrent.futures
 
 import psutil
 import requests
@@ -45,27 +45,22 @@ def rtmp_task(stats: playlist.StreamStats) -> subprocess.Popen:
     # Check if RTMP ffmpeg is already running and terminate any processes
     # that match the command line.
     for proc in psutil.process_iter(["cmdline"]):
-        if proc.info["cmdline"] != command:
-            continue
-        else:
+        if proc.info["cmdline"] == command:
             proc.kill()
             print2("notice", "Old RTMP process killed.")
 
     # Perform connection check regardless of previous check time, and only
     # continue once the check succeeds.
-    print2("verbose2", "Checking connection before starting RTMP process.")
-    stats.force_connection_check()
-    connection_check = check_connection(stats, exception=False)
-    while True:
-        try:
-            if connection_check.result():
+    if config.CHECK_URL is not None:
+        print2("verbose2", "Checking connection before starting RTMP process.")
+        while True:
+            stats.force_connection_check()
+            if check_connection_block(stats, exception=False):
+                print2("verbose2", "Connection check succeeded.")
                 break
-        except TimeoutError:
-            print2("error", "Connection check failed. Retrying in 5 seconds.")
-            time.sleep(5)
-            connection_check = check_connection(stats, exception=False)
-        else:
-            break
+            else:
+                print2("error", "Connection check failed. Retrying in 5 seconds.")
+                time.sleep(5)
 
     try:
         if config.RTMP_STREAMER_LOG is not None:
@@ -90,13 +85,12 @@ def rtmp_task(stats: playlist.StreamStats) -> subprocess.Popen:
     return process
 
 
-@concurrent.thread
-def check_connection(stats: playlist.StreamStats, skip=False, exception=True):
+def _check_connection(stats: playlist.StreamStats, skip=False, exception=True):
     """Check internet connection to links in config.CHECK_URL, tried in random
     order. Returns True if the request succeeds. If skip is true, this always
     returns True.
 
-    The connection test fails if the first link attempted times out when
+    The connection check fails if the first link attempted times out when
     config.CHECK_STRICT is true, or if all links time out when it is false.
     If exception is true, ConnectionCheckError is raised. Otherwise, returns
     False.
@@ -110,7 +104,7 @@ def check_connection(stats: playlist.StreamStats, skip=False, exception=True):
     for link in config.CHECK_URL:
         try:
             requests.get(link, timeout=5)
-            stats.last_connection_check = datetime.datetime.now(datetime.timezone.utc)
+            stats.set_connection_check_time()
             print2("verbose2", f"Connection to {link} succeeded.")
             return True
         except requests.exceptions.RequestException as e:
@@ -123,12 +117,19 @@ def check_connection(stats: playlist.StreamStats, skip=False, exception=True):
 
     if exception:
         # If the check fails, force next check to ignore config.CHECK_INTERVAL setting.
-        stats.last_connection_check = datetime.datetime.now(
-            datetime.timezone.utc
-        ) - datetime.timedelta(seconds=config.CHECK_INTERVAL)
-        raise ConnectionCheckError("Connection test failed.")
+        stats.force_connection_check()
+        raise ConnectionCheckError("Connection check failed.")
 
     return False
+
+
+@concurrent.thread
+def check_connection(stats: playlist.StreamStats, skip=False):
+    _check_connection(stats, skip)
+
+
+def check_connection_block(stats: playlist.StreamStats, skip=False, exception=True):
+    return _check_connection(stats, skip, exception)
 
 
 def encoder_task(
@@ -151,9 +152,7 @@ def encoder_task(
     # Check if encoding ffmpeg is already running and terminate any processes
     # that match the command line.
     for proc in psutil.process_iter(["cmdline"]):
-        if proc.info["cmdline"] != command:
-            continue
-        else:
+        if proc.info["cmdline"] == command:
             proc.kill()
             print2("notice", "Old encoder process killed.")
 
@@ -161,20 +160,21 @@ def encoder_task(
 
     # If the most recent connection check was too recent, ensure the
     # next check happens after the config.CHECK_INTERVAL delay.
-    check_connection_wait = (
-        datetime.datetime.now(datetime.timezone.utc) - stats.last_connection_check
-    ).seconds
-    if check_connection_wait < config.CHECK_INTERVAL:
-        check_connection_wait = config.CHECK_INTERVAL - check_connection_wait
-        check_connection_future = check_connection(stats, skip=True)
-        print2(
-            "verbose2",
-            f"Skipping connection check as last check was done within the last {config.CHECK_INTERVAL} seconds. Performing next connection check in {check_connection_wait} seconds.",
-        )
-    else:
-        check_connection_wait = config.CHECK_INTERVAL
-        check_connection_future = check_connection(stats)
-        print2("verbose2", "Checking connection.")
+    if config.CHECK_URL is not None:
+        check_connection_wait = (
+            datetime.datetime.now(datetime.timezone.utc) - stats.last_connection_check
+        ).seconds
+        if check_connection_wait < config.CHECK_INTERVAL:
+            check_connection_wait = config.CHECK_INTERVAL - check_connection_wait
+            check_connection_future = check_connection(stats, skip=True)
+            print2(
+                "verbose2",
+                f"Skipping connection check as last check was done within the last {config.CHECK_INTERVAL} seconds. Performing next connection check in {check_connection_wait} seconds.",
+            )
+        else:
+            check_connection_wait = config.CHECK_INTERVAL
+            check_connection_future = check_connection(stats)
+            print2("verbose2", "Checking connection.")
 
     try:
         if config.MEDIA_PLAYER_LOG is not None:
@@ -197,16 +197,17 @@ def encoder_task(
     # fails, rewind config.CHECK_INTERVAL seconds.
     # Also write to play_index.txt in config.TIME_RECORD_INTERVAL seconds.
     while process.poll() is None and rtmp_task.poll() is None:
-        check_connection_wait -= 1
-        if check_connection_wait > 0:
-            if check_connection_future.done():
-                if check_connection_future.exception() is not None:
-                    process.kill()
-                    raise check_connection_future.exception()
-        else:
-            check_connection_wait = config.CHECK_INTERVAL
-            check_connection_future = check_connection(stats)
-            print2("verbose2", "Checking connection.")
+        if config.CHECK_URL is not None:
+            check_connection_wait -= 1
+            if check_connection_wait > 0:
+                if check_connection_future.done():
+                    if check_connection_future.exception() is not None:
+                        process.kill()
+                        raise check_connection_future.exception()
+            else:
+                check_connection_wait = config.CHECK_INTERVAL
+                check_connection_future = check_connection(stats)
+                print2("verbose2", "Checking connection.")
 
         if play_index is not None:
             write_index_wait -= 1
@@ -312,6 +313,15 @@ def int_to_total_time(seconds):
         string.append(f"{sec} seconds" if sec != 1 else f"{sec} second")
 
     return ", ".join(string)
+
+
+def kill_media_player():
+    """Attempt to terminate remaining processes with command line
+    defined in config.MEDIA_PLAYER_PATH."""
+
+    for proc in psutil.process_iter(["cmdline"]):
+        if config.MEDIA_PLAYER_PATH in proc.info["cmdline"]:
+            proc.kill()
 
 
 def main():
@@ -707,47 +717,6 @@ def main():
                                 f"{media_playlist[play_index][0]}. {video_file.path}"
                             )
 
-                        # Write schedule only once per video file.
-                        if config.SCHEDULE_PATH is not None:
-                            # Check if current video name matches config.SCHEDULE_EXCLUDE_FILE_PATTERN,
-                            # and only generate a schedule file if it does not.
-                            if (
-                                config.SCHEDULE_EXCLUDE_FILE_PATTERN is not None
-                                and not video_file.name.casefold().startswith(
-                                    config.SCHEDULE_EXCLUDE_FILE_PATTERN
-                                )
-                            ):
-                                if (
-                                    stats.schedule_future is not None
-                                    and not stats.schedule_future.done()
-                                ):
-                                    print2(
-                                        "warn",
-                                        "Aborting schedule file upload for the previous video.",
-                                    )
-                                    if stats.schedule_future.cancel():
-                                        print2("notice", "Schedule future cancelled.")
-                                    else:
-                                        print2(
-                                            "warn", "Failed to cancel schedule future."
-                                        )
-                                else:
-                                    stats.schedule_future = playlist.write_schedule(
-                                        media_playlist,
-                                        play_index,
-                                        stats,
-                                        extra_entries,
-                                        retried,
-                                    )
-
-                                # Clear extra_entries after writing schedule.
-                                extra_entries = []
-                            else:
-                                print2(
-                                    "notice",
-                                    f"Not writing schedule for {video_file.name}: Name matches SCHEDULE_EXCLUDE_FILE_PATTERN.",
-                                )
-
                         # Always start video no earlier than stats.elapsed_time, which is read from
                         # play_index.txt file at the start of the loop.
                         # If stats.elapsed_time is less than config.REWIND_LENGTH, assume the
@@ -759,6 +728,53 @@ def main():
                                     f"Waiting {config.STREAM_WAIT_AFTER_RETRY} seconds before retrying stream.",
                                 )
                                 time.sleep(config.STREAM_WAIT_AFTER_RETRY)
+
+                            # Write schedule only once per video file.
+                            if config.SCHEDULE_PATH is not None:
+                                # Check if current video name matches config.SCHEDULE_EXCLUDE_FILE_PATTERN,
+                                # and only generate a schedule file if it does not.
+                                if (
+                                    config.SCHEDULE_EXCLUDE_FILE_PATTERN is not None
+                                    and not video_file.name.casefold().startswith(
+                                        config.SCHEDULE_EXCLUDE_FILE_PATTERN
+                                    )
+                                ):
+                                    if (
+                                        stats.schedule_future is not None
+                                        and not stats.schedule_future.done()
+                                    ):
+                                        print2(
+                                            "warn",
+                                            "Aborting schedule file upload for the previous video.",
+                                        )
+                                        if stats.schedule_future.cancel():
+                                            print2(
+                                                "notice",
+                                                "Schedule future cancelled.",
+                                            )
+                                        else:
+                                            print2(
+                                                "warn",
+                                                "Failed to cancel schedule future.",
+                                            )
+                                    else:
+                                        stats.schedule_future = (
+                                            playlist.write_schedule(
+                                                media_playlist,
+                                                play_index,
+                                                stats,
+                                                extra_entries,
+                                                retried,
+                                            )
+                                        )
+
+                                    # Clear extra_entries after writing schedule.
+                                    extra_entries = []
+                                else:
+                                    print2(
+                                        "notice",
+                                        f"Not writing schedule for {video_file.name}: Name matches SCHEDULE_EXCLUDE_FILE_PATTERN.",
+                                    )
 
                             print2("info", "Encoding started.")
                             encoder_result = encoder_task(
@@ -900,7 +916,7 @@ def main():
             write_play_history(f"Stream stopped due to exception: {e}")
             if mail_daemon is not None and config.MAIL_ALERT_ON_STREAM_DOWN:
                 mail_daemon.add_alert("stream_down",e,bypass_interval=True)
-            print2("error", "Stream interrupted. Attempting to restart.")
+            print2("error", "Stream interrupted. Restarting.")
             print2(
                 "verbose",
                 f"{stats.videos_since_restart} video(s) played since last restart.",
@@ -909,8 +925,9 @@ def main():
             if stats.elapsed_time - config.REWIND_LENGTH > stats.video_resume_point:
                 stats.rewind(config.REWIND_LENGTH)
                 stats.video_resume_point = stats.elapsed_time
+
             executor = stop_stream(executor)
-            time.sleep(2)
+            kill_media_player()
             stats.videos_since_restart = 0
             rtmp_process = rtmp_task(stats)
             stats.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
@@ -920,27 +937,30 @@ def main():
         except KeyboardInterrupt:
             try:
                 if config.STREAM_MANUAL_RESTART_DELAY > 0:
-                    print2("notice", f"Restarting stream. Press Ctrl-C again within {config.STREAM_MANUAL_RESTART_DELAY} second(s) to exit.")
+                    print2(
+                        "notice",
+                        f"Restarting stream. Press Ctrl-C again within {config.STREAM_MANUAL_RESTART_DELAY} second(s) to exit.",
+                    )
                     print2(
                         "verbose",
                         f"{stats.videos_since_restart} video(s) played since last restart.",
                     )
                     retried = True
-                    if stats.elapsed_time - config.REWIND_LENGTH > stats.video_resume_point:
+                    if (
+                        stats.elapsed_time - config.REWIND_LENGTH
+                        > stats.video_resume_point
+                    ):
                         stats.rewind(config.REWIND_LENGTH)
                         stats.video_resume_point = stats.elapsed_time
-                    executor = stop_stream(executor)
-                    # Attempt to terminate remaining ffmpeg processes.
-                    for proc in psutil.process_iter(["cmdline"]):
-                        if config.MEDIA_PLAYER_PATH not in proc.info["cmdline"]:
-                            continue
-                        else:
-                            proc.kill()
-                    time.sleep(5)
 
+                    executor = stop_stream(executor)
+                    kill_media_player()
+                    time.sleep(config.STREAM_MANUAL_RESTART_DELAY)
                     stats.videos_since_restart = 0
                     rtmp_process = rtmp_task(stats)
-                    stats.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
+                    stats.stream_start_time = datetime.datetime.now(
+                        datetime.timezone.utc
+                    )
                     stats.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
                     continue
                 else:
@@ -979,12 +999,7 @@ def main():
             mail_daemon.stop()
             write_play_history(f"Stream stopped due to exception: {e}")
             write_play_history(f"Stream ended after {total_time}.")
-            # Attempt to terminate remaining ffmpeg processes.
-            for proc in psutil.process_iter(["cmdline"]):
-                if config.MEDIA_PLAYER_PATH not in proc.info["cmdline"]:
-                    continue
-                else:
-                    proc.kill()
+            kill_media_player()
             print2("fatal", f"Fatal error encountered: {e}. Terminating stream.")
             print2("notice", f"Mr. OTCS ran for {total_time}.")
             if os.name == "posix":
