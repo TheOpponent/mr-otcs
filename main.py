@@ -686,46 +686,64 @@ def main():
                                 f"{media_playlist[play_index][0]}. {video_file.path}"
                             )
 
-                        # Write schedule only once per video file.
-                        if config.SCHEDULE_PATH is not None:
-                            # Check if current video name matches config.SCHEDULE_EXCLUDE_FILE_PATTERN,
-                            # and only generate a schedule file if it does not.
-                            if (
-                                config.SCHEDULE_EXCLUDE_FILE_PATTERN is not None
-                                and not video_file.name.casefold().startswith(
-                                    config.SCHEDULE_EXCLUDE_FILE_PATTERN
-                                )
-                            ):
-                                if (
-                                    stats.schedule_future is not None
-                                    and not stats.schedule_future.done()
-                                ):
-                                    print2(
-                                        "warn",
-                                        "Aborting schedule file upload for the previous video.",
-                                    )
-                                    if stats.schedule_future.cancel():
-                                        print2("notice", "Schedule future cancelled.")
-                                    else:
-                                        print2(
-                                            "warn", "Failed to cancel schedule future."
-                                        )
-                                else:
-                                    stats.schedule_future = playlist.write_schedule(
-                                        media_playlist,
-                                        play_index,
-                                        stats,
-                                        extra_entries,
-                                        retried,
-                                    )
-
-                                # Clear extra_entries after writing schedule.
-                                extra_entries = []
-                            else:
+                        # Always start video no earlier than stats.elapsed_time, which is read from
+                        # play_index.txt file at the start of the loop.
+                        # If stats.elapsed_time is less than config.REWIND_LENGTH, assume the
+                        # encoder failed and restart from stats.video_restart_point.
+                        while True:
+                            if retried and config.STREAM_WAIT_AFTER_RETRY > 0:
                                 print2(
                                     "notice",
-                                    f"Not writing schedule for {video_file.name}: Name matches SCHEDULE_EXCLUDE_FILE_PATTERN.",
+                                    f"Waiting {config.STREAM_WAIT_AFTER_RETRY} seconds before retrying stream.",
                                 )
+                                time.sleep(config.STREAM_WAIT_AFTER_RETRY)
+
+                            # Write schedule only once per video file.
+                            if config.SCHEDULE_PATH is not None:
+                                # Check if current video name matches config.SCHEDULE_EXCLUDE_FILE_PATTERN,
+                                # and only generate a schedule file if it does not.
+                                if (
+                                    config.SCHEDULE_EXCLUDE_FILE_PATTERN is not None
+                                    and not video_file.name.casefold().startswith(
+                                        config.SCHEDULE_EXCLUDE_FILE_PATTERN
+                                    )
+                                ):
+                                    if (
+                                        stats.schedule_future is not None
+                                        and not stats.schedule_future.done()
+                                    ):
+                                        print2(
+                                            "warn",
+                                            "Aborting schedule file upload for the previous video.",
+                                        )
+                                        if stats.schedule_future.cancel():
+                                            print2(
+                                                "notice",
+                                                "Schedule future cancelled.",
+                                            )
+                                        else:
+                                            print2(
+                                                "warn",
+                                                "Failed to cancel schedule future.",
+                                            )
+                                    else:
+                                        stats.schedule_future = (
+                                            playlist.write_schedule(
+                                                media_playlist,
+                                                play_index,
+                                                stats,
+                                                extra_entries,
+                                                retried,
+                                            )
+                                        )
+
+                                    # Clear extra_entries after writing schedule.
+                                    extra_entries = []
+                                else:
+                                    print2(
+                                        "notice",
+                                        f"Not writing schedule for {video_file.name}: Name matches SCHEDULE_EXCLUDE_FILE_PATTERN.",
+                                    )
 
                             print2("info", "Encoding started.")
                             encoder_result = encoder_task(
