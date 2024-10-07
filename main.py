@@ -452,7 +452,7 @@ def main():
         with open("version.json", "r") as version_file:
             version_file_json = json.load(version_file)
             stats.newest_version = version_file_json["version"]
-    except FileNotFoundError:
+    except (FileNotFoundError, json.JSONDecodeError):
         stats.newest_version = config.SCRIPT_VERSION
 
     while True:
