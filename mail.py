@@ -37,6 +37,7 @@ class EMailDaemon:
         self.last_sent = {}
         self._lock = threading.Lock()
         self.running = True
+        self.logged_in = False
         self.thread = threading.Thread(target=self.run, daemon=True)
         self.thread.start()
 
@@ -98,6 +99,12 @@ class EMailDaemon:
         an error occurred."""
 
         server = None
+
+        # If the login test on program startup failed, try to log in again.
+        if not self.logged_in:
+            test_result = self.test_login()
+            if not test_result:
+                return False
 
         retries = self.retries
         while retries > 0:
@@ -248,6 +255,7 @@ class EMailDaemon:
         while retries > 0:
             try:
                 server = self._login(server, timeout)
+                self.logged_in = True
                 return True
             except (
                 smtplib.SMTPAuthenticationError,
@@ -276,7 +284,7 @@ class EMailDaemon:
 
         print2(
             "error",
-            f"Login test to e-mail server {self.smtp_server} failed after {self.retries} attempts.",
+            f"Login test to e-mail server {self.smtp_server} failed after {self.retries} attempts. Will retry upon next mail alert.",
         )
         return False
 
