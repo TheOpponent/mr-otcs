@@ -50,7 +50,7 @@ class EMailDaemon:
                 pass
             time.sleep(1)
 
-    def _clear_queue(self):
+    def clear_queue(self):
         with self._lock:
             try:
                 while True:
@@ -290,7 +290,7 @@ class EMailDaemon:
 
     def stop(self):
         self.running = False
-        self._clear_queue()
+        self.clear_queue()
         self.thread.join()
 
 

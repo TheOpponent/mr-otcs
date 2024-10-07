@@ -297,7 +297,7 @@ def encoder_task(
                         print2(
                             "notice", f"Download: {new_version_info["new_version_url"]}"
                         )
-                        if stats.mail_daemon is not None:
+                        if stats.mail_daemon is not None and stats.mail_daemon.running:
                             stats.mail_daemon.add_alert(
                                 "new_version",
                                 message=new_version_info["new_version_notes"],
@@ -714,6 +714,7 @@ def main():
                     elif media_playlist[play_index][1].info.startswith("MAIL"):
                         if (
                             stats.mail_daemon is not None
+                            and stats.mail_daemon.running
                             and config.MAIL_ALERT_ON_COMMAND
                         ):
                             mail_command = media_playlist[play_index][1].info.split(
@@ -1025,7 +1026,14 @@ def main():
             # and attempt to restart the stream.
             print2("error", e)
             write_play_history(f"Stream stopped due to exception: {e}")
-            if stats.mail_daemon is not None and config.MAIL_ALERT_ON_STREAM_DOWN:
+
+            # Do not send an e-mail on connection check failure.
+            if (
+                stats.mail_daemon is not None
+                and stats.mail_daemon.running
+                and config.MAIL_ALERT_ON_STREAM_DOWN
+                and type(e) is not ConnectionCheckError
+            ):
                 stats.mail_daemon.add_alert("stream_down", e, bypass_interval=True)
             print2("error", "Stream interrupted. Restarting.")
             print2(
@@ -1105,7 +1113,11 @@ def main():
                     - stats.program_start_time
                 ).total_seconds()
             )
-            if stats.mail_daemon is not None and config.MAIL_ALERT_ON_STREAM_DOWN:
+            if (
+                stats.mail_daemon is not None
+                and stats.mail_daemon.running
+                and config.MAIL_ALERT_ON_STREAM_DOWN
+            ):
                 stats.mail_daemon.add_alert(
                     "program_error", message=e, urgent=True, total_time=total_time
                 )
