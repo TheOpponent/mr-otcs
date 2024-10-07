@@ -68,7 +68,7 @@ ini_defaults = {
         "REMOTE_RETRY_PERIOD": 5,
     },
     "Mail": {
-        "MAIL_ENABLE": True,
+        "MAIL_ENABLE": False,
         "MAIL_ENV_CONFIG": False,
         "MAIL_ENV_PREFIX": "MR_OTCS_",
         "MAIL_USE_SSL": False,
@@ -545,14 +545,18 @@ if MAIL_ENABLE:
         print2("error", "MAIL_USE_SSL and MAIL_USE_STARTTLS cannot both be enabled.")
         mail_config_error = True
 
+    if MAIL_SERVER is None or MAIL_SERVER == "":
+        print2("error", "MAIL_SERVER is blank.")
+        mail_config_error = True
+
     if MAIL_FROM_ADDRESS is None or MAIL_FROM_ADDRESS == "":
         print2("error", "MAIL_FROM_ADDRESS is blank.")
         mail_config_error = True
-    
+
     if MAIL_TO_ADDRESS is None or MAIL_TO_ADDRESS == "":
         print2("error", "MAIL_TO_ADDRESS is blank.")
         mail_config_error = True
-    
+
     if mail_config_error:
         MAIL_ENABLE = False
 
