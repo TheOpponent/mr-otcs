@@ -531,35 +531,59 @@ if MAIL_ENABLE:
             if not (0 < MAIL_PORT <= 65535):
                 raise ValueError
         except ValueError:
-            print2("error",f"Environment variable {MAIL_ENV_PREFIX}MAIL_PORT is not a valid port number.")
+            print2(
+                "error",
+                f"Environment variable {MAIL_ENV_PREFIX}MAIL_PORT is not a valid port number.",
+            )
             mail_config_error = True
 
         for i in ["MAIL_USE_SSL", "MAIL_USE_STARTTLS"]:
             try:
                 globals()[i] = bool(int(globals()[i]))
             except ValueError:
-                print2("error", f"Environment variable {MAIL_ENV_PREFIX}{i} is invalid.")
+                print2(
+                    "error", f"Environment variable {MAIL_ENV_PREFIX}{i} is invalid."
+                )
                 mail_config_error = True
+                
+        if MAIL_USE_SSL and MAIL_USE_STARTTLS:
+            print2("error", f"Environment variables {MAIL_ENV_PREFIX}MAIL_USE_SSL and {MAIL_ENV_PREFIX}MAIL_USE_STARTTLS cannot both be enabled.")
+            mail_config_error = True
 
-    if MAIL_USE_SSL and MAIL_USE_STARTTLS:
-        print2("error", "MAIL_USE_SSL and MAIL_USE_STARTTLS cannot both be enabled.")
-        mail_config_error = True
+        if MAIL_SERVER is None or MAIL_SERVER == "":
+            print2("error", f"Environment variable {MAIL_ENV_PREFIX}MAIL_SERVER is blank.")
+            mail_config_error = True
 
-    if MAIL_SERVER is None or MAIL_SERVER == "":
-        print2("error", "MAIL_SERVER is blank.")
-        mail_config_error = True
+        if MAIL_FROM_ADDRESS is None or MAIL_FROM_ADDRESS == "":
+            print2("error", f"Environment variable {MAIL_ENV_PREFIX}MAIL_FROM_ADDRESS is blank.")
+            mail_config_error = True
 
-    if MAIL_FROM_ADDRESS is None or MAIL_FROM_ADDRESS == "":
-        print2("error", "MAIL_FROM_ADDRESS is blank.")
-        mail_config_error = True
+        if MAIL_TO_ADDRESS is None or MAIL_TO_ADDRESS == "":
+            print2("error", f"Environment variable {MAIL_ENV_PREFIX}MAIL_TO_ADDRESS is blank.")
+            mail_config_error = True
+    else:
+        if not (0 < MAIL_PORT <= 65535):
+            print2("error", "MAIL_PORT is not a valid port number.")
+            mail_config_error = True
+            
+        if MAIL_USE_SSL and MAIL_USE_STARTTLS:
+            print2("error", "MAIL_USE_SSL and MAIL_USE_STARTTLS cannot both be enabled.")
+            mail_config_error = True
 
-    if MAIL_TO_ADDRESS is None or MAIL_TO_ADDRESS == "":
-        print2("error", "MAIL_TO_ADDRESS is blank.")
-        mail_config_error = True
+        if MAIL_SERVER is None or MAIL_SERVER == "":
+            print2("error", "MAIL_SERVER is blank.")
+            mail_config_error = True
+
+        if MAIL_FROM_ADDRESS is None or MAIL_FROM_ADDRESS == "":
+            print2("error", "MAIL_FROM_ADDRESS is blank.")
+            mail_config_error = True
+
+        if MAIL_TO_ADDRESS is None or MAIL_TO_ADDRESS == "":
+            print2("error", "MAIL_TO_ADDRESS is blank.")
+            mail_config_error = True
 
     if mail_config_error:
-        MAIL_ENABLE = False
-
+        exit(1)
 
 if __name__ == "__main__":
     print("Run python3 main.py to start this program.")
