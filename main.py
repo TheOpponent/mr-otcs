@@ -157,16 +157,25 @@ def check_new_version(stats: playlist.StreamStats, skip=False) -> Optional[Dict[
         return None
 
     saved_major, saved_minor, saved_patch = stats.newest_version.split(".")
-    url = "https://api.github.com/repos/theopponent/mr-otcs/releases/latest"
+    url = "https://api.github.com/repos/theopponent/mr-otcs/releases"
+
 
     response = requests.get(url)
     if response.status_code == 200:
-        # Tag names begin with "v". Strip the v for parsing.
-        latest_json = response.json()
-        latest_version = latest_json["tag_name"][1:]
-        latest_major, latest_minor, latest_patch = latest_version.split(".")
-        latest_prerelease = latest_json["prerelease"]
+        version_json = response.json()
+        latest_version = None
+        latest_prerelease = None
 
+        for release in version_json:
+            if release["prerelease"] == config.MAIL_ALERT_ON_NEW_PRERELEASE_VERSION:
+                # Tag names begin with "v". Strip the v for parsing.
+                latest_version = release["tag_name"][1:]
+                latest_major, latest_minor, latest_patch = latest_version.split(".")
+                latest_name = release["name"]
+                latest_prerelease = release["prerelease"]
+                latest_notes = release["body"]
+                latest_url = release["html_url"]
+                break
     else:
         print2("warn", f"Failed to check latest version: {response.status_code}")
         return None
@@ -180,11 +189,11 @@ def check_new_version(stats: playlist.StreamStats, skip=False) -> Optional[Dict[
             latest_prerelease and config.MAIL_ALERT_ON_NEW_PRERELEASE_VERSION
         ) or not latest_prerelease:
             output = {
-                "new_version_name": latest_json["name"],
+                "new_version_name": latest_name,
                 "new_version_prerelease": latest_prerelease,
-                "new_version_number": latest_json["tag_name"],
-                "new_version_notes": latest_json["body"],
-                "new_version_url": latest_json["html_url"],
+                "new_version_number": latest_version,
+                "new_version_notes": latest_notes,
+                "new_version_url": latest_url,
             }
         else:
             output = None
