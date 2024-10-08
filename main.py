@@ -38,6 +38,12 @@ class ConnectionCheckError(Exception):
     pass
 
 
+class ExceptionCommand(BackgroundProcessError):
+    """A manual %EXCEPTION command in the playlist."""
+
+    pass
+
+
 def rtmp_task(stats: playlist.StreamStats) -> subprocess.Popen:
     """Task for starting the RTMP broadcasting process."""
 

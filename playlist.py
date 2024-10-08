@@ -689,6 +689,8 @@ def write_schedule(
                     continue
                 elif entry[1].info == "STOP":
                     break
+                elif entry[1].info == "EXCEPTION":
+                    continue
                 else:
                     print2(
                         "error",
