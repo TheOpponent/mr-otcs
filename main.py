@@ -339,7 +339,7 @@ def encoder_task(
     if rtmp_task.poll() is not None:
         process.kill()
         raise BackgroundProcessError(
-            f"RTMP process ended unexpectedly, exit code {rtmp_task.poll()}. Restarting stream."
+            f"RTMP process ended unexpectedly, exit code {rtmp_task.poll()}"
         )
     else:
         return process.poll()
@@ -931,6 +931,20 @@ def main():
                                         f"Not writing schedule for {video_file.name}: Name matches SCHEDULE_EXCLUDE_FILE_PATTERN.",
                                     )
 
+                            # Send an e-mail alert if the stream resumed after an error.
+                            if retried:
+                                if (
+                                    stats.mail_daemon is not None
+                                    and stats.mail_daemon.running
+                                    and config.MAIL_ALERT_ON_STREAM_RESUME
+                                ):
+                                    stats.mail_daemon.add_alert(
+                                        "stream_resume",
+                                        bypass_interval=True,
+                                        exception=stats.mail_daemon.last_exception,
+                                        exception_time=stats.mail_daemon.last_exception_time,
+                                    )
+
                             print2("info", "Encoding started.")
                             encoder_result = encoder_task(
                                 video_file.path,
@@ -1075,9 +1089,17 @@ def main():
                 stats.mail_daemon is not None
                 and stats.mail_daemon.running
                 and config.MAIL_ALERT_ON_STREAM_DOWN
-                and type(e) is not ConnectionCheckError
             ):
-                stats.mail_daemon.add_alert("stream_down", e, bypass_interval=True)
+                stats.mail_daemon.last_exception = e
+                stats.mail_daemon.last_exception_time = datetime.datetime.now()
+                if type(e) is not ConnectionCheckError:
+                    stats.mail_daemon.add_alert(
+                        "stream_down",
+                        exception=e,
+                        exception_time=stats.mail_daemon.last_exception_time,
+                        bypass_interval=True,
+                        urgent=True,
+                    )
             print2("error", "Stream interrupted. Restarting.")
             print2(
                 "verbose",
@@ -1162,7 +1184,11 @@ def main():
                 and config.MAIL_ALERT_ON_PROGRAM_ERROR
             ):
                 stats.mail_daemon.add_alert(
-                    "program_error", message=e, urgent=True, total_time=total_time
+                    "program_error",
+                    exception=e,
+                    exception_time=datetime.datetime.now(),
+                    urgent=True,
+                    total_time=total_time,
                 )
             stats.mail_daemon.stop()
             write_play_history(f"Stream stopped due to exception: {e}")

@@ -38,6 +38,8 @@ class EMailDaemon:
         self._lock = threading.Lock()
         self.running = True
         self.logged_in = False
+        self.last_exception = None
+        self.last_exception_time = datetime.datetime.now()
         self.thread = threading.Thread(target=self.run, daemon=True)
         self.thread.start()
 
@@ -167,6 +169,13 @@ class EMailDaemon:
         total_time = kwargs.get("total_time")
         priority = 0
 
+        if exception := kwargs.get("exception"):
+            exception_string = f"{type(exception).__name__}: {str(exception)}"
+        else:
+            exception_string = ""
+        if exception_time := kwargs.get("exception_time"):
+            exception_time = kwargs.get("exception_time").strftime("%Y-%m-%d %H:%M:%S")
+
         # Priority list:
         # 0: Urgent, send before all other messages
         # 1: Retried message
@@ -175,18 +184,21 @@ class EMailDaemon:
             "stream_down": (
                 0,
                 "Stream offline",
-                f"The stream went offline due to an error at {current_time}."
-                + (f" Reason: {message}" if message else ""),
+                f'The stream went offline due to exception "{exception_string}" at {exception_time}.',
             ),
             "stream_resume": (
                 10,
                 "Stream resumed",
-                f"The stream reconnected at {current_time}.",
+                (
+                    f'The stream reconnected at {current_time}. It recovered from the exception "{exception_string}", which occurred at {exception_time}.'
+                    if exception and exception_time
+                    else f"The stream reconnected at {current_time}."
+                ),
             ),
             "program_error": (
                 0,
                 "Program error",
-                f"Mr. OTCS exited at {current_time} due to an unrecoverable error: {message}\n\nMr. OTCS ran for {total_time}.",
+                f"Mr. OTCS exited at {exception_time} due to an unrecoverable error: {exception_string}\n\nMr. OTCS ran for {total_time}.",
             ),
             "playlist_loop": (
                 10,
