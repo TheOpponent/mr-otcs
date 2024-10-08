@@ -134,8 +134,17 @@ def check_connection_block(stats: playlist.StreamStats, skip=False, exception=Tr
 
 
 @concurrent.thread
-def check_new_version(stats: playlist.StreamStats, skip=False) -> dict:
-    """Periodically check for a new version of Mr. OTCS."""
+def check_new_version(stats: playlist.StreamStats, skip=False) -> dict | None:
+    """Periodically check for a new version of Mr. OTCS. If no new version
+    is available, returns None. If a new version is available, returns a
+    dictionary containing the following keys:
+
+    - \"new_version_name\": The release name.
+    - \"new_version_prerelease\": True if the release is marked as a prerelease, False otherwise.
+    - \"new_version_number\": The tag name.
+    - \"new_version_notes\": The release notes, defined in the body.
+    - \"new_version_url\": URL for the release page.
+    """
 
     if skip:
         return None
@@ -175,6 +184,9 @@ def check_new_version(stats: playlist.StreamStats, skip=False) -> dict:
     else:
         output = None
 
+    # Always write version.json even if no new version is available, in the
+    # event that a pre-release is available but the user does not request
+    # updates for them.
     json_output = {"version": latest_version, "prerelease": latest_prerelease}
 
     try:
@@ -284,18 +296,17 @@ def encoder_task(
         # Check for new version during encoder task loop.
         if config.VERSION_CHECK_INTERVAL is not None:
             stats.version_check_wait -= 1
-            if stats.version_check_future is not None and stats.version_check_wait > 0:
-                if stats.version_check_future.done():
+            if stats.version_check_wait <= 0:
+                if stats.version_check_future is not None and stats.version_check_future.done():
                     if (
                         new_version_info := stats.version_check_future.result()
-                        is not None
-                    ):
+                    ) is not None:
                         print2(
                             "notice",
-                            f"New Mr. OTCS version available: {new_version_info["new_version_name"]}",
+                            f"New Mr. OTCS version available: {new_version_info['new_version_name']}",
                         )
                         print2(
-                            "notice", f"Download: {new_version_info["new_version_url"]}"
+                            "notice", f"Download: {new_version_info['new_version_url']}"
                         )
                         if stats.mail_daemon is not None and stats.mail_daemon.running:
                             stats.mail_daemon.add_alert(
@@ -304,11 +315,14 @@ def encoder_task(
                                 version=new_version_info["new_version_name"],
                                 url=new_version_info["new_version_url"],
                             )
-
-            else:
-                stats.version_check_wait = config.VERSION_CHECK_INTERVAL
-                stats.version_check_future = check_new_version(stats)
-                print2("verbose", "Checking for new version.")
+                    else:
+                        print2("verbose", "No new version available.")
+                    stats.version_check_future = None
+                    stats.version_check_wait = config.VERSION_CHECK_INTERVAL
+                elif stats.version_check_future is None:
+                    stats.version_check_future = check_new_version(stats)
+                    print2("verbose", "Checking for new version.")
+                
         time.sleep(1)
 
     if rtmp_task.poll() is not None:
