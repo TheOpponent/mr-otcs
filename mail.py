@@ -145,7 +145,7 @@ class EMailDaemon:
         return False
 
     def add_alert(
-        self, alert_type, message="", bypass_interval=False, urgent=False, **kwargs
+        self, alert_type: str, message="", bypass_interval=False, urgent=False, **kwargs
     ):
         """Add an alert to be sent by e-mail. By default, alerts are
         added to a queue, to be sent 1 hour after the last e-mail of
@@ -188,19 +188,24 @@ class EMailDaemon:
                 "Program error",
                 f"Mr. OTCS exited at {current_time} due to an unrecoverable error: {message}\n\nMr. OTCS ran for {total_time}.",
             ),
-            "stream_loop": (
+            "playlist_loop": (
                 10,
                 "Playlist looped",
                 f"The playlist looped at {current_time}.",
             ),
-            "stream_stop": (
+            "playlist_stop": (
                 0,
                 "Playlist stopped",
                 f"The playlist reached a %STOP command on line {line_num} at {current_time}, and Mr. OTCS has exited.",
             ),
+            "playlist_end": (
+                0,
+                "Playlist ended",
+                f"The playlist reached the end at {current_time}, and Mr. OTCS has exited.",
+            ),
             "mail_command": (
                 10,
-                "%MAIL command",
+                f"%MAIL command: {message[:50]}" if message else "%MAIL command",
                 f"The playlist reached a %MAIL command on line {line_num} at {current_time}."
                 + (f" The message is:\n\n{message}" if message else ""),
             ),

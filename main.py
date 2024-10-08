@@ -297,7 +297,10 @@ def encoder_task(
         if config.VERSION_CHECK_INTERVAL is not None:
             stats.version_check_wait -= 1
             if stats.version_check_wait <= 0:
-                if stats.version_check_future is not None and stats.version_check_future.done():
+                if (
+                    stats.version_check_future is not None
+                    and stats.version_check_future.done()
+                ):
                     if (
                         new_version_info := stats.version_check_future.result()
                     ) is not None:
@@ -308,13 +311,21 @@ def encoder_task(
                         print2(
                             "notice", f"Download: {new_version_info['new_version_url']}"
                         )
-                        if stats.mail_daemon is not None and stats.mail_daemon.running:
-                            stats.mail_daemon.add_alert(
-                                "new_version",
-                                message=new_version_info["new_version_notes"],
-                                version=new_version_info["new_version_name"],
-                                url=new_version_info["new_version_url"],
-                            )
+                        if (
+                            stats.mail_daemon is not None
+                            and stats.mail_daemon.running
+                            and config.MAIL_ALERT_ON_NEW_VERSION
+                        ):
+                            if (
+                                new_version_info["new_version_prerelease"]
+                                and config.MAIL_ALERT_ON_NEW_PRERELEASE_VERSION
+                            ) or not new_version_info["new_version_prerelease"]:
+                                stats.mail_daemon.add_alert(
+                                    "new_version",
+                                    message=new_version_info["new_version_notes"],
+                                    version=new_version_info["new_version_name"],
+                                    url=new_version_info["new_version_url"],
+                                )
                     else:
                         print2("verbose", "No new version available.")
                     stats.version_check_future = None
@@ -322,7 +333,7 @@ def encoder_task(
                 elif stats.version_check_future is None:
                     stats.version_check_future = check_new_version(stats)
                     print2("verbose", "Checking for new version.")
-                
+
         time.sleep(1)
 
     if rtmp_task.poll() is not None:
@@ -573,6 +584,12 @@ def main():
                                 "error",
                                 f"Update {config.PLAY_INDEX_FILE} manually: Line 1 with index {play_index}, line 2 with 0.",
                             )
+                        if (
+                            stats.mail_daemon is not None
+                            and stats.mail_daemon.running
+                            and config.MAIL_ALERT_ON_PLAYLIST_END
+                        ):
+                            stats.mail_daemon.add_alert("playlist_end", urgent=True)
                         print2("notice", "Exiting.")
                         if os.name == "posix":
                             os.system("stty sane")
@@ -580,6 +597,12 @@ def main():
                     else:
                         play_index = 0
                         stats.elapsed_time = 0
+                        if (
+                            stats.mail_daemon is not None
+                            and stats.mail_daemon.running
+                            and config.MAIL_ALERT_ON_PLAYLIST_LOOP
+                        ):
+                            stats.mail_daemon.add_alert("playlist_loop")
 
                 if media_playlist[play_index][1].type == "normal":
                     break
@@ -720,6 +743,12 @@ def main():
                                 "error",
                                 f"Update {config.PLAY_INDEX_FILE} manually: Line 1 with index {play_index}, line 2 with 0.",
                             )
+                        if (
+                            stats.mail_daemon is not None
+                            and stats.mail_daemon.running
+                            and config.MAIL_ALERT_ON_PLAYLIST_STOP
+                        ):
+                            stats.mail_daemon.add_alert("playlist_stop", urgent=True, line_num=play_index+1)
                         print2("notice", "Exiting.")
                         if os.name == "posix":
                             os.system("stty sane")

@@ -83,8 +83,9 @@ ini_defaults = {
         "MAIL_ALERT_ON_STREAM_RESUME": True,
         "MAIL_ALERT_ON_STREAM_COMMAND": True,
         "MAIL_ALERT_ON_EXCEPTION": True,
-        "MAIL_ALERT_ON_PLAYLIST_LOOP": True,
+        "MAIL_ALERT_ON_PLAYLIST_LOOP": False,
         "MAIL_ALERT_ON_PLAYLIST_STOP": True,
+        "MAIL_ALERT_ON_PLAYLIST_END": True,
         "MAIL_ALERT_ON_NEW_VERSION": True,
         "MAIL_ALERT_ON_NEW_PRERELEASE_VERSION": False,
     },
@@ -360,6 +361,9 @@ if default_ini.has_section("Mail"):
     )
     MAIL_ALERT_ON_PLAYLIST_STOP = default_ini.getboolean(
         "Mail", "MAIL_ALERT_ON_PLAYLIST_STOP"
+    )
+    MAIL_ALERT_ON_PLAYLIST_END = default_ini.getboolean(
+        "Mail", "MAIL_ALERT_ON_PLAYLIST_END"
     )
     MAIL_ALERT_ON_NEW_VERSION = default_ini.getboolean(
         "Mail", "MAIL_ALERT_ON_NEW_VERSION"
