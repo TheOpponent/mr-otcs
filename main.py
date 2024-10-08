@@ -1159,7 +1159,7 @@ def main():
             if (
                 stats.mail_daemon is not None
                 and stats.mail_daemon.running
-                and config.MAIL_ALERT_ON_STREAM_DOWN
+                and config.MAIL_ALERT_ON_PROGRAM_ERROR
             ):
                 stats.mail_daemon.add_alert(
                     "program_error", message=e, urgent=True, total_time=total_time

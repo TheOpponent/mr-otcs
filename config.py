@@ -82,7 +82,7 @@ ini_defaults = {
         "MAIL_ALERT_ON_STREAM_DOWN": True,
         "MAIL_ALERT_ON_STREAM_RESUME": True,
         "MAIL_ALERT_ON_STREAM_COMMAND": True,
-        "MAIL_ALERT_ON_EXCEPTION": True,
+        "MAIL_ALERT_ON_PROGRAM_ERROR": True,
         "MAIL_ALERT_ON_PLAYLIST_LOOP": False,
         "MAIL_ALERT_ON_PLAYLIST_STOP": True,
         "MAIL_ALERT_ON_PLAYLIST_END": True,
@@ -354,7 +354,7 @@ if default_ini.has_section("Mail"):
     MAIL_ALERT_ON_STREAM_RESUME = default_ini.getboolean(
         "Mail", "MAIL_ALERT_ON_STREAM_RESUME"
     )
-    MAIL_ALERT_ON_EXCEPTION = default_ini.getboolean("Mail", "MAIL_ALERT_ON_EXCEPTION")
+    MAIL_ALERT_ON_PROGRAM_ERROR = default_ini.getboolean("Mail", "MAIL_ALERT_ON_PROGRAM_ERROR")
     MAIL_ALERT_ON_COMMAND = default_ini.getboolean("Mail", "MAIL_ALERT_ON_COMMAND")
     MAIL_ALERT_ON_PLAYLIST_LOOP = default_ini.getboolean(
         "Mail", "MAIL_ALERT_ON_PLAYLIST_LOOP"
