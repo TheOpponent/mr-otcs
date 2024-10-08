@@ -14,6 +14,7 @@ import shlex
 import subprocess
 import time
 import concurrent.futures
+from typing import Optional, Dict
 
 import psutil
 import requests
@@ -140,7 +141,7 @@ def check_connection_block(stats: playlist.StreamStats, skip=False, exception=Tr
 
 
 @concurrent.thread
-def check_new_version(stats: playlist.StreamStats, skip=False) -> dict | None:
+def check_new_version(stats: playlist.StreamStats, skip=False) -> Optional[Dict[str, bool]]:
     """Periodically check for a new version of Mr. OTCS. If no new version
     is available, returns None. If a new version is available, returns a
     dictionary containing the following keys:
