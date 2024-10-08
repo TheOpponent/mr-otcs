@@ -155,7 +155,9 @@ RTMP_ARGUMENTS = default_ini.get("VideoOptions", "RTMP_ARGUMENTS")
 VIDEO_PADDING = default_ini.getint("VideoOptions", "VIDEO_PADDING")
 STREAM_URL = default_ini.get("VideoOptions", "STREAM_URL")
 if default_ini.get("VideoOptions", "CHECK_URL") != "":
-    CHECK_URL = [i.strip() for i in default_ini.get("VideoOptions", "CHECK_URL").split(",")]
+    CHECK_URL = [
+        i.strip() for i in default_ini.get("VideoOptions", "CHECK_URL").split(",")
+    ]
 else:
     CHECK_URL = None
 if default_ini.has_option("VideoOptions", "CHECK_INTERVAL"):
@@ -190,8 +192,10 @@ if default_ini.get("VideoOptions", "STREAM_RESTART_AFTER_VIDEO") != "":
 else:
     STREAM_RESTART_AFTER_VIDEO = None
 
-if default_ini.has_option("VideoOptions", "STREAM_WAIT_AFTER_RETRY"): # Added in 2.2.0.
-    STREAM_WAIT_AFTER_RETRY = default_ini.getint("VideoOptions", "STREAM_WAIT_AFTER_RETRY")
+if default_ini.has_option("VideoOptions", "STREAM_WAIT_AFTER_RETRY"):  # Added in 2.2.0.
+    STREAM_WAIT_AFTER_RETRY = default_ini.getint(
+        "VideoOptions", "STREAM_WAIT_AFTER_RETRY"
+    )
 else:
     STREAM_WAIT_AFTER_RETRY = 15
 
@@ -317,14 +321,14 @@ else:
 
 # Mail options added in 2.2.0.
 if default_ini.has_section("Mail"):
-    MAIL_ENABLE = default_ini.getboolean("Mail","MAIL_ENABLE")
-    MAIL_ENV_CONFIG = default_ini.getboolean("Mail","MAIL_ENV_CONFIG")
+    MAIL_ENABLE = default_ini.getboolean("Mail", "MAIL_ENABLE")
+    MAIL_ENV_CONFIG = default_ini.getboolean("Mail", "MAIL_ENV_CONFIG")
     MAIL_ENV_PREFIX = default_ini.get("Mail", "MAIL_ENV_PREFIX")
     if MAIL_ENV_CONFIG:
-        MAIL_USE_SSL = os.getenv(f"{MAIL_ENV_PREFIX}MAIL_USE_SSL")
-        MAIL_USE_STARTTLS = os.getenv(f"{MAIL_ENV_PREFIX}MAIL_USE_STARTTLS")
+        MAIL_USE_SSL = os.getenv(f"{MAIL_ENV_PREFIX}MAIL_USE_SSL", "0")
+        MAIL_USE_STARTTLS = os.getenv(f"{MAIL_ENV_PREFIX}MAIL_USE_STARTTLS", "0")
         MAIL_SERVER = os.getenv(f"{MAIL_ENV_PREFIX}MAIL_SERVER")
-        MAIL_PORT = os.getenv(f"{MAIL_ENV_PREFIX}MAIL_PORT")
+        MAIL_PORT = os.getenv(f"{MAIL_ENV_PREFIX}MAIL_PORT", "0")
         MAIL_LOGIN = os.getenv(f"{MAIL_ENV_PREFIX}MAIL_LOGIN")
         MAIL_PASSWORD = os.getenv(f"{MAIL_ENV_PREFIX}MAIL_PASSWORD")
         MAIL_FROM_ADDRESS = os.getenv(f"{MAIL_ENV_PREFIX}MAIL_FROM_ADDRESS")
@@ -338,15 +342,31 @@ if default_ini.has_section("Mail"):
         MAIL_PASSWORD = default_ini.get("Mail", "MAIL_PASSWORD", raw=True)
         MAIL_FROM_ADDRESS = default_ini.get("Mail", "MAIL_FROM_ADDRESS")
         MAIL_TO_ADDRESS = default_ini.get("Mail", "MAIL_TO_ADDRESS")
-    MAIL_PROGRAM_NAME = default_ini.get("Mail", "MAIL_PROGRAM_NAME") if default_ini.get("Mail", "MAIL_PROGRAM_NAME") != "" else "Mr. OTCS"
-    MAIL_ALERT_ON_STREAM_DOWN = default_ini.getboolean("Mail","MAIL_ALERT_ON_STREAM_DOWN")
-    MAIL_ALERT_ON_STREAM_RESUME = default_ini.getboolean("Mail","MAIL_ALERT_ON_STREAM_RESUME")
-    MAIL_ALERT_ON_EXCEPTION = default_ini.getboolean("Mail","MAIL_ALERT_ON_EXCEPTION")
-    MAIL_ALERT_ON_COMMAND = default_ini.getboolean("Mail","MAIL_ALERT_ON_COMMAND")
-    MAIL_ALERT_ON_PLAYLIST_LOOP = default_ini.getboolean("Mail","MAIL_ALERT_ON_PLAYLIST_LOOP")
-    MAIL_ALERT_ON_PLAYLIST_STOP = default_ini.getboolean("Mail","MAIL_ALERT_ON_PLAYLIST_STOP")
-    MAIL_ALERT_ON_NEW_VERSION = default_ini.getboolean("Mail","MAIL_ALERT_ON_NEW_VERSION")
-    MAIL_ALERT_ON_NEW_PRERELEASE_VERSION = default_ini.getboolean("Mail","MAIL_ALERT_ON_NEW_PRERELEASE_VERSION")
+    MAIL_PROGRAM_NAME = (
+        default_ini.get("Mail", "MAIL_PROGRAM_NAME")
+        if default_ini.get("Mail", "MAIL_PROGRAM_NAME") != ""
+        else "Mr. OTCS"
+    )
+    MAIL_ALERT_ON_STREAM_DOWN = default_ini.getboolean(
+        "Mail", "MAIL_ALERT_ON_STREAM_DOWN"
+    )
+    MAIL_ALERT_ON_STREAM_RESUME = default_ini.getboolean(
+        "Mail", "MAIL_ALERT_ON_STREAM_RESUME"
+    )
+    MAIL_ALERT_ON_EXCEPTION = default_ini.getboolean("Mail", "MAIL_ALERT_ON_EXCEPTION")
+    MAIL_ALERT_ON_COMMAND = default_ini.getboolean("Mail", "MAIL_ALERT_ON_COMMAND")
+    MAIL_ALERT_ON_PLAYLIST_LOOP = default_ini.getboolean(
+        "Mail", "MAIL_ALERT_ON_PLAYLIST_LOOP"
+    )
+    MAIL_ALERT_ON_PLAYLIST_STOP = default_ini.getboolean(
+        "Mail", "MAIL_ALERT_ON_PLAYLIST_STOP"
+    )
+    MAIL_ALERT_ON_NEW_VERSION = default_ini.getboolean(
+        "Mail", "MAIL_ALERT_ON_NEW_VERSION"
+    )
+    MAIL_ALERT_ON_NEW_PRERELEASE_VERSION = default_ini.getboolean(
+        "Mail", "MAIL_ALERT_ON_NEW_PRERELEASE_VERSION"
+    )
 else:
     MAIL_ENABLE = False
 
@@ -376,7 +396,9 @@ else:
     VERBOSE = 0b11111100
 
 if default_ini.has_option("Misc", "STREAM_MANUAL_RESTART_DELAY"):  # Added in 2.2.0.
-    STREAM_MANUAL_RESTART_DELAY = default_ini.getint("Misc", "STREAM_MANUAL_RESTART_DELAY")
+    STREAM_MANUAL_RESTART_DELAY = default_ini.getint(
+        "Misc", "STREAM_MANUAL_RESTART_DELAY"
+    )
 else:
     STREAM_MANUAL_RESTART_DELAY = 5
 
@@ -393,10 +415,13 @@ if default_ini.has_option("Misc", "VERSION_CHECK_INTERVAL"):  # Added in 2.2.0.
     elif VERSION_CHECK_INTERVAL == "daily":
         VERSION_CHECK_INTERVAL = 86400
     else:
-        print('VERSION_CHECK_INTERVAL setting not recognized. Using default setting "monthly".')
+        print(
+            'VERSION_CHECK_INTERVAL setting not recognized. Using default setting "monthly".'
+        )
         VERSION_CHECK_INTERVAL = 2592000
 else:
     VERSION_CHECK_INTERVAL = 2592000
+
 
 def print2(level: str, message: str):
     """Prepend a colored label with a standard print message."""
@@ -474,7 +499,7 @@ if ALT_NAMES_JSON_PATH is not None:
 else:
     ALT_NAMES = {}
 
-if CHECK_URL == ['']:
+if CHECK_URL == [""]:
     CHECK_URL = None
 
 # STREAM_RESTART_BEFORE_VIDEO and STREAM_RESTART_AFTER_VIDEO are only checked
