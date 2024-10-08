@@ -8,6 +8,7 @@
 
 import datetime
 import os
+import json
 import random
 import shlex
 import subprocess
@@ -20,6 +21,7 @@ from pebble import ProcessExpired, ProcessPool, concurrent
 
 import config
 import playlist
+import mail
 from config import print2
 
 
@@ -32,6 +34,12 @@ class BackgroundProcessError(Exception):
 
 class ConnectionCheckError(Exception):
     """Raised when the connection check fails."""
+
+    pass
+
+
+class ExceptionCommand(BackgroundProcessError):
+    """A manual %EXCEPTION command in the playlist."""
 
     pass
 
@@ -131,6 +139,73 @@ def check_connection_block(stats: playlist.StreamStats, skip=False, exception=Tr
     return _check_connection(stats, skip, exception)
 
 
+@concurrent.thread
+def check_new_version(stats: playlist.StreamStats, skip=False) -> dict | None:
+    """Periodically check for a new version of Mr. OTCS. If no new version
+    is available, returns None. If a new version is available, returns a
+    dictionary containing the following keys:
+
+    - \"new_version_name\": The release name.
+    - \"new_version_prerelease\": True if the release is marked as a prerelease, False otherwise.
+    - \"new_version_number\": The tag name.
+    - \"new_version_notes\": The release notes, defined in the body.
+    - \"new_version_url\": URL for the release page.
+    """
+
+    if skip:
+        return None
+
+    saved_major, saved_minor, saved_patch = stats.newest_version.split(".")
+    url = "https://api.github.com/repos/theopponent/mr-otcs/releases/latest"
+
+    response = requests.get(url)
+    if response.status_code == 200:
+        # Tag names begin with "v". Strip the v for parsing.
+        latest_json = response.json()
+        latest_version = latest_json["tag_name"][1:]
+        latest_major, latest_minor, latest_patch = latest_version.split(".")
+        latest_prerelease = latest_json["prerelease"]
+
+    else:
+        print2("warn", f"Failed to check latest version: {response.status_code}")
+        return None
+
+    if (
+        latest_major > saved_major
+        or latest_minor > saved_minor
+        or latest_patch > saved_patch
+    ):
+        if (
+            latest_prerelease and config.MAIL_ALERT_ON_NEW_PRERELEASE_VERSION
+        ) or not latest_prerelease:
+            output = {
+                "new_version_name": latest_json["name"],
+                "new_version_prerelease": latest_prerelease,
+                "new_version_number": latest_json["tag_name"],
+                "new_version_notes": latest_json["body"],
+                "new_version_url": latest_json["html_url"],
+            }
+        else:
+            output = None
+    else:
+        output = None
+
+    # Always write version.json even if no new version is available, in the
+    # event that a pre-release is available but the user does not request
+    # updates for them.
+    json_output = {"version": latest_version, "prerelease": latest_prerelease}
+
+    try:
+        with open("version.json", "w") as version_file:
+            json.dump(json_output, version_file)
+    except OSError as e:
+        print2("error", "Unable to write version.json: " + e)
+
+    stats.newest_version = latest_version
+
+    return output
+
+
 def encoder_task(
     file: str,
     rtmp_task: subprocess.Popen,
@@ -223,12 +298,54 @@ def encoder_task(
                     print2("error", f"Unable to write to {config.PLAY_INDEX_FILE}.")
                 stats.elapsed_time += config.TIME_RECORD_INTERVAL
                 write_index_wait = config.TIME_RECORD_INTERVAL
+
+        # Check for new version during encoder task loop.
+        if config.VERSION_CHECK_INTERVAL is not None:
+            stats.version_check_wait -= 1
+            if stats.version_check_wait <= 0:
+                if (
+                    stats.version_check_future is not None
+                    and stats.version_check_future.done()
+                ):
+                    if (
+                        new_version_info := stats.version_check_future.result()
+                    ) is not None:
+                        print2(
+                            "notice",
+                            f"New Mr. OTCS version available: {new_version_info['new_version_name']}",
+                        )
+                        print2(
+                            "notice", f"Download: {new_version_info['new_version_url']}"
+                        )
+                        if (
+                            stats.mail_daemon is not None
+                            and stats.mail_daemon.running
+                            and config.MAIL_ALERT_ON_NEW_VERSION
+                        ):
+                            if (
+                                new_version_info["new_version_prerelease"]
+                                and config.MAIL_ALERT_ON_NEW_PRERELEASE_VERSION
+                            ) or not new_version_info["new_version_prerelease"]:
+                                stats.mail_daemon.add_alert(
+                                    "new_version",
+                                    message=new_version_info["new_version_notes"],
+                                    version=new_version_info["new_version_name"],
+                                    url=new_version_info["new_version_url"],
+                                )
+                    else:
+                        print2("verbose", "No new version available.")
+                    stats.version_check_future = None
+                    stats.version_check_wait = config.VERSION_CHECK_INTERVAL
+                elif stats.version_check_future is None:
+                    stats.version_check_future = check_new_version(stats)
+                    print2("verbose", "Checking for new version.")
+
         time.sleep(1)
 
     if rtmp_task.poll() is not None:
         process.kill()
         raise BackgroundProcessError(
-            f"RTMP process ended unexpectedly, exit code {rtmp_task.poll()}. Restarting stream."
+            f"RTMP process ended unexpectedly, exit code {rtmp_task.poll()}"
         )
     else:
         return process.poll()
@@ -352,6 +469,23 @@ def main():
 
     executor = ProcessPool()
 
+    if config.MAIL_ENABLE:
+        stats.mail_daemon = mail.EMailDaemon()
+        print2("info", f"Logging in to e-mail server {config.MAIL_SERVER}.")
+        if stats.mail_daemon.test_login():
+            print2("info", "Mail server login succeeded.")
+        else:
+            print2("error", "Mail server login failed.")
+    else:
+        stats.mail_daemon = None
+
+    try:
+        with open("version.json", "r") as version_file:
+            version_file_json = json.load(version_file)
+            stats.newest_version = version_file_json["version"]
+    except (FileNotFoundError, json.JSONDecodeError):
+        stats.newest_version = config.SCRIPT_VERSION
+
     while True:
         try:
             # If config.STREAM_RESTART_BEFORE_VIDEO is defined, add its
@@ -416,12 +550,12 @@ def main():
 
             try:
                 play_index = int(play_index_contents[0])
-            except IndexError:
+            except (IndexError, ValueError):
                 play_index = 0
 
             try:
                 stats.elapsed_time = int(play_index_contents[1])
-            except IndexError:
+            except (IndexError, ValueError):
                 stats.elapsed_time = 0
 
             # Get next item in media_playlist that is a PlaylistEntry of type "normal".
@@ -456,15 +590,32 @@ def main():
                                 "error",
                                 f"Update {config.PLAY_INDEX_FILE} manually: Line 1 with index {play_index}, line 2 with 0.",
                             )
+                        if (
+                            stats.mail_daemon is not None
+                            and stats.mail_daemon.running
+                            and config.MAIL_ALERT_ON_PLAYLIST_END
+                        ):
+                            stats.mail_daemon.add_alert("playlist_end", urgent=True)
                         print2("notice", "Exiting.")
                         if os.name == "posix":
                             os.system("stty sane")
                         exit(0)
                     else:
                         play_index = 0
+                        stats.elapsed_time = 0
+                        if (
+                            stats.mail_daemon is not None
+                            and stats.mail_daemon.running
+                            and config.MAIL_ALERT_ON_PLAYLIST_LOOP
+                        ):
+                            stats.mail_daemon.add_alert("playlist_loop")
 
                 if media_playlist[play_index][1].type == "normal":
                     break
+
+                # If the program starts on a non-normal entry, ignore the elapsed time in play_index.txt.
+                if stats.videos_since_restart == 0:
+                    stats.elapsed_time = 0
 
                 if media_playlist[play_index][1].type == "blank":
                     print2(
@@ -598,10 +749,64 @@ def main():
                                 "error",
                                 f"Update {config.PLAY_INDEX_FILE} manually: Line 1 with index {play_index}, line 2 with 0.",
                             )
+                        if (
+                            stats.mail_daemon is not None
+                            and stats.mail_daemon.running
+                            and config.MAIL_ALERT_ON_PLAYLIST_STOP
+                        ):
+                            stats.mail_daemon.add_alert(
+                                "playlist_stop", urgent=True, line_num=play_index + 1
+                            )
                         print2("notice", "Exiting.")
                         if os.name == "posix":
                             os.system("stty sane")
                         exit(0)
+
+                    elif media_playlist[play_index][1].info.startswith("MAIL"):
+                        if (
+                            stats.mail_daemon is not None
+                            and stats.mail_daemon.running
+                            and config.MAIL_ALERT_ON_COMMAND
+                        ):
+                            mail_command = media_playlist[play_index][1].info.split(
+                                " ", 1
+                            )
+                            if len(mail_command) > 1 and not mail_command[1].isspace():
+                                stats.mail_daemon.add_alert(
+                                    "mail_command",
+                                    message=mail_command[1],
+                                    bypass_interval=True,
+                                    line_num=play_index + 1,
+                                )
+                                print2(
+                                    "notice",
+                                    f"{play_index+1}. Sending manual e-mail alert: {mail_command[1]}",
+                                )
+                            else:
+                                stats.mail_daemon.add_alert(
+                                    "mail_command", bypass_interval=True
+                                )
+                                print2(
+                                    "notice",
+                                    f"{play_index+1}. Sending manual e-mail alert.",
+                                )
+                        else:
+                            print2(
+                                "verbose",
+                                f"{play_index+1}. Not reading %MAIL command: E-mail alerts are disabled.",
+                            )
+
+                        play_index += 1
+                        continue
+
+                    elif media_playlist[play_index][1].info.startswith("EXCEPTION"):
+                        print2(
+                            "notice",
+                            f"{media_playlist[play_index][0]}. Executing EXCEPTION command.",
+                        )
+                        play_index += 1
+                        playlist.write_index(play_index, stats)
+                        raise ExceptionCommand
 
                 else:
                     break
@@ -727,14 +932,12 @@ def main():
                                                 "Failed to cancel schedule future.",
                                             )
                                     else:
-                                        stats.schedule_future = (
-                                            playlist.write_schedule(
-                                                media_playlist,
-                                                play_index,
-                                                stats,
-                                                extra_entries,
-                                                retried,
-                                            )
+                                        stats.schedule_future = playlist.write_schedule(
+                                            media_playlist,
+                                            play_index,
+                                            stats,
+                                            extra_entries,
+                                            retried,
                                         )
 
                                     # Clear extra_entries after writing schedule.
@@ -743,6 +946,20 @@ def main():
                                     print2(
                                         "notice",
                                         f"Not writing schedule for {video_file.name}: Name matches SCHEDULE_EXCLUDE_FILE_PATTERN.",
+                                    )
+
+                            # Send an e-mail alert if the stream resumed after an error.
+                            if retried:
+                                if (
+                                    stats.mail_daemon is not None
+                                    and stats.mail_daemon.running
+                                    and config.MAIL_ALERT_ON_STREAM_RESUME
+                                ):
+                                    stats.mail_daemon.add_alert(
+                                        "stream_resume",
+                                        bypass_interval=True,
+                                        exception=stats.mail_daemon.last_exception,
+                                        exception_time=stats.mail_daemon.last_exception_time,
                                     )
 
                             print2("info", "Encoding started.")
@@ -883,6 +1100,23 @@ def main():
             # and attempt to restart the stream.
             print2("error", e)
             write_play_history(f"Stream stopped due to exception: {e}")
+
+            # Do not send an e-mail on connection check failure.
+            if (
+                stats.mail_daemon is not None
+                and stats.mail_daemon.running
+                and config.MAIL_ALERT_ON_STREAM_DOWN
+            ):
+                stats.mail_daemon.last_exception = e
+                stats.mail_daemon.last_exception_time = datetime.datetime.now()
+                if type(e) is not ConnectionCheckError:
+                    stats.mail_daemon.add_alert(
+                        "stream_down",
+                        exception=e,
+                        exception_time=stats.mail_daemon.last_exception_time,
+                        bypass_interval=True,
+                        urgent=True,
+                    )
             print2("error", "Stream interrupted. Restarting.")
             print2(
                 "verbose",
@@ -954,7 +1188,6 @@ def main():
                 exit(130)
 
         except Exception as e:
-            print(e)
             stop_stream(executor, restart=False)
             total_time = int_to_total_time(
                 (
@@ -962,10 +1195,23 @@ def main():
                     - stats.program_start_time
                 ).total_seconds()
             )
+            if (
+                stats.mail_daemon is not None
+                and stats.mail_daemon.running
+                and config.MAIL_ALERT_ON_PROGRAM_ERROR
+            ):
+                stats.mail_daemon.add_alert(
+                    "program_error",
+                    exception=e,
+                    exception_time=datetime.datetime.now(),
+                    urgent=True,
+                    total_time=total_time,
+                )
+            stats.mail_daemon.stop()
             write_play_history(f"Stream stopped due to exception: {e}")
             write_play_history(f"Stream ended after {total_time}.")
             kill_media_player()
-            print2("fatal", "Fatal error encountered. Terminating stream.")
+            print2("fatal", f"Fatal error encountered: {e}. Terminating stream.")
             print2("notice", f"Mr. OTCS ran for {total_time}.")
             if os.name == "posix":
                 os.system("stty sane")

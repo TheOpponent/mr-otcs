@@ -67,10 +67,33 @@ ini_defaults = {
         "REMOTE_UPLOAD_ATTEMPTS": 5,
         "REMOTE_RETRY_PERIOD": 5,
     },
+    "Mail": {
+        "MAIL_ENABLE": False,
+        "MAIL_ENV_CONFIG": False,
+        "MAIL_ENV_PREFIX": "MR_OTCS_",
+        "MAIL_USE_SSL": False,
+        "MAIL_USE_STARTTLS": False,
+        "MAIL_SERVER": "",
+        "MAIL_PORT": 0,
+        "MAIL_LOGIN": "",
+        "MAIL_PASSWORD": "",
+        "MAIL_FROM_ADDRESS": "",
+        "MAIL_TO_ADDRESS": "",
+        "MAIL_ALERT_ON_STREAM_DOWN": True,
+        "MAIL_ALERT_ON_STREAM_RESUME": True,
+        "MAIL_ALERT_ON_STREAM_COMMAND": True,
+        "MAIL_ALERT_ON_PROGRAM_ERROR": True,
+        "MAIL_ALERT_ON_PLAYLIST_LOOP": False,
+        "MAIL_ALERT_ON_PLAYLIST_STOP": True,
+        "MAIL_ALERT_ON_PLAYLIST_END": True,
+        "MAIL_ALERT_ON_NEW_VERSION": True,
+        "MAIL_ALERT_ON_NEW_PRERELEASE_VERSION": False,
+    },
     "Misc": {
         "PLAY_HISTORY_LENGTH": 10,
         "VERBOSE": "info",
         "STREAM_MANUAL_RESTART_DELAY": 5,
+        "VERSION_CHECK_INTERVAL": "monthly",
     },
 }
 
@@ -133,7 +156,9 @@ RTMP_ARGUMENTS = default_ini.get("VideoOptions", "RTMP_ARGUMENTS")
 VIDEO_PADDING = default_ini.getint("VideoOptions", "VIDEO_PADDING")
 STREAM_URL = default_ini.get("VideoOptions", "STREAM_URL")
 if default_ini.get("VideoOptions", "CHECK_URL") != "":
-    CHECK_URL = [i.strip() for i in default_ini.get("VideoOptions", "CHECK_URL").split(",")]
+    CHECK_URL = [
+        i.strip() for i in default_ini.get("VideoOptions", "CHECK_URL").split(",")
+    ]
 else:
     CHECK_URL = None
 if default_ini.has_option("VideoOptions", "CHECK_INTERVAL"):
@@ -168,8 +193,10 @@ if default_ini.get("VideoOptions", "STREAM_RESTART_AFTER_VIDEO") != "":
 else:
     STREAM_RESTART_AFTER_VIDEO = None
 
-if default_ini.has_option("VideoOptions", "STREAM_WAIT_AFTER_RETRY"): # Added in 2.2.0.
-    STREAM_WAIT_AFTER_RETRY = default_ini.getint("VideoOptions", "STREAM_WAIT_AFTER_RETRY")
+if default_ini.has_option("VideoOptions", "STREAM_WAIT_AFTER_RETRY"):  # Added in 2.2.0.
+    STREAM_WAIT_AFTER_RETRY = default_ini.getint(
+        "VideoOptions", "STREAM_WAIT_AFTER_RETRY"
+    )
 else:
     STREAM_WAIT_AFTER_RETRY = 15
 
@@ -293,6 +320,60 @@ if default_ini.has_option("SSH", "REMOTE_RETRY_PERIOD"):  # Added in 2.1.0.
 else:
     REMOTE_RETRY_PERIOD = 5
 
+# Mail options added in 2.2.0.
+if default_ini.has_section("Mail"):
+    MAIL_ENABLE = default_ini.getboolean("Mail", "MAIL_ENABLE")
+    MAIL_ENV_CONFIG = default_ini.getboolean("Mail", "MAIL_ENV_CONFIG")
+    MAIL_ENV_PREFIX = default_ini.get("Mail", "MAIL_ENV_PREFIX")
+    if MAIL_ENV_CONFIG:
+        MAIL_USE_SSL = os.getenv(f"{MAIL_ENV_PREFIX}MAIL_USE_SSL", "0")
+        MAIL_USE_STARTTLS = os.getenv(f"{MAIL_ENV_PREFIX}MAIL_USE_STARTTLS", "0")
+        MAIL_SERVER = os.getenv(f"{MAIL_ENV_PREFIX}MAIL_SERVER")
+        MAIL_PORT = os.getenv(f"{MAIL_ENV_PREFIX}MAIL_PORT", "0")
+        MAIL_LOGIN = os.getenv(f"{MAIL_ENV_PREFIX}MAIL_LOGIN")
+        MAIL_PASSWORD = os.getenv(f"{MAIL_ENV_PREFIX}MAIL_PASSWORD")
+        MAIL_FROM_ADDRESS = os.getenv(f"{MAIL_ENV_PREFIX}MAIL_FROM_ADDRESS")
+        MAIL_TO_ADDRESS = os.getenv(f"{MAIL_ENV_PREFIX}MAIL_TO_ADDRESS")
+    else:
+        MAIL_USE_SSL = default_ini.getboolean("Mail", "MAIL_USE_SSL")
+        MAIL_USE_STARTTLS = default_ini.getboolean("Mail", "MAIL_USE_STARTTLS")
+        MAIL_SERVER = default_ini.get("Mail", "MAIL_SERVER")
+        MAIL_PORT = default_ini.getint("Mail", "MAIL_PORT")
+        MAIL_LOGIN = default_ini.get("Mail", "MAIL_LOGIN", raw=True)
+        MAIL_PASSWORD = default_ini.get("Mail", "MAIL_PASSWORD", raw=True)
+        MAIL_FROM_ADDRESS = default_ini.get("Mail", "MAIL_FROM_ADDRESS")
+        MAIL_TO_ADDRESS = default_ini.get("Mail", "MAIL_TO_ADDRESS")
+    MAIL_PROGRAM_NAME = (
+        default_ini.get("Mail", "MAIL_PROGRAM_NAME")
+        if default_ini.get("Mail", "MAIL_PROGRAM_NAME") != ""
+        else "Mr. OTCS"
+    )
+    MAIL_ALERT_ON_STREAM_DOWN = default_ini.getboolean(
+        "Mail", "MAIL_ALERT_ON_STREAM_DOWN"
+    )
+    MAIL_ALERT_ON_STREAM_RESUME = default_ini.getboolean(
+        "Mail", "MAIL_ALERT_ON_STREAM_RESUME"
+    )
+    MAIL_ALERT_ON_PROGRAM_ERROR = default_ini.getboolean("Mail", "MAIL_ALERT_ON_PROGRAM_ERROR")
+    MAIL_ALERT_ON_COMMAND = default_ini.getboolean("Mail", "MAIL_ALERT_ON_COMMAND")
+    MAIL_ALERT_ON_PLAYLIST_LOOP = default_ini.getboolean(
+        "Mail", "MAIL_ALERT_ON_PLAYLIST_LOOP"
+    )
+    MAIL_ALERT_ON_PLAYLIST_STOP = default_ini.getboolean(
+        "Mail", "MAIL_ALERT_ON_PLAYLIST_STOP"
+    )
+    MAIL_ALERT_ON_PLAYLIST_END = default_ini.getboolean(
+        "Mail", "MAIL_ALERT_ON_PLAYLIST_END"
+    )
+    MAIL_ALERT_ON_NEW_VERSION = default_ini.getboolean(
+        "Mail", "MAIL_ALERT_ON_NEW_VERSION"
+    )
+    MAIL_ALERT_ON_NEW_PRERELEASE_VERSION = default_ini.getboolean(
+        "Mail", "MAIL_ALERT_ON_NEW_PRERELEASE_VERSION"
+    )
+else:
+    MAIL_ENABLE = False
+
 PLAY_HISTORY_LENGTH = default_ini.getint("Misc", "PLAY_HISTORY_LENGTH")
 VERBOSE = default_ini.get("Misc", "VERBOSE").lower()
 
@@ -319,9 +400,32 @@ else:
     VERBOSE = 0b11111100
 
 if default_ini.has_option("Misc", "STREAM_MANUAL_RESTART_DELAY"):  # Added in 2.2.0.
-    STREAM_MANUAL_RESTART_DELAY = default_ini.getint("Misc", "STREAM_MANUAL_RESTART_DELAY")
+    STREAM_MANUAL_RESTART_DELAY = default_ini.getint(
+        "Misc", "STREAM_MANUAL_RESTART_DELAY"
+    )
 else:
     STREAM_MANUAL_RESTART_DELAY = 5
+
+if default_ini.has_option("Misc", "VERSION_CHECK_INTERVAL"):  # Added in 2.2.0.
+    VERSION_CHECK_INTERVAL = default_ini.get("Misc", "VERSION_CHECK_INTERVAL").lower()
+    if VERSION_CHECK_INTERVAL == "off":
+        VERSION_CHECK_INTERVAL = None
+    elif VERSION_CHECK_INTERVAL == "monthly":
+        VERSION_CHECK_INTERVAL = 2592000
+    elif VERSION_CHECK_INTERVAL == "biweekly":
+        VERSION_CHECK_INTERVAL = 1209600
+    elif VERSION_CHECK_INTERVAL == "weekly":
+        VERSION_CHECK_INTERVAL = 604800
+    elif VERSION_CHECK_INTERVAL == "daily":
+        VERSION_CHECK_INTERVAL = 86400
+    else:
+        print(
+            'VERSION_CHECK_INTERVAL setting not recognized. Using default setting "monthly".'
+        )
+        VERSION_CHECK_INTERVAL = 2592000
+else:
+    VERSION_CHECK_INTERVAL = 2592000
+
 
 def print2(level: str, message: str):
     """Prepend a colored label with a standard print message."""
@@ -399,7 +503,7 @@ if ALT_NAMES_JSON_PATH is not None:
 else:
     ALT_NAMES = {}
 
-if CHECK_URL == ['']:
+if CHECK_URL == [""]:
     CHECK_URL = None
 
 # STREAM_RESTART_BEFORE_VIDEO and STREAM_RESTART_AFTER_VIDEO are only checked
@@ -447,6 +551,68 @@ if SCHEDULE_PREVIOUS_MAX_VIDEOS < SCHEDULE_PREVIOUS_MIN_VIDEOS:
     )
     exit(1)
 
+if MAIL_ENABLE:
+    mail_config_error = False
+
+    if MAIL_ENV_CONFIG:
+        try:
+            MAIL_PORT = int(MAIL_PORT)
+            if not (0 < MAIL_PORT <= 65535):
+                raise ValueError
+        except ValueError:
+            print2(
+                "error",
+                f"Environment variable {MAIL_ENV_PREFIX}MAIL_PORT is not a valid port number.",
+            )
+            mail_config_error = True
+
+        for i in ["MAIL_USE_SSL", "MAIL_USE_STARTTLS"]:
+            try:
+                globals()[i] = bool(int(globals()[i]))
+            except ValueError:
+                print2(
+                    "error", f"Environment variable {MAIL_ENV_PREFIX}{i} is invalid."
+                )
+                mail_config_error = True
+                
+        if MAIL_USE_SSL and MAIL_USE_STARTTLS:
+            print2("error", f"Environment variables {MAIL_ENV_PREFIX}MAIL_USE_SSL and {MAIL_ENV_PREFIX}MAIL_USE_STARTTLS cannot both be enabled.")
+            mail_config_error = True
+
+        if MAIL_SERVER is None or MAIL_SERVER == "":
+            print2("error", f"Environment variable {MAIL_ENV_PREFIX}MAIL_SERVER is blank.")
+            mail_config_error = True
+
+        if MAIL_FROM_ADDRESS is None or MAIL_FROM_ADDRESS == "":
+            print2("error", f"Environment variable {MAIL_ENV_PREFIX}MAIL_FROM_ADDRESS is blank.")
+            mail_config_error = True
+
+        if MAIL_TO_ADDRESS is None or MAIL_TO_ADDRESS == "":
+            print2("error", f"Environment variable {MAIL_ENV_PREFIX}MAIL_TO_ADDRESS is blank.")
+            mail_config_error = True
+    else:
+        if not (0 < MAIL_PORT <= 65535):
+            print2("error", "MAIL_PORT is not a valid port number.")
+            mail_config_error = True
+            
+        if MAIL_USE_SSL and MAIL_USE_STARTTLS:
+            print2("error", "MAIL_USE_SSL and MAIL_USE_STARTTLS cannot both be enabled.")
+            mail_config_error = True
+
+        if MAIL_SERVER is None or MAIL_SERVER == "":
+            print2("error", "MAIL_SERVER is blank.")
+            mail_config_error = True
+
+        if MAIL_FROM_ADDRESS is None or MAIL_FROM_ADDRESS == "":
+            print2("error", "MAIL_FROM_ADDRESS is blank.")
+            mail_config_error = True
+
+        if MAIL_TO_ADDRESS is None or MAIL_TO_ADDRESS == "":
+            print2("error", "MAIL_TO_ADDRESS is blank.")
+            mail_config_error = True
+
+    if mail_config_error:
+        exit(1)
 
 if __name__ == "__main__":
     print("Run python3 main.py to start this program.")

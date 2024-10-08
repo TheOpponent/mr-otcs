@@ -17,7 +17,7 @@ from pymediainfo import MediaInfo
 
 import config
 from config import print2
-
+import mail
 
 class PlaylistEntry:
     """Definition for playlist entries, parsed from a list or text file
@@ -162,6 +162,18 @@ class StreamStats:
     are not done more often than config.CHECK_INTERVAL.
     """
 
+    mail_daemon: mail.EMailDaemon
+    """An e-mail daemon that will send e-mail alerts."""
+
+    newest_version: str
+    """The most recent version available since the last version check."""
+
+    version_check_wait: int
+    """Wait this many seconds before the next version check."""
+
+    version_check_future: futures.Future
+    """A Future for the check_new_version() function."""
+
     def __init__(self):
         self.recent_playlist = deque()
         if (
@@ -183,6 +195,10 @@ class StreamStats:
         self.last_connection_check = datetime.datetime.now(
             datetime.timezone.utc
         ) - datetime.timedelta(seconds=config.CHECK_INTERVAL)
+        self.mail_daemon = None
+        self.newest_version = config.SCRIPT_VERSION
+        self.version_check_wait = 0
+        self.version_check_future = None
 
     def rewind(self, time):
         """Subtract this many seconds from elapsed_time, without going below
@@ -669,8 +685,12 @@ def write_schedule(
                     length_offset = get_stream_restart_duration()
                 elif entry[1].info == "INSTANT_RESTART":
                     length_offset = config.STREAM_RESTART_WAIT
+                elif entry[1].info.startswith("MAIL") and entry[1].info.split(' ')[0] == "MAIL":
+                    continue
                 elif entry[1].info == "STOP":
                     break
+                elif entry[1].info == "EXCEPTION":
+                    continue
                 else:
                     print2(
                         "error",
