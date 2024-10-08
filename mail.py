@@ -33,7 +33,7 @@ class EMailDaemon:
             self.ssl_context = ssl.create_default_context()
         self.retries = 3
         self.retry_delay = 5
-        self.queue = queue.PriorityQueue(maxsize=100)
+        self.queue = queue.PriorityQueue(maxsize=10)
         self.last_sent = {}
         self._lock = threading.Lock()
         self.running = True
@@ -258,8 +258,7 @@ class EMailDaemon:
                 with self._lock:
                     sent = self._send_email(msg)
                     if sent:
-                        with self._lock:
-                            self.last_sent[alert_type] = datetime.datetime.now()
+                        self.last_sent[alert_type] = datetime.datetime.now()
         else:
             raise ValueError(f"Unrecognized alert type: {alert_type}")
 
