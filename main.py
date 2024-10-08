@@ -754,7 +754,9 @@ def main():
                             and stats.mail_daemon.running
                             and config.MAIL_ALERT_ON_PLAYLIST_STOP
                         ):
-                            stats.mail_daemon.add_alert("playlist_stop", urgent=True, line_num=play_index+1)
+                            stats.mail_daemon.add_alert(
+                                "playlist_stop", urgent=True, line_num=play_index + 1
+                            )
                         print2("notice", "Exiting.")
                         if os.name == "posix":
                             os.system("stty sane")
@@ -796,6 +798,15 @@ def main():
 
                         play_index += 1
                         continue
+
+                    elif media_playlist[play_index][1].info.startswith("EXCEPTION"):
+                        print2(
+                            "notice",
+                            f"{media_playlist[play_index][0]}. Executing EXCEPTION command.",
+                        )
+                        play_index += 1
+                        playlist.write_index(play_index, stats)
+                        raise ExceptionCommand
 
                 else:
                     break
