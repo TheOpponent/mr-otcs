@@ -19,6 +19,7 @@ import config
 from config import print2
 import mail
 
+
 class PlaylistEntry:
     """Definition for playlist entries, parsed from a list or text file
     containing formatted playlist entry strings.
@@ -35,6 +36,7 @@ class PlaylistEntry:
     if any, will play before and after the restart.
     %INSTANTRESTART: Similar to %RESTART, but the above optional videos will
     not play.
+    %MAIL: Add a mail alert with the included message.
     %STOP: End the stream immediately. The play_index will be incremented
     before exiting.
 
@@ -193,7 +195,7 @@ class StreamStats:
     restarted.
     """
 
-    exceptions: list[tuple[Exception,datetime.datetime]]
+    exceptions: list[tuple[Exception, datetime.datetime]]
     """A list of exceptions caught by the program during the main loop."""
 
     def __init__(self):
@@ -712,7 +714,10 @@ def write_schedule(
                     length_offset = get_stream_restart_duration()
                 elif entry[1].info == "INSTANT_RESTART":
                     length_offset = config.STREAM_RESTART_WAIT
-                elif entry[1].info.startswith("MAIL") and entry[1].info.split(' ')[0] == "MAIL":
+                elif (
+                    entry[1].info.startswith("MAIL")
+                    and entry[1].info.split(" ")[0] == "MAIL"
+                ):
                     continue
                 elif entry[1].info == "STOP":
                     break

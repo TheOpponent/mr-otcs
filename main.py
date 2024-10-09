@@ -121,7 +121,9 @@ def _check_connection(stats: playlist.StreamStats, skip=False, exception=True):
                 if exception:
                     # If the check fails, force next check to ignore config.CHECK_INTERVAL setting.
                     stats.force_connection_check()
-                    raise ConnectionCheckError(f"Could not establish connection to {link}: {e}")
+                    raise ConnectionCheckError(
+                        f"Could not establish connection to {link}: {e}"
+                    )
                 else:
                     return False
             else:
@@ -139,7 +141,9 @@ def check_connection_block(stats: playlist.StreamStats, skip=False, exception=Tr
 
 
 @concurrent.thread
-def check_new_version(stats: playlist.StreamStats, skip=False) -> Optional[Dict[str, bool]]:
+def check_new_version(
+    stats: playlist.StreamStats, skip=False
+) -> Optional[Dict[str, bool]]:
     """Periodically check for a new version of Mr. OTCS. If no new version
     is available, returns None. If a new version is available, returns a
     dictionary containing the following keys:
@@ -156,7 +160,6 @@ def check_new_version(stats: playlist.StreamStats, skip=False) -> Optional[Dict[
 
     saved_major, saved_minor, saved_patch = stats.newest_version.split(".")
     url = "https://api.github.com/repos/theopponent/mr-otcs/releases"
-
 
     response = requests.get(url)
     if response.status_code == 200:
