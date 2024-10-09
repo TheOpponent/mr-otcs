@@ -230,6 +230,11 @@ class EMailDaemon:
                     f"Release notes:\n\n{message}"
                 ),
             ),
+            "status_report": (
+                10,
+                "Status report",
+                "This is the regular Mr. OTCS status report.\n\n" + message,
+            ),
             "general": (10, "General message", message),
         }
 

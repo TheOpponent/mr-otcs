@@ -214,6 +214,35 @@ def check_new_version(stats: playlist.StreamStats, skip=False) -> Optional[Dict[
     return output
 
 
+def generate_status_report(stats: playlist.StreamStats):
+    """Create a regular status report based on information in a
+    StreamStats object, and add it to the e-mail daemon queue.
+    """
+
+    message = ""
+    current_time = datetime.datetime.now(datetime.timezone.utc)
+
+    message += f"Report generated on: {current_time}\n"
+    +f"Mr. OTCS version: {config.SCRIPT_VERSION}\n\n"
+    +f"Program started: {stats.program_start_time}\n"
+    +f"Program runtime: {int_to_total_time((current_time - stats.program_start_time).total_seconds())}\n"
+    +f"Current stream started: {stats.stream_start_time}\n"
+    +f"Current stream duration: {int_to_total_time((current_time - stats.stream_start_time).total_seconds())}\n"
+    +f"Number of videos played since last stream restart: {stats.videos_since_restart}\n"
+    +f"Total number of videos played: {stats.total_videos}\n\n"
+    +f"Stream restarts: {stats.restarts}\n"
+    +f"Stream errors: {stats.retries}\n\n"
+
+    if len(stats.exceptions) > 0:
+        message += f"\n{stats.exceptions} stream errors since last report:\n"
+        for i in stats.exceptions:
+            message += f"{i[1].strftime('%Y-%m-%d %H:%M:%S')} - {type(i[0]).__name__}: {str(i[0])}\n"
+
+        stats.exceptions = []
+
+    stats.mail_daemon.add_alert("status_report", message)
+
+
 def encoder_task(
     file: str,
     rtmp_task: subprocess.Popen,
@@ -347,6 +376,18 @@ def encoder_task(
                 elif stats.version_check_future is None:
                     stats.version_check_future = check_new_version(stats)
                     print2("verbose", "Checking for new version.")
+
+        # Send status report during encoder task loop.
+        if (
+            stats.mail_daemon is not None
+            and stats.mail_daemon.running
+            and config.MAIL_ALERT_STATUS_REPORT > 0
+        ):
+            stats.status_report_wait -= 1
+            if stats.status_report_wait <= 0:
+                print2("verbose", "Generating status report.")
+                generate_status_report(stats)
+                stats.status_report_wait = config.MAIL_ALERT_STATUS_REPORT * 86400
 
         time.sleep(1)
 
@@ -647,6 +688,7 @@ def main():
                     if media_playlist[play_index][1].info == "RESTART":
                         if total_elapsed_time > config.STREAM_RESTART_MINIMUM_TIME:
                             restarted = True
+                            stats.restarts += 1
 
                             print2(
                                 "play",
@@ -696,6 +738,7 @@ def main():
                     elif media_playlist[play_index][1].info == "INSTANT_RESTART":
                         if total_elapsed_time > config.STREAM_RESTART_MINIMUM_TIME:
                             instant_restarted = True
+                            stats.restarts += 1
                             print2(
                                 "play",
                                 f"{media_playlist[play_index][0]}. Executing INSTANT_RESTART command.",
@@ -994,6 +1037,7 @@ def main():
                                 stats.elapsed_time = 0
                                 stats.video_resume_point = 0
                                 stats.videos_since_restart += 1
+                                stats.total_videos += 1
                                 print2(
                                     "info",
                                     f"Elapsed stream time: {int_to_time(total_elapsed_time)}.",
@@ -1017,6 +1061,7 @@ def main():
                             # Retry if encoder process fails.
                             else:
                                 retried = True
+                                stats.retries += 1
                                 if stats.stream_time_remaining > (
                                     next_video_length - exit_time
                                 ):
@@ -1049,6 +1094,7 @@ def main():
                     else:
                         print2("notice", "STREAM_TIME_BEFORE_RESTART limit reached.")
                         restarted = True
+                        stats.restarts += 1
                         if config.STREAM_RESTART_BEFORE_VIDEO is not None:
                             print2(
                                 "play",
@@ -1108,6 +1154,7 @@ def main():
             # and attempt to restart the stream.
             print2("error", e)
             write_play_history(f"Stream stopped due to exception: {e}")
+            stats.exceptions.append((e, datetime.datetime.now()))
 
             # Do not send an e-mail on connection check failure.
             if (
@@ -1131,6 +1178,7 @@ def main():
                 f"{stats.videos_since_restart} video(s) played since last restart.",
             )
             retried = True
+            stats.retries += 1
             if stats.elapsed_time - config.REWIND_LENGTH > stats.video_resume_point:
                 stats.rewind(config.REWIND_LENGTH)
                 stats.video_resume_point = stats.elapsed_time
@@ -1155,6 +1203,7 @@ def main():
                         f"{stats.videos_since_restart} video(s) played since last restart.",
                     )
                     retried = True
+                    stats.restarts += 1
                     if (
                         stats.elapsed_time - config.REWIND_LENGTH
                         > stats.video_resume_point

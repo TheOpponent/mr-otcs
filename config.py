@@ -88,6 +88,7 @@ ini_defaults = {
         "MAIL_ALERT_ON_PLAYLIST_END": True,
         "MAIL_ALERT_ON_NEW_VERSION": True,
         "MAIL_ALERT_ON_NEW_PRERELEASE_VERSION": False,
+        "MAIL_ALERT_STATUS_REPORT": 7,
     },
     "Misc": {
         "PLAY_HISTORY_LENGTH": 10,
@@ -371,6 +372,7 @@ if default_ini.has_section("Mail"):
     MAIL_ALERT_ON_NEW_PRERELEASE_VERSION = default_ini.getboolean(
         "Mail", "MAIL_ALERT_ON_NEW_PRERELEASE_VERSION"
     )
+    MAIL_ALERT_STATUS_REPORT = default_ini.getint("Mail", "MAIL_ALERT_STATUS_REPORT")
 else:
     MAIL_ENABLE = False
 

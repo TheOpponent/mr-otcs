@@ -132,6 +132,11 @@ class StreamStats:
     STREAM_RESTART_AFTER_VIDEO.
     """
 
+    total_videos: int
+    """Total number of videos played to completion since program start.
+    Does not include STREAM_RESTART_BEFORE_VIDEO or
+    STREAM_RESTART_AFTER_VIDEO."""
+
     stream_start_time: datetime.datetime
     """The time the current stream was started, in UTC. Set only after
     starting the RTMP process.
@@ -174,6 +179,23 @@ class StreamStats:
     version_check_future: futures.Future
     """A Future for the check_new_version() function."""
 
+    status_report_wait: int
+    """Wait this many seconds before generating a status report."""
+
+    restarts: int
+    """Number of times the stream restarted normally, including stream
+    duration timeouts in STREAM_TIME_BEFORE_RESTART, %RESTART and
+    %INSTANT_RESTART commands, and pressing Ctrl-C.
+    """
+
+    retries: int
+    """Number of times the stream was interrupted unexpectedly and
+    restarted.
+    """
+
+    exceptions: list[tuple[Exception,datetime.datetime]]
+    """A list of exceptions caught by the program during the main loop."""
+
     def __init__(self):
         self.recent_playlist = deque()
         if (
@@ -187,6 +209,7 @@ class StreamStats:
         self.program_start_time = datetime.datetime.now(datetime.timezone.utc)
         self.elapsed_time = 0
         self.videos_since_restart = 0
+        self.total_videos = 0
         self.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
         self.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
         self.video_resume_point = 0
@@ -199,6 +222,10 @@ class StreamStats:
         self.newest_version = config.SCRIPT_VERSION
         self.version_check_wait = 0
         self.version_check_future = None
+        self.status_report_wait = config.MAIL_ALERT_STATUS_REPORT * 86400
+        self.restarts = 0
+        self.retries = 0
+        self.exceptions = []
 
     def rewind(self, time):
         """Subtract this many seconds from elapsed_time, without going below
