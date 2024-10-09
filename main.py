@@ -118,17 +118,15 @@ def _check_connection(stats: playlist.StreamStats, skip=False, exception=True):
         except requests.exceptions.RequestException as e:
             if config.CHECK_STRICT:
                 print2("error", f"Could not establish connection to {link}: {e}")
-                break
+                if exception:
+                    # If the check fails, force next check to ignore config.CHECK_INTERVAL setting.
+                    stats.force_connection_check()
+                    raise ConnectionCheckError(f"Could not establish connection to {link}: {e}")
+                else:
+                    return False
             else:
                 print2("warn", f"Could not establish connection to {link}: {e}")
                 continue
-
-    if exception:
-        # If the check fails, force next check to ignore config.CHECK_INTERVAL setting.
-        stats.force_connection_check()
-        raise ConnectionCheckError("Connection check failed.")
-
-    return False
 
 
 @concurrent.thread
