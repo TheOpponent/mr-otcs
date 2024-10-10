@@ -363,8 +363,7 @@ def encoder_task(
 
         # Check for new version during encoder task loop.
         if config.VERSION_CHECK_INTERVAL is not None:
-            stats.version_check_wait -= 1
-            if stats.version_check_wait <= 0:
+            if datetime.datetime.now(datetime.timezone.utc) > stats.next_version_check:
                 if (
                     stats.version_check_future is not None
                     and stats.version_check_future.done()
@@ -398,11 +397,11 @@ def encoder_task(
                                     )
                         else:
                             print2("notice", "Retrying version check in 1 hour.")
-                            stats.version_check_wait = 3600
+                            stats.next_version_check = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
                     else:
                         print2("verbose", "No new version available.")
                     stats.version_check_future = None
-                    stats.version_check_wait = config.VERSION_CHECK_INTERVAL
+                    stats.next_version_check = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=config.VERSION_CHECK_INTERVAL)
                 elif stats.version_check_future is None:
                     stats.version_check_future = check_new_version(stats)
                     print2("verbose", "Checking for new version.")
@@ -412,12 +411,13 @@ def encoder_task(
             stats.mail_daemon is not None
             and stats.mail_daemon.running
             and config.MAIL_ALERT_STATUS_REPORT > 0
+            and datetime.datetime.now(datetime.timezone.utc) > stats.next_status_report
         ):
-            stats.status_report_wait -= 1
-            if stats.status_report_wait <= 0:
-                print2("verbose", "Generating status report.")
-                generate_status_report(stats)
-                stats.status_report_wait = config.MAIL_ALERT_STATUS_REPORT * 86400
+            print2("verbose", "Generating status report.")
+            generate_status_report(stats)
+            stats.next_status_report = datetime.datetime.now(
+                datetime.timezone.utc
+            ) + datetime.timedelta(days=config.MAIL_ALERT_STATUS_REPORT)
 
         time.sleep(1)
 

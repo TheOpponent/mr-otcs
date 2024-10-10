@@ -416,20 +416,20 @@ if default_ini.has_option("Misc", "VERSION_CHECK_INTERVAL"):  # Added in 2.2.0.
     if VERSION_CHECK_INTERVAL == "off":
         VERSION_CHECK_INTERVAL = None
     elif VERSION_CHECK_INTERVAL == "monthly":
-        VERSION_CHECK_INTERVAL = 2592000
+        VERSION_CHECK_INTERVAL = 30
     elif VERSION_CHECK_INTERVAL == "biweekly":
-        VERSION_CHECK_INTERVAL = 1209600
+        VERSION_CHECK_INTERVAL = 14
     elif VERSION_CHECK_INTERVAL == "weekly":
-        VERSION_CHECK_INTERVAL = 604800
+        VERSION_CHECK_INTERVAL = 7
     elif VERSION_CHECK_INTERVAL == "daily":
-        VERSION_CHECK_INTERVAL = 86400
+        VERSION_CHECK_INTERVAL = 1
     else:
         print(
             'VERSION_CHECK_INTERVAL setting not recognized. Using default setting "monthly".'
         )
-        VERSION_CHECK_INTERVAL = 2592000
+        VERSION_CHECK_INTERVAL = 30
 else:
-    VERSION_CHECK_INTERVAL = 2592000
+    VERSION_CHECK_INTERVAL = 30
 
 
 def print2(level: str, message: str):

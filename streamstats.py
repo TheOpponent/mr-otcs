@@ -76,14 +76,14 @@ class StreamStats:
     newest_version: str
     """The most recent version available since the last version check."""
 
-    version_check_wait: int
-    """Wait this many seconds before the next version check."""
+    next_version_check: datetime.datetime
+    """Time for the next version check."""
 
     version_check_future: futures.Future
     """A Future for the `check_new_version()` function."""
 
-    status_report_wait: int
-    """Wait this many seconds before generating a status report."""
+    next_status_report: datetime.datetime
+    """Time for the next status report to be generated."""
 
     restarts: int
     """Number of times the stream restarted normally, including stream
@@ -111,6 +111,8 @@ class StreamStats:
     """
 
     def __init__(self):
+        current_time = datetime.datetime.now(datetime.timezone.utc)
+
         self.recent_playlist = deque()
         if (
             config.SCHEDULE_PREVIOUS_MIN_VIDEOS >= 1
@@ -120,28 +122,30 @@ class StreamStats:
             self.previous_files = deque()
         else:
             self.previous_files = None
-        self.program_start_time = datetime.datetime.now(datetime.timezone.utc)
+        self.program_start_time = current_time
         self.elapsed_time = 0
         self.videos_since_restart = 0
         self.total_videos = 0
-        self.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
+        self.stream_start_time = current_time
         self.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
         self.video_resume_point = 0
         self.check_connection_future = None
         self.schedule_future = None
-        self.last_connection_check = datetime.datetime.now(
-            datetime.timezone.utc
-        ) - datetime.timedelta(seconds=config.CHECK_INTERVAL)
+        self.last_connection_check = current_time - datetime.timedelta(
+            seconds=config.CHECK_INTERVAL
+        )
         self.mail_daemon = None
         self.newest_version = config.SCRIPT_VERSION
-        self.version_check_wait = 0
+        self.next_version_check = current_time
         self.version_check_future = None
-        self.status_report_wait = config.MAIL_ALERT_STATUS_REPORT * 86400
+        self.next_status_report = current_time + datetime.timedelta(
+            days=config.MAIL_ALERT_STATUS_REPORT
+        )
         self.restarts = 0
         self.retries = 0
         self.stream_downtime = 0
         self.exceptions = []
-        self.last_exception_time = datetime.datetime.now(datetime.timezone.utc)
+        self.last_exception_time = current_time
 
     def rewind(self, time):
         """Subtract this many seconds from elapsed_time, without going
