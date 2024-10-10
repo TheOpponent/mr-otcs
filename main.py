@@ -1165,8 +1165,8 @@ def main():
             # stop the encoder process immediately, rewind the video
             # if it advanced past one rewind interval since last encode,
             # and attempt to restart the stream.
-            print2("error", e)
-            write_play_history(f"Stream stopped due to exception: {e}")
+            print2("error", f"{type(e).__name__}: {str(e)}")
+            write_play_history(f"Stream stopped due to exception: {type(e).__name__}: {str(e)}")
             stats.exceptions.append((e, datetime.datetime.now()))
 
             # Do not send an e-mail on connection check failure.
@@ -1278,10 +1278,10 @@ def main():
                     total_time=total_time,
                 )
             stats.mail_daemon.stop()
-            write_play_history(f"Stream stopped due to exception: {e}")
+            write_play_history(f"Stream stopped due to exception: {type(e).__name__}: {str(e)}")
             write_play_history(f"Stream ended after {total_time}.")
             kill_media_player()
-            print2("fatal", f"Fatal error encountered: {e}. Terminating stream.")
+            print2("fatal", f"Fatal error encountered: {type(e).__name__}: {str(e)}. Terminating stream.")
             print2("notice", f"Mr. OTCS ran for {total_time}.")
             if os.name == "posix":
                 os.system("stty sane")
