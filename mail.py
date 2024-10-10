@@ -163,7 +163,7 @@ class EMailDaemon:
 
         If `urgent` is True, the e-mail is sent immediately, bypassing
         the queue and blocking execution until it is sent.
-        
+
         For playlist-related messages, the keyword argument `line_num`
         can be given a number.
 
@@ -260,7 +260,10 @@ class EMailDaemon:
             msg.attach(MIMEText(body, "plain"))
 
             if not urgent:
-                print2("verbose", f"Adding e-mail alert type {alert_type} with priority {priority} to queue:")
+                print2(
+                    "verbose",
+                    f"Adding e-mail alert type {alert_type} with priority {priority} to queue:",
+                )
                 print2("verbose", f"Subject: [{config.MAIL_PROGRAM_NAME}] {subject}")
                 print2("verbose", body)
                 try:

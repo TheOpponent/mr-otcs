@@ -254,7 +254,11 @@ def generate_status_report(stats: StreamStats):
     +f"Stream uptime rate: {round((program_runtime - stats.stream_downtime) / program_runtime * 100,2)}%"
 
     if (exception_count := len(stats.exceptions)) > 0:
-        message += f"\n\n{exception_count} stream errors since last report:\n" if exception_count > 1 else "\n\n1 stream error since last report:\n"
+        message += (
+            f"\n\n{exception_count} stream errors since last report:\n"
+            if exception_count > 1
+            else "\n\n1 stream error since last report:\n"
+        )
         for exc, timestamp in stats.exceptions:
             message += f"{timestamp.strftime('%Y-%m-%d %H:%M:%S')} - {type(exc).__name__}: {str(exc)}\n"
 
