@@ -97,18 +97,6 @@ def rtmp_task(stats: StreamStats) -> subprocess.Popen:
 
 
 def _check_connection(stats: StreamStats, skip=False, exception=True):
-    """Check internet connection to links in `config.CHECK_URL`, tried
-    in random order.
-
-    Returns True if the request succeeds. If `skip` is True, this
-    function always returns True.
-
-    The connection check fails if the first link attempted times out
-    when `config.CHECK_STRICT` is true, or if all links time out when
-    it is false. If `exception` is true, `ConnectionCheckError` is
-    raised. Otherwise, returns False.
-    """
-
     if skip:
         return True
 
@@ -138,10 +126,34 @@ def _check_connection(stats: StreamStats, skip=False, exception=True):
 
 @concurrent.thread
 def check_connection(stats: StreamStats, skip=False):
+    """Check internet connection to links in `config.CHECK_URL`, tried
+    in random order.
+
+    If `skip` is True, the check always succeeds instantly.
+
+    The connection check fails and raises `ConnectionCheckError` if the
+    first link attempted times out when `config.CHECK_STRICT` is true,
+    or if all links time out when it is false.
+
+    Use `check_connection_block()` for a non-threaded check.
+    """
+
     _check_connection(stats, skip)
 
 
 def check_connection_block(stats: StreamStats, skip=False, exception=True):
+    """Check internet connection to links in `config.CHECK_URL`, tried
+    in random order. This version blocks until the check returns.
+
+    Returns True if the request succeeds. If `skip` is True, this
+    function always returns True.
+
+    The connection check fails if the first link attempted times out
+    when `config.CHECK_STRICT` is true, or if all links time out when
+    it is false. If `exception` is True, raises `ConnectionCheckError`
+    if the check fails. Otherwise, returns False.
+    """
+
     return _check_connection(stats, skip, exception)
 
 
