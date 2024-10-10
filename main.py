@@ -14,7 +14,7 @@ import shlex
 import subprocess
 import time
 import concurrent.futures
-from typing import Optional, Dict
+from typing import Dict, Union
 
 import psutil
 import requests
@@ -144,9 +144,10 @@ def check_connection_block(stats: StreamStats, skip=False, exception=True):
 @concurrent.thread
 def check_new_version(
     stats: StreamStats, skip=False
-) -> Optional[Dict[str, bool]]:
+) -> Union[Dict[str, int], None, bool]:
     """Periodically check for a new version of Mr. OTCS. If no new version
-    is available, returns None. If a new version is available, returns a
+    is available, returns None. If an error occurs when checking for a new
+    version, returns False. If a new version is available, returns a
     dictionary containing the following keys:
 
     - \"new_version_name\": The release name.
@@ -162,46 +163,50 @@ def check_new_version(
     saved_major, saved_minor, saved_patch = stats.newest_version.split(".")
     url = "https://api.github.com/repos/theopponent/mr-otcs/releases"
 
-    response = requests.get(url)
-    if response.status_code == 200:
-        version_json = response.json()
-        latest_version = None
-        latest_prerelease = None
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            version_json = response.json()
+            latest_version = None
+            latest_prerelease = None
 
-        for release in version_json:
-            if release["prerelease"] == config.MAIL_ALERT_ON_NEW_PRERELEASE_VERSION:
-                # Tag names begin with "v". Strip the v for parsing.
-                latest_version = release["tag_name"][1:]
-                latest_major, latest_minor, latest_patch = latest_version.split(".")
-                latest_name = release["name"]
-                latest_prerelease = release["prerelease"]
-                latest_notes = release["body"]
-                latest_url = release["html_url"]
-                break
-    else:
-        print2("warn", f"Failed to check latest version: {response.status_code}")
-        return None
+            for release in version_json:
+                if release["prerelease"] == config.MAIL_ALERT_ON_NEW_PRERELEASE_VERSION:
+                    # Tag names begin with "v". Strip the v for parsing.
+                    latest_version = release["tag_name"][1:]
+                    latest_major, latest_minor, latest_patch = latest_version.split(".")
+                    latest_name = release["name"]
+                    latest_prerelease = release["prerelease"]
+                    latest_notes = release["body"]
+                    latest_url = release["html_url"]
+                    break
+        else:
+            print2("warn", f"Failed to check latest version: {response.status_code} {response.reason}")
+            return False
 
-    if (
-        latest_major > saved_major
-        or latest_minor > saved_minor
-        or latest_patch > saved_patch
-    ):
         if (
-            latest_prerelease and config.MAIL_ALERT_ON_NEW_PRERELEASE_VERSION
-        ) or not latest_prerelease:
-            output = {
-                "new_version_name": latest_name,
-                "new_version_prerelease": latest_prerelease,
-                "new_version_number": latest_version,
-                "new_version_notes": latest_notes,
-                "new_version_url": latest_url,
-            }
+            latest_major > saved_major
+            or latest_minor > saved_minor
+            or latest_patch > saved_patch
+        ):
+            if (
+                latest_prerelease and config.MAIL_ALERT_ON_NEW_PRERELEASE_VERSION
+            ) or not latest_prerelease:
+                output = {
+                    "new_version_name": latest_name,
+                    "new_version_prerelease": latest_prerelease,
+                    "new_version_number": latest_version,
+                    "new_version_notes": latest_notes,
+                    "new_version_url": latest_url,
+                }
+            else:
+                output = None
         else:
             output = None
-    else:
-        output = None
-
+    except requests.exceptions.RequestException as e:
+        print2("warn", f"Failed to check latest version: {type(e).__name__}: {str(e)}")
+        return False
+    
     # Always write version.json even if no new version is available, in the
     # event that a pre-release is available but the user does not request
     # updates for them.
@@ -351,28 +356,32 @@ def encoder_task(
                     if (
                         new_version_info := stats.version_check_future.result()
                     ) is not None:
-                        print2(
-                            "notice",
-                            f"New Mr. OTCS version available: {new_version_info['new_version_name']}",
-                        )
-                        print2(
-                            "notice", f"Download: {new_version_info['new_version_url']}"
-                        )
-                        if (
-                            stats.mail_daemon is not None
-                            and stats.mail_daemon.running
-                            and config.MAIL_ALERT_ON_NEW_VERSION
-                        ):
+                        if isinstance(new_version_info, dict):
+                            print2(
+                                "notice",
+                                f"New Mr. OTCS version available: {new_version_info['new_version_name']}",
+                            )
+                            print2(
+                                "notice", f"Download: {new_version_info['new_version_url']}"
+                            )
                             if (
-                                new_version_info["new_version_prerelease"]
-                                and config.MAIL_ALERT_ON_NEW_PRERELEASE_VERSION
-                            ) or not new_version_info["new_version_prerelease"]:
-                                stats.mail_daemon.add_alert(
-                                    "new_version",
-                                    message=new_version_info["new_version_notes"],
-                                    version=new_version_info["new_version_name"],
-                                    url=new_version_info["new_version_url"],
-                                )
+                                stats.mail_daemon is not None
+                                and stats.mail_daemon.running
+                                and config.MAIL_ALERT_ON_NEW_VERSION
+                            ):
+                                if (
+                                    new_version_info["new_version_prerelease"]
+                                    and config.MAIL_ALERT_ON_NEW_PRERELEASE_VERSION
+                                ) or not new_version_info["new_version_prerelease"]:
+                                    stats.mail_daemon.add_alert(
+                                        "new_version",
+                                        message=new_version_info["new_version_notes"],
+                                        version=new_version_info["new_version_name"],
+                                        url=new_version_info["new_version_url"],
+                                    )
+                        else:
+                            print2("notice", "Retrying version check in 1 hour.")
+                            stats.version_check_wait = 3600
                     else:
                         print2("verbose", "No new version available.")
                     stats.version_check_future = None
