@@ -22,6 +22,7 @@ from pebble import ProcessExpired, ProcessPool, concurrent
 
 import config
 import playlist
+from streamstats import StreamStats
 import mail
 from config import print2
 
@@ -45,7 +46,7 @@ class ExceptionCommand(BackgroundProcessError):
     pass
 
 
-def rtmp_task(stats: playlist.StreamStats) -> subprocess.Popen:
+def rtmp_task(stats: StreamStats) -> subprocess.Popen:
     """Task for starting the RTMP broadcasting process."""
 
     command = shlex.split(f"{config.RTMP_STREAMER_PATH} {config.RTMP_ARGUMENTS}")
@@ -93,7 +94,7 @@ def rtmp_task(stats: playlist.StreamStats) -> subprocess.Popen:
     return process
 
 
-def _check_connection(stats: playlist.StreamStats, skip=False, exception=True):
+def _check_connection(stats: StreamStats, skip=False, exception=True):
     """Check internet connection to links in config.CHECK_URL, tried in random
     order. Returns True if the request succeeds. If skip is true, this always
     returns True.
@@ -132,17 +133,17 @@ def _check_connection(stats: playlist.StreamStats, skip=False, exception=True):
 
 
 @concurrent.thread
-def check_connection(stats: playlist.StreamStats, skip=False):
+def check_connection(stats: StreamStats, skip=False):
     _check_connection(stats, skip)
 
 
-def check_connection_block(stats: playlist.StreamStats, skip=False, exception=True):
+def check_connection_block(stats: StreamStats, skip=False, exception=True):
     return _check_connection(stats, skip, exception)
 
 
 @concurrent.thread
 def check_new_version(
-    stats: playlist.StreamStats, skip=False
+    stats: StreamStats, skip=False
 ) -> Optional[Dict[str, bool]]:
     """Periodically check for a new version of Mr. OTCS. If no new version
     is available, returns None. If a new version is available, returns a
@@ -217,7 +218,7 @@ def check_new_version(
     return output
 
 
-def generate_status_report(stats: playlist.StreamStats):
+def generate_status_report(stats: StreamStats):
     """Create a regular status report based on information in a
     StreamStats object, and add it to the e-mail daemon queue.
     """
@@ -249,7 +250,7 @@ def generate_status_report(stats: playlist.StreamStats):
 def encoder_task(
     file: str,
     rtmp_task: subprocess.Popen,
-    stats: playlist.StreamStats,
+    stats: StreamStats,
     play_index=None,
     skip_time=0,
 ):
@@ -507,7 +508,7 @@ def main():
     instant_restarted: bool = False
     media_playlist = playlist.create_playlist()
     media_playlist_length = len(media_playlist)
-    stats = playlist.StreamStats()
+    stats = StreamStats()
     total_elapsed_time = 0
 
     # Start RTMP broadcast task, to be stopped when total_elapsed_time

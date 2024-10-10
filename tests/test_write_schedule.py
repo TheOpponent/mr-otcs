@@ -6,8 +6,9 @@ def test_write_schedule(monkeypatch):
     import math
 
     import config
-    from playlist import PlaylistTestEntry, StreamStats, write_schedule
-
+    from playlist import PlaylistTestEntry, write_schedule
+    from streamstats import StreamStats
+    
     stats = StreamStats()
 
     config.STREAM_URL = "localhost"
