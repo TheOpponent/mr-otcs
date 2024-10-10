@@ -254,7 +254,7 @@ def generate_status_report(stats: StreamStats):
     +f"Stream uptime rate: {round((program_runtime - stats.stream_downtime) / program_runtime * 100,2)}%"
 
     if len(stats.exceptions) > 0:
-        message += f"\n\n{stats.exceptions} stream errors since last report:\n"
+        message += f"\n\n{len(stats.exceptions)} stream errors since last report:\n"
         for i in stats.exceptions:
             message += f"{i[1].strftime('%Y-%m-%d %H:%M:%S')} - {type(i[0]).__name__}: {str(i[0])}\n"
 
