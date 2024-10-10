@@ -149,3 +149,7 @@ class StreamStats:
         self.last_connection_check = datetime.datetime.now(
             datetime.timezone.utc
         ) - datetime.timedelta(seconds=config.CHECK_INTERVAL)
+
+
+if __name__ == "__main__":
+    print("Run python3 main.py to start this program.")
