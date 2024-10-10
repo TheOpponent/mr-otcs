@@ -46,10 +46,10 @@ class StreamStats:
     """
 
     stream_time_remaining: int
-    "Seconds before automatic stream restart."
+    """Seconds before automatic stream restart."""
 
     video_resume_point: int
-    """If video encoding is aborted, this is set to elapsed_time. This is the
+    """If video encoding is aborted, this is set to `elapsed_time`. This is the
     earliest time the video will be allowed to start from. After successful
     encoding, this is set to 0.
     """
@@ -61,7 +61,7 @@ class StreamStats:
 
     schedule_future: futures.Future
     """A Future for the `write_schedule()` function, to ensure only one schedule
-    is written at a time. If a write_schedule does not complete before the
+    is written at a time. If a `write_schedule` does not complete before the
     next video in the playlist starts, the current future is cancelled.
     """
 
@@ -77,13 +77,13 @@ class StreamStats:
     """The most recent version available since the last version check."""
 
     next_version_check: datetime.datetime
-    """Time for the next version check."""
+    """Time for the next version check, in UTC."""
 
     version_check_future: futures.Future
     """A Future for the `check_new_version()` function."""
 
     next_status_report: datetime.datetime
-    """Time for the next status report to be generated."""
+    """Time for the next status report to be generated, in UTC."""
 
     restarts: int
     """Number of times the stream restarted normally, including stream
@@ -102,7 +102,7 @@ class StreamStats:
     exceptions: list[tuple[Exception, datetime.datetime]]
     """A list of exceptions caught by the program during the main loop.
     This is a list containing tuples of the exception and the time
-    they occurred.
+    it occurred.
     """
 
     last_exception_time: datetime.datetime
@@ -148,7 +148,7 @@ class StreamStats:
         self.last_exception_time = current_time
 
     def rewind(self, time):
-        """Subtract this many seconds from elapsed_time, without going
+        """Subtract this many seconds from `elapsed_time`, without going
         below 0.
         """
 
@@ -161,7 +161,7 @@ class StreamStats:
 
     def force_connection_check(self):
         """Set the last connection check time to the current time,
-        minus config.CHECK_INTERVAL, to force the next connection
+        minus `config.CHECK_INTERVAL`, to force the next connection
         check to take place immediately.
         """
 
