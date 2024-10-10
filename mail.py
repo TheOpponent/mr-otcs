@@ -29,8 +29,9 @@ class EMailDaemon:
         self.to_address = config.MAIL_TO_ADDRESS
         self.use_ssl = config.MAIL_USE_SSL
         self.use_starttls = config.MAIL_USE_STARTTLS
-        if self.use_ssl or self.use_starttls:
-            self.ssl_context = ssl.create_default_context()
+        self.ssl_context = (
+            ssl.create_default_context() if self.use_ssl or self.use_starttls else None
+        )
         self.retries = 3
         self.retry_delay = 5
         self.queue = queue.PriorityQueue(maxsize=10)
