@@ -240,7 +240,7 @@ def generate_status_report(stats: StreamStats):
     current_time = datetime.datetime.now(datetime.timezone.utc)
     program_runtime = (current_time - stats.program_start_time).total_seconds()
 
-    message += f"Report generated on: {current_time}\n"
+    message += f"Report generated on: {current_time.astimezone()}\n"
     +f"Mr. OTCS version: {config.SCRIPT_VERSION}\n\n"
     +f"Program started: {stats.program_start_time}\n"
     +f"Program runtime: {int_to_total_time(program_runtime)}\n"
@@ -253,10 +253,10 @@ def generate_status_report(stats: StreamStats):
     +f"Stream downtime: {int_to_total_time(stats.stream_downtime)}\n"
     +f"Stream uptime rate: {round((program_runtime - stats.stream_downtime) / program_runtime * 100,2)}%"
 
-    if len(stats.exceptions) > 0:
-        message += f"\n\n{len(stats.exceptions)} stream errors since last report:\n"
-        for i in stats.exceptions:
-            message += f"{i[1].strftime('%Y-%m-%d %H:%M:%S')} - {type(i[0]).__name__}: {str(i[0])}\n"
+    if (exception_count := len(stats.exceptions)) > 0:
+        message += f"\n\n{exception_count} stream errors since last report:\n" if exception_count > 1 else "\n\n1 stream error since last report:\n"
+        for exc, timestamp in stats.exceptions:
+            message += f"{timestamp.strftime('%Y-%m-%d %H:%M:%S')} - {type(exc).__name__}: {str(exc)}\n"
 
         stats.exceptions = []
 
