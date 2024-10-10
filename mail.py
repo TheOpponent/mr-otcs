@@ -260,6 +260,9 @@ class EMailDaemon:
             msg.attach(MIMEText(body, "plain"))
 
             if not urgent:
+                print2("verbose", f"Adding e-mail alert type {alert_type} with priority {priority} to queue:")
+                print2("verbose", f"Subject: [{config.MAIL_PROGRAM_NAME}] {subject}")
+                print2("verbose", body)
                 try:
                     with self._lock:
                         self.queue.put_nowait(
@@ -273,6 +276,9 @@ class EMailDaemon:
                         f"E-mail alert queue is full. Message \"{msg['Subject']}\" discarded.",
                     )
             else:
+                print2("verbose", f"Sending urgent e-mail alert type {alert_type}:")
+                print2("verbose", f"Subject: [{config.MAIL_PROGRAM_NAME}] {subject}")
+                print2("verbose", body)
                 with self._lock:
                     sent = self._send_email(msg)
                     if sent:
