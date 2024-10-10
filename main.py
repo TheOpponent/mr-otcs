@@ -251,7 +251,7 @@ def generate_status_report(stats: StreamStats):
     +f"Stream restarts: {stats.restarts}\n"
     +f"Stream errors: {stats.retries}\n"
     +f"Stream downtime: {int_to_total_time(stats.stream_downtime)}\n"
-    +f"Stream uptime rate: {round((program_runtime - stats.stream_downtime) / program_runtime)}%"
+    +f"Stream uptime rate: {round((program_runtime - stats.stream_downtime) / program_runtime * 100,2)}%"
 
     if len(stats.exceptions) > 0:
         message += f"\n\n{stats.exceptions} stream errors since last report:\n"
