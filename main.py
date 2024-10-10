@@ -477,8 +477,14 @@ def stop_stream(executor, restart=True):
 
 def int_to_time(seconds):
     """Returns a time string containing hours, minutes, and seconds
-    from an amount of seconds.
+    from an amount of seconds, in the format H:MM:SS. The argument
+    can be an int, float, or `datetime.timedelta` object.
     """
+
+    if isinstance(seconds, datetime.timedelta):
+        seconds = seconds.total_seconds()
+    elif not isinstance(seconds, (int, float)):
+        raise ValueError("Not an int, float, or datetime.timedelta object")
 
     hr, min = divmod(seconds, 3600)
     min, sec = divmod(min, 60)
@@ -488,8 +494,14 @@ def int_to_time(seconds):
 
 def int_to_total_time(seconds):
     """Returns a plain time string containing days, hours, minutes, and
-    seconds from an amount of seconds.
+    seconds from an amount of seconds. The argument can be an int,
+    float, or `datetime.timedelta` object.
     """
+
+    if isinstance(seconds, datetime.timedelta):
+        seconds = seconds.total_seconds()
+    elif not isinstance(seconds, (int, float)):
+        raise ValueError("Not an int, float, or datetime.timedelta object")
 
     if seconds < 1:
         return "less than a second"
@@ -648,10 +660,8 @@ def main():
                         play_index += 1
                         stop_stream(executor, restart=False)
                         total_time = int_to_total_time(
-                            (
-                                datetime.datetime.now(datetime.timezone.utc)
-                                - stats.program_start_time
-                            ).total_seconds()
+                            datetime.datetime.now(datetime.timezone.utc)
+                            - stats.program_start_time
                         )
                         write_play_history(f"Stream ended after {total_time}.")
                         print2(
@@ -809,10 +819,8 @@ def main():
                         play_index += 1
                         stop_stream(executor, restart=False)
                         total_time = int_to_total_time(
-                            (
-                                datetime.datetime.now(datetime.timezone.utc)
-                                - stats.program_start_time
-                            ).total_seconds()
+                            datetime.datetime.now(datetime.timezone.utc)
+                            - stats.program_start_time
                         )
                         write_play_history(f"Stream ended after {total_time}.")
                         print2(
@@ -1264,10 +1272,8 @@ def main():
                 print2("notice", "Exiting Mr. OTCS. Stopping RTMP process.")
                 stop_stream(executor, restart=False)
                 total_time = int_to_total_time(
-                    (
-                        datetime.datetime.now(datetime.timezone.utc)
-                        - stats.program_start_time
-                    ).total_seconds()
+                    datetime.datetime.now(datetime.timezone.utc)
+                    - stats.program_start_time
                 )
                 write_play_history(f"Stream ended after {total_time}.")
                 print2(
@@ -1283,10 +1289,7 @@ def main():
         except Exception as e:
             stop_stream(executor, restart=False)
             total_time = int_to_total_time(
-                (
-                    datetime.datetime.now(datetime.timezone.utc)
-                    - stats.program_start_time
-                ).total_seconds()
+                datetime.datetime.now(datetime.timezone.utc) - stats.program_start_time
             )
             if (
                 stats.mail_daemon is not None
