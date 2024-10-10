@@ -95,8 +95,19 @@ class StreamStats:
     restarted.
     """
 
+    stream_downtime: int
+    """Time in seconds that stream errors have caused downtime."""
+
     exceptions: list[tuple[Exception, datetime.datetime]]
-    """A list of exceptions caught by the program during the main loop."""
+    """A list of exceptions caught by the program during the main loop.
+    This is a list containing tuples of the exception and the time
+    they occurred.
+    """
+
+    last_exception_time: datetime.datetime
+    """The time the most recent exception that caused a stream restart
+    took place.
+    """
 
     def __init__(self):
         self.recent_playlist = deque()
@@ -127,7 +138,9 @@ class StreamStats:
         self.status_report_wait = config.MAIL_ALERT_STATUS_REPORT * 86400
         self.restarts = 0
         self.retries = 0
+        self.stream_downtime = 0
         self.exceptions = []
+        self.last_exception_time = datetime.datetime.now(datetime.timezone.utc)
 
     def rewind(self, time):
         """Subtract this many seconds from elapsed_time, without going below
@@ -149,6 +162,14 @@ class StreamStats:
         self.last_connection_check = datetime.datetime.now(
             datetime.timezone.utc
         ) - datetime.timedelta(seconds=config.CHECK_INTERVAL)
+
+    def update_stream_downtime(self):
+        """Add the time between the last exception time and now to the
+        stream downtime stat."""
+
+        self.stream_downtime += (
+            datetime.datetime.now(datetime.timezone.utc) - self.last_exception_time
+        ).total_seconds()
 
 
 if __name__ == "__main__":

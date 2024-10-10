@@ -230,20 +230,23 @@ def generate_status_report(stats: StreamStats):
 
     message = ""
     current_time = datetime.datetime.now(datetime.timezone.utc)
+    program_runtime = (current_time - stats.program_start_time).total_seconds()
 
     message += f"Report generated on: {current_time}\n"
     +f"Mr. OTCS version: {config.SCRIPT_VERSION}\n\n"
     +f"Program started: {stats.program_start_time}\n"
-    +f"Program runtime: {int_to_total_time((current_time - stats.program_start_time).total_seconds())}\n"
+    +f"Program runtime: {int_to_total_time(program_runtime)}\n"
     +f"Current stream started: {stats.stream_start_time}\n"
-    +f"Current stream duration: {int_to_total_time((current_time - stats.stream_start_time).total_seconds())}\n"
+    +f"Current stream duration: {int_to_time((current_time - stats.stream_start_time).total_seconds())}\n"
     +f"Number of videos played since last stream restart: {stats.videos_since_restart}\n"
     +f"Total number of videos played: {stats.total_videos}\n\n"
     +f"Stream restarts: {stats.restarts}\n"
-    +f"Stream errors: {stats.retries}\n\n"
+    +f"Stream errors: {stats.retries}\n"
+    +f"Stream downtime: {int_to_total_time(stats.stream_downtime)}\n"
+    +f"Stream uptime rate: {round((program_runtime - stats.stream_downtime) / program_runtime)}%"
 
     if len(stats.exceptions) > 0:
-        message += f"\n{stats.exceptions} stream errors since last report:\n"
+        message += f"\n\n{stats.exceptions} stream errors since last report:\n"
         for i in stats.exceptions:
             message += f"{i[1].strftime('%Y-%m-%d %H:%M:%S')} - {type(i[0]).__name__}: {str(i[0])}\n"
 
@@ -1025,6 +1028,7 @@ def main():
                                         exception=stats.mail_daemon.last_exception,
                                         exception_time=stats.mail_daemon.last_exception_time,
                                     )
+                                    stats.update_stream_downtime()
 
                             print2("info", "Encoding started.")
                             encoder_result = encoder_task(
@@ -1168,6 +1172,7 @@ def main():
             print2("error", f"{type(e).__name__}: {str(e)}")
             write_play_history(f"Stream stopped due to exception: {type(e).__name__}: {str(e)}")
             stats.exceptions.append((e, datetime.datetime.now()))
+            stats.last_exception_time(datetime.datetime.now(datetime.timezone.utc))
 
             # Do not send an e-mail on connection check failure.
             if (
