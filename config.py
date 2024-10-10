@@ -79,6 +79,7 @@ ini_defaults = {
         "MAIL_PASSWORD": "",
         "MAIL_FROM_ADDRESS": "",
         "MAIL_TO_ADDRESS": "",
+        "MAIL_PROGRAM_NAME": "Mr. OTCS",
         "MAIL_ALERT_ON_STREAM_DOWN": True,
         "MAIL_ALERT_ON_STREAM_RESUME": True,
         "MAIL_ALERT_ON_STREAM_COMMAND": True,
