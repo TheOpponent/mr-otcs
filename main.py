@@ -28,8 +28,10 @@ from config import print2
 
 
 class BackgroundProcessError(Exception):
-    """Raised when the background process closes prematurely for any reason.
-    This exception is meant to be caught and used to restart the process."""
+    """Raised when the background process closes prematurely for any
+    reason. This exception is meant to be caught and used to restart
+    the process.
+    """
 
     pass
 
@@ -95,14 +97,16 @@ def rtmp_task(stats: StreamStats) -> subprocess.Popen:
 
 
 def _check_connection(stats: StreamStats, skip=False, exception=True):
-    """Check internet connection to links in config.CHECK_URL, tried in random
-    order. Returns True if the request succeeds. If skip is true, this always
-    returns True.
+    """Check internet connection to links in `config.CHECK_URL`, tried
+    in random order.
 
-    The connection check fails if the first link attempted times out when
-    config.CHECK_STRICT is true, or if all links time out when it is false.
-    If exception is true, ConnectionCheckError is raised. Otherwise, returns
-    False.
+    Returns True if the request succeeds. If `skip` is True, this
+    function always returns True.
+
+    The connection check fails if the first link attempted times out
+    when `config.CHECK_STRICT` is true, or if all links time out when
+    it is false. If `exception` is true, `ConnectionCheckError` is
+    raised. Otherwise, returns False.
     """
 
     if skip:
@@ -145,10 +149,11 @@ def check_connection_block(stats: StreamStats, skip=False, exception=True):
 def check_new_version(
     stats: StreamStats, skip=False
 ) -> Union[Dict[str, int], None, bool]:
-    """Periodically check for a new version of Mr. OTCS. If no new version
-    is available, returns None. If an error occurs when checking for a new
-    version, returns False. If a new version is available, returns a
-    dictionary containing the following keys:
+    """Periodically check for a new version of Mr. OTCS.
+
+    If no new version is available, returns None. If an error occurs
+    when checking for a new version, returns False. If a new version
+    is available, returns a dictionary containing the following keys:
 
     - \"new_version_name\": The release name.
     - \"new_version_prerelease\": True if the release is marked as a prerelease, False otherwise.
@@ -181,7 +186,10 @@ def check_new_version(
                     latest_url = release["html_url"]
                     break
         else:
-            print2("warn", f"Failed to check latest version: {response.status_code} {response.reason}")
+            print2(
+                "warn",
+                f"Failed to check latest version: {response.status_code} {response.reason}",
+            )
             return False
 
         if (
@@ -206,7 +214,7 @@ def check_new_version(
     except requests.exceptions.RequestException as e:
         print2("warn", f"Failed to check latest version: {type(e).__name__}: {str(e)}")
         return False
-    
+
     # Always write version.json even if no new version is available, in the
     # event that a pre-release is available but the user does not request
     # updates for them.
@@ -225,7 +233,7 @@ def check_new_version(
 
 def generate_status_report(stats: StreamStats):
     """Create a regular status report based on information in a
-    StreamStats object, and add it to the e-mail daemon queue.
+    `StreamStats` object, and add it to the e-mail daemon queue.
     """
 
     message = ""
@@ -263,6 +271,7 @@ def encoder_task(
     skip_time=0,
 ):
     """Task for encoding a video file from a playlist.
+
     Monitors the RTMP process id. If it is not running, or if the encoder
     process exits with a non-zero code, returns False. Otherwise, returns
     True.
@@ -365,7 +374,8 @@ def encoder_task(
                                 f"New Mr. OTCS version available: {new_version_info['new_version_name']}",
                             )
                             print2(
-                                "notice", f"Download: {new_version_info['new_version_url']}"
+                                "notice",
+                                f"Download: {new_version_info['new_version_url']}",
                             )
                             if (
                                 stats.mail_daemon is not None
@@ -417,8 +427,9 @@ def encoder_task(
 
 
 def write_play_history(message):
-    """Write history of played video files and timestamps,
-    limited to PLAY_HISTORY_LENGTH."""
+    """Write history of played video files and timestamps, limited to
+    `config.PLAY_HISTORY_LENGTH`.
+    """
 
     if config.PLAY_HISTORY_FILE is None:
         return
@@ -446,7 +457,9 @@ def write_play_history(message):
 
 
 def stop_stream(executor, restart=True):
-    """Terminate old RTMP process(es), stop the executor, and make a new executor."""
+    """Terminate old RTMP process(es), stop the executor, and make a
+    new executor.
+    """
 
     command = shlex.split(f"{config.RTMP_STREAMER_PATH} {config.RTMP_ARGUMENTS}")
     for proc in psutil.process_iter(["cmdline"]):
@@ -464,7 +477,8 @@ def stop_stream(executor, restart=True):
 
 def int_to_time(seconds):
     """Returns a time string containing hours, minutes, and seconds
-    from an amount of seconds."""
+    from an amount of seconds.
+    """
 
     hr, min = divmod(seconds, 3600)
     min, sec = divmod(min, 60)
@@ -474,7 +488,8 @@ def int_to_time(seconds):
 
 def int_to_total_time(seconds):
     """Returns a plain time string containing days, hours, minutes, and
-    seconds from an amount of seconds."""
+    seconds from an amount of seconds.
+    """
 
     if seconds < 1:
         return "less than a second"
@@ -498,7 +513,8 @@ def int_to_total_time(seconds):
 
 def kill_media_player():
     """Attempt to terminate remaining processes with command line
-    defined in config.MEDIA_PLAYER_PATH."""
+    defined in `config.MEDIA_PLAYER_PATH`.
+    """
 
     for proc in psutil.process_iter(["cmdline"]):
         if config.MEDIA_PLAYER_PATH in proc.info["cmdline"]:
@@ -1170,7 +1186,9 @@ def main():
             # if it advanced past one rewind interval since last encode,
             # and attempt to restart the stream.
             print2("error", f"{type(e).__name__}: {str(e)}")
-            write_play_history(f"Stream stopped due to exception: {type(e).__name__}: {str(e)}")
+            write_play_history(
+                f"Stream stopped due to exception: {type(e).__name__}: {str(e)}"
+            )
             stats.exceptions.append((e, datetime.datetime.now()))
             stats.last_exception_time(datetime.datetime.now(datetime.timezone.utc))
 
@@ -1283,10 +1301,15 @@ def main():
                     total_time=total_time,
                 )
             stats.mail_daemon.stop()
-            write_play_history(f"Stream stopped due to exception: {type(e).__name__}: {str(e)}")
+            write_play_history(
+                f"Stream stopped due to exception: {type(e).__name__}: {str(e)}"
+            )
             write_play_history(f"Stream ended after {total_time}.")
             kill_media_player()
-            print2("fatal", f"Fatal error encountered: {type(e).__name__}: {str(e)}. Terminating stream.")
+            print2(
+                "fatal",
+                f"Fatal error encountered: {type(e).__name__}: {str(e)}. Terminating stream.",
+            )
             print2("notice", f"Mr. OTCS ran for {total_time}.")
             if os.name == "posix":
                 os.system("stty sane")

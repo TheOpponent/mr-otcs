@@ -1,4 +1,4 @@
-# Functions and variables for reading INI files.
+"""Functions and variables for reading INI files."""
 
 import datetime
 import json
@@ -432,7 +432,7 @@ else:
 
 
 def print2(level: str, message: str):
-    """Prepend a colored label with a standard print message."""
+    """Prepend a colored label to a standard print message."""
 
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 

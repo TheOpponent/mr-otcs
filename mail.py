@@ -20,6 +20,9 @@ class PrioritizedItem:
 
 
 class EMailDaemon:
+    """A daemon that receives notification messages and queues them for
+    sending as e-mail alerts."""
+
     def __init__(self):
         self.smtp_server = config.MAIL_SERVER
         self.smtp_port = config.MAIL_PORT
@@ -159,7 +162,16 @@ class EMailDaemon:
         `alert_type` was sent.
 
         If `urgent` is True, the e-mail is sent immediately, bypassing
-        the queue and blocking execution until it is sent."""
+        the queue and blocking execution until it is sent.
+        
+        For playlist-related messages, the keyword argument `line_num`
+        can be given a number.
+
+        For exception-related messages, the keyword arguments
+        `exception` and `exception_time` can be given an Exception
+        object and a datetime object respectively. The keyword argument
+        `total_time` can be given a string.
+        """
 
         if not self.running:
             print2("verbose", f"Alert {alert_type} not sent: Mail alerts are disabled.")

@@ -1,4 +1,4 @@
-# Functions for handling the playlist and schedule files.
+"""Functions for handling the playlist and schedule files."""
 
 import datetime
 import errno
@@ -23,28 +23,28 @@ class PlaylistEntry:
     """Definition for playlist entries, parsed from a list or text file
     containing formatted playlist entry strings.
 
-    A PlaylistEntry can be one of these types:
-    "normal": Contains a path to a video file.
-    "extra": A comment to be printed in the schedule page.
-    "command": A directive to control the stream.
-    "blank": A blank line in the playlist file, to keep line numbers aligned.
+    A `PlaylistEntry` can be one of these types:
+    - "normal": Contains a path to a video file.
+    - "extra": A comment to be printed in the schedule page.
+    - "command": A directive to control the stream.
+    - "blank": A blank line in the playlist file, to keep line numbers aligned.
 
     The commands currently include:
-    %RESTART: Force the stream to restart. The video files defined in
-    config.STREAM_RESTART_BEFORE_VIDEO and config.STREAM_RESTART_AFTER_VIDEO,
+    - `%RESTART`: Force the stream to restart. The video files defined in
+    - `config.STREAM_RESTART_BEFORE_VIDEO` and `config.STREAM_RESTART_AFTER_VIDEO`,
     if any, will play before and after the restart.
-    %INSTANTRESTART: Similar to %RESTART, but the above optional videos will
+    - `%INSTANT_RESTART`: Similar to `%RESTART`, but the above optional videos will
     not play.
-    %MAIL: Add a mail alert with the included message.
-    %STOP: End the stream immediately. The play_index will be incremented
+    - `%MAIL`: Add a mail alert with the included message.
+    - `%STOP`: End the stream immediately. The `play_index` will be incremented
     before exiting.
 
-    When a PlaylistEntry is created, it stores only information based on the
+    When a `PlaylistEntry` is created, it stores only information based on the
     provided string. Video files may change before they are played, so
     duration and other information is calculated only as it is played.
 
-    self.name will contain a relative path to a file name, or a blank string
-    if self.type is not "normal".
+    `self.name` will contain a relative path to a file name, or a blank string
+    if `self.type` is not "normal".
     """
 
     type: str
@@ -97,8 +97,9 @@ class PlaylistEntry:
 
 
 class PlaylistTestEntry(PlaylistEntry):
-    """A PlaylistEntry intended for use in unit tests. It has an extra
-    attribute, length, that will always be returned by get_length()."""
+    """A `PlaylistEntry` intended for use in unit tests. It has an extra
+    attribute, `length`, that will always be returned by `get_length()`.
+    """
 
     def __init__(self, entry, length=60):
         super().__init__(entry)
@@ -127,11 +128,12 @@ def get_length(video) -> int:
 
 
 def check_file(path, line_num=None, no_exit=False):
-    """Retry opening nonexistent files up to RETRY_ATTEMPTS.
+    """Retry opening nonexistent files up to `config.RETRY_ATTEMPTS`.
+
     If file is found, returns True.
-    If EXIT_ON_FILE_NOT_FOUND is True, throw exception if retry
+    If `EXIT_ON_FILE_NOT_FOUND` is True, throw exception if retry
     attempts don't succeed. If False, return False and continue.
-    no_exit overrides EXIT_ON_FILE_NOT_FOUND.
+    no_exit overrides `EXIT_ON_FILE_NOT_FOUND`.
     """
 
     if path is None:
@@ -182,10 +184,10 @@ def check_file(path, line_num=None, no_exit=False):
 
 
 def create_playlist() -> list[Tuple[int, PlaylistEntry]]:
-    """Read config.MEDIA_PLAYLIST, which is set to either the path to a text
+    """Read `config.MEDIA_PLAYLIST`, which is set to either the path to a text
     file or a list, containing a sequence of playlist entries.
 
-    Returns an enumerated list starting from 1 containing PlaylistEntry
+    Returns an enumerated list starting from 1 containing `PlaylistEntry`
     objects.
     """
 
@@ -297,43 +299,43 @@ def write_schedule(
     ignore_previous_files=False,
 ):
     """Write a JSON file containing file names and lengths read from playlist.
-    The playlist, a list created by create_playlist(), is read starting from
+    The playlist, a list created by `create_playlist()`, is read starting from
     the entry_index.
 
-    File names matching config.SCHEDULE_EXCLUDE_FILE_PATTERN are not included
+    File names matching `config.SCHEDULE_EXCLUDE_FILE_PATTERN` are not included
     in the output, but their durations are calculated and added to the next
     eligible entry.
 
-    first_length_offset is the starting time of the currently playing video,
+    `first_length_offset` is the starting time of the currently playing video,
     if it did not start from the beginning.
 
-    stream_time_remaining is used to predict time-based automatic stream
+    `stream_time_remaining` is used to predict time-based automatic stream
     restarts. The calculated length of the first video in the sliced
     playlist is subtracted from this amount.
 
-    Any PlaylistEntry objects in the extra_entries list will be added
+    Any `PlaylistEntry` objects in the `extra_entries` list will be added
     before the first video in the generated JSON. Only "extra" type entries
     are currently supported; all others are ignored.
 
     The JSON file includes the following keys:
-    program_start_time: The time this program began, in UTC.
-    start_time: The time this function was called, which approximates
+    - `program_start_time`: The time this program began, in UTC.
+    - `start_time`: The time this function was called, which approximates
     to the time the currently playing video file began, in UTC.
-    coming_up_next: Nested JSON objects with a combined duration not
-    exceeding SCHEDULE_MAX_VIDEOS or SCHEDULE_UPCOMING_LENGTH.
+    - `coming_up_next`: Nested JSON objects with a combined duration not
+    exceeding `config.SCHEDULE_MAX_VIDEOS` or `config.SCHEDULE_UPCOMING_LENGTH`.
     previous_files: Nested JSON objects popped from a deque containing the
-    coming_up_next objects.
-    script_version: The current script version.
+    `coming_up_next` objects.
+    - `script_version`: The current script version.
 
-    The coming_up_next objects have the following keys:
-    type: Either "normal" or "extra".
-    name: The video name for normal entries, a blank string for extra entries.
-    time: Approximate time this video started, in UTC, formatted as a string.
-    unixtime: Approximate time this video started as a Unix timestamp.
-    length: Length of the video in seconds, including VIDEO_PADDING.
-    extra_info: The string from the PlaylistEntry .info attribute.
+    The `coming_up_next` objects have the following keys:
+    - `type`: Either "normal" or "extra".
+    - `name`: The video name for normal entries, a blank string for extra entries.
+    - `time`: Approximate time this video started, in UTC, formatted as a string.
+    - `unixtime`: Approximate time this video started as a Unix timestamp.
+    length: Length of the video in seconds, including `config.VIDEO_PADDING`.
+    - `extra_info`: The string from the `PlaylistEntry.info` attribute.
 
-    Note that the time and unixtime values for objects after the first are
+    Note that the `time` and `unixtime` values for objects after the first are
     estimates, due to variances in stream delivery.
     """
 
@@ -748,8 +750,8 @@ def write_schedule(
 
 @concurrent.thread
 def upload_ssh():
-    """Upload JSON file to a publicly accessible location
-    using fabric.
+    """Upload JSON file to a publicly accessible location using
+    fabric.
     """
 
     with fabric.Connection(
@@ -768,9 +770,9 @@ def upload_ssh():
 
 @concurrent.thread
 def write_index(play_index, stats):
-    """Write play_index and elapsed time to play_index.txt
-    at the period set by TIME_RECORD_INTERVAL. A StreamStats object
-    is used to track elapsed time.
+    """Write play_index and elapsed time to play_index.txt at the period set by
+    `config.TIME_RECORD_INTERVAL`. A `StreamStats` object is used to track
+    elapsed time.
     """
 
     with open(config.PLAY_INDEX_FILE, "w") as index_file:
