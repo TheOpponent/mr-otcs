@@ -925,7 +925,7 @@ def main():
                         )
                         play_index += 1
                         playlist.write_index(play_index, stats)
-                        raise ExceptionCommand
+                        raise ExceptionCommand(f"Line {play_index}")
 
                 else:
                     break
