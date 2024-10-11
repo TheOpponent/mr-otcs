@@ -6,14 +6,15 @@
 # https://github.com/TheOpponent/mr-otcs
 # https://twitter.com/TheOpponent
 
+import concurrent.futures
 import datetime
-import os
 import json
+import os
 import random
 import shlex
 import subprocess
 import time
-import concurrent.futures
+import traceback
 from typing import Dict, Union
 
 import psutil
@@ -21,10 +22,10 @@ import requests
 from pebble import ProcessExpired, ProcessPool, concurrent
 
 import config
-import playlist
-from streamstats import StreamStats
 import mail
+import playlist
 from config import print2
+from streamstats import StreamStats
 
 
 class BackgroundProcessError(Exception):
@@ -389,15 +390,19 @@ def encoder_task(
                                 f"Download: {new_version_info['new_version_url']}",
                             )
                             if all(
-                                stats.mail_daemon is not None,
-                                stats.mail_daemon.running,
-                                config.MAIL_ALERT_ON_NEW_VERSION,
                                 (
+                                    stats.mail_daemon is not None,
+                                    stats.mail_daemon.running,
+                                    config.MAIL_ALERT_ON_NEW_VERSION,
                                     (
-                                        new_version_info["new_version_prerelease"]
-                                        and config.MAIL_ALERT_ON_NEW_PRERELEASE_VERSION
-                                    )
-                                    or not new_version_info["new_version_prerelease"]
+                                        (
+                                            new_version_info["new_version_prerelease"]
+                                            and config.MAIL_ALERT_ON_NEW_PRERELEASE_VERSION
+                                        )
+                                        or not new_version_info[
+                                            "new_version_prerelease"
+                                        ]
+                                    ),
                                 ),
                             ):
                                 stats.mail_daemon.add_alert(
@@ -1113,7 +1118,9 @@ def main():
                                         f"Incrementing play index: {play_index}",
                                     )
 
-                                with open(config.PLAY_INDEX_FILE, "w", encoding="utf-8") as index_file:
+                                with open(
+                                    config.PLAY_INDEX_FILE, "w", encoding="utf-8"
+                                ) as index_file:
                                     index_file.write(str(play_index) + "\n0")
 
                                 break
@@ -1196,7 +1203,9 @@ def main():
                         play_index += 1
                         print2("verbose", f"Incrementing play index: {play_index}")
 
-                    with open(config.PLAY_INDEX_FILE, "w", encoding="utf-8") as index_file:
+                    with open(
+                        config.PLAY_INDEX_FILE, "w", encoding="utf-8"
+                    ) as index_file:
                         index_file.write(str(play_index) + "\n0")
 
                     continue
@@ -1319,6 +1328,7 @@ def main():
                     "program_error",
                     exception=e,
                     exception_time=datetime.datetime.now(),
+                    traceback=traceback.format_exc(),
                     urgent=True,
                     total_time=total_time,
                 )

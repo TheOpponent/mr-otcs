@@ -200,8 +200,9 @@ class EMailDaemon:
         can be given a number.
 
         For exception-related messages, the keyword arguments
-        `exception` and `exception_time` can be given an Exception
-        object and a datetime object respectively. The keyword argument
+        `exception`, `exception_time`, and `traceback` can be given an
+        Exception object, a datetime object, and a string containing
+        traceback information respectively. The keyword argument
         `total_time` can be given a string.
         """
 
@@ -216,8 +217,10 @@ class EMailDaemon:
 
         if exception := kwargs.get("exception"):
             exception_string = f"{type(exception).__name__}: {str(exception)}"
+            traceback_string = kwargs.get("traceback", "")
         else:
             exception_string = ""
+            traceback_string = ""
         if exception_time := kwargs.get("exception_time"):
             exception_time = kwargs.get("exception_time").strftime("%Y-%m-%d %H:%M:%S")
 
@@ -243,7 +246,8 @@ class EMailDaemon:
             "program_error": (
                 0,
                 "Program error",
-                f"Mr. OTCS exited at {exception_time} due to an unrecoverable error: {exception_string}\n\nMr. OTCS ran for {total_time}.",
+                f"Mr. OTCS exited at {exception_time} due to an unrecoverable error: {exception_string}\n\nMr. OTCS ran for {total_time}."
+                + f"\n\n{traceback_string}" if traceback_string != "" else "",
             ),
             "playlist_loop": (
                 10,
