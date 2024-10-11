@@ -1218,7 +1218,7 @@ def main():
                 f"Stream stopped due to exception: {type(e).__name__}: {str(e)}"
             )
             stats.exceptions.append((e, datetime.datetime.now()))
-            stats.last_exception_time(datetime.datetime.now(datetime.timezone.utc))
+            stats.last_exception_time = datetime.datetime.now(datetime.timezone.utc)
 
             # Do not send an e-mail on connection check failure.
             if (
