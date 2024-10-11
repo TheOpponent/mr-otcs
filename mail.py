@@ -1,16 +1,16 @@
+import datetime
+import queue
+import smtplib
+import ssl
 import threading
 import time
-import ssl
-import smtplib
-import datetime
-from email.mime.text import MIMEText
+from dataclasses import dataclass, field
 from email.mime.multipart import MIMEMultipart
-import queue
+from email.mime.text import MIMEText
+from typing import Any
 
 import config
 from config import print2
-from dataclasses import dataclass, field
-from typing import Any
 
 
 @dataclass(order=True)
@@ -99,13 +99,15 @@ class EMailDaemon:
         except Exception as e:
             raise e
 
-    def _send_email_if_allowed(self, msg: MIMEMultipart, alert_type: str, bypass_interval: bool):
+    def _send_email_if_allowed(
+        self, msg: MIMEMultipart, alert_type: str, bypass_interval: bool
+    ):
         """Sends an e-mail message.
-        
+
         Messages of a given type are sent only once every 60 minutes
         and further messages of the same type within that period are
         discarded, unless `bypass_interval` is True. Returns True if
-        the message is sent successfully or was discarded for that 
+        the message is sent successfully or was discarded for that
         reason, False otherwise.
         """
 

@@ -33,19 +33,13 @@ class BackgroundProcessError(Exception):
     the process.
     """
 
-    pass
-
 
 class ConnectionCheckError(Exception):
     """Raised when the connection check fails."""
 
-    pass
-
 
 class ExceptionCommand(BackgroundProcessError):
     """A manual %EXCEPTION command in the playlist."""
-
-    pass
 
 
 def rtmp_task(stats: StreamStats) -> subprocess.Popen:
@@ -75,7 +69,7 @@ def rtmp_task(stats: StreamStats) -> subprocess.Popen:
 
     try:
         if config.RTMP_STREAMER_LOG is not None:
-            with open(config.RTMP_STREAMER_LOG, "a") as log:
+            with open(config.RTMP_STREAMER_LOG, "a", encoding="utf-8") as log:
                 process = subprocess.Popen(command, stdout=log, stderr=log, text=True)
         else:
             process = subprocess.Popen(
@@ -116,7 +110,7 @@ def _check_connection(stats: StreamStats, skip=False, exception=True):
                     stats.force_connection_check()
                     raise ConnectionCheckError(
                         f"Could not establish connection to {link}: {e}"
-                    )
+                    ) from e
                 else:
                     return False
             else:
@@ -181,7 +175,7 @@ def check_new_version(
     url = "https://api.github.com/repos/theopponent/mr-otcs/releases"
 
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=5)
         if response.status_code == 200:
             version_json = response.json()
             latest_version = None
@@ -233,7 +227,7 @@ def check_new_version(
     json_output = {"version": latest_version, "prerelease": latest_prerelease}
 
     try:
-        with open("version.json", "w") as version_file:
+        with open("version.json", "w", encoding="utf-8") as version_file:
             json.dump(json_output, version_file)
     except OSError as e:
         print2("error", "Unable to write version.json: " + e)
@@ -252,18 +246,20 @@ def generate_status_report(stats: StreamStats):
     current_time = datetime.datetime.now(datetime.timezone.utc)
     program_runtime = (current_time - stats.program_start_time).total_seconds()
 
-    message += f"Report generated on: {current_time.astimezone()}\n"
-    +f"Mr. OTCS version: {config.SCRIPT_VERSION}\n\n"
-    +f"Program started: {stats.program_start_time}\n"
-    +f"Program runtime: {int_to_total_time(program_runtime)}\n"
-    +f"Current stream started: {stats.stream_start_time}\n"
-    +f"Current stream duration: {int_to_time((current_time - stats.stream_start_time).total_seconds())}\n"
-    +f"Number of videos played since last stream restart: {stats.videos_since_restart}\n"
-    +f"Total number of videos played: {stats.total_videos}\n\n"
-    +f"Stream restarts: {stats.restarts}\n"
-    +f"Stream errors: {stats.retries}\n"
-    +f"Stream downtime: {int_to_total_time(stats.stream_downtime)}\n"
-    +f"Stream uptime rate: {round((program_runtime - stats.stream_downtime) / program_runtime * 100,2)}%"
+    message += (
+        f"Report generated on: {current_time.astimezone()}\n"
+        + f"Mr. OTCS version: {config.SCRIPT_VERSION}\n\n"
+        + f"Program started: {stats.program_start_time}\n"
+        + f"Program runtime: {int_to_total_time(program_runtime)}\n"
+        + f"Current stream started: {stats.stream_start_time}\n"
+        + f"Current stream duration: {int_to_time((current_time - stats.stream_start_time).total_seconds())}\n"
+        + f"Number of videos played since last stream restart: {stats.videos_since_restart}\n"
+        + f"Total number of videos played: {stats.total_videos}\n\n"
+        + f"Stream restarts: {stats.restarts}\n"
+        + f"Stream errors: {stats.retries}\n"
+        + f"Stream downtime: {int_to_total_time(stats.stream_downtime)}\n"
+        + f"Stream uptime rate: {round((program_runtime - stats.stream_downtime) / program_runtime * 100,2)}%"
+    )
 
     if (exception_count := len(stats.exceptions)) > 0:
         message += (
@@ -326,7 +322,7 @@ def encoder_task(
 
     try:
         if config.MEDIA_PLAYER_LOG is not None:
-            with open(config.MEDIA_PLAYER_LOG, "a") as log:
+            with open(config.MEDIA_PLAYER_LOG, "a", encoding="utf-8") as log:
                 process = subprocess.Popen(command, stdout=log, stderr=log, text=True)
         else:
             process = subprocess.Popen(
@@ -392,21 +388,24 @@ def encoder_task(
                                 "notice",
                                 f"Download: {new_version_info['new_version_url']}",
                             )
-                            if (
-                                stats.mail_daemon is not None
-                                and stats.mail_daemon.running
-                                and config.MAIL_ALERT_ON_NEW_VERSION
-                            ):
-                                if (
-                                    new_version_info["new_version_prerelease"]
-                                    and config.MAIL_ALERT_ON_NEW_PRERELEASE_VERSION
-                                ) or not new_version_info["new_version_prerelease"]:
-                                    stats.mail_daemon.add_alert(
-                                        "new_version",
-                                        message=new_version_info["new_version_notes"],
-                                        version=new_version_info["new_version_name"],
-                                        url=new_version_info["new_version_url"],
+                            if all(
+                                stats.mail_daemon is not None,
+                                stats.mail_daemon.running,
+                                config.MAIL_ALERT_ON_NEW_VERSION,
+                                (
+                                    (
+                                        new_version_info["new_version_prerelease"]
+                                        and config.MAIL_ALERT_ON_NEW_PRERELEASE_VERSION
                                     )
+                                    or not new_version_info["new_version_prerelease"]
+                                ),
+                            ):
+                                stats.mail_daemon.add_alert(
+                                    "new_version",
+                                    message=new_version_info["new_version_notes"],
+                                    version=new_version_info["new_version_name"],
+                                    url=new_version_info["new_version_url"],
+                                )
                         else:
                             print2("notice", "Retrying version check in 1 hour.")
                             stats.next_version_check = datetime.datetime.now(
@@ -455,7 +454,7 @@ def write_play_history(message):
         return
 
     try:
-        with open(config.PLAY_HISTORY_FILE, "r") as play_history:
+        with open(config.PLAY_HISTORY_FILE, "r", encoding="utf-8") as play_history:
             play_history_buffer = play_history.readlines()
     except FileNotFoundError:
         play_history_buffer = []
@@ -466,7 +465,7 @@ def write_play_history(message):
         )
 
     try:
-        with open(config.PLAY_HISTORY_FILE, "w+") as play_history:
+        with open(config.PLAY_HISTORY_FILE, "w+", encoding="utf-8") as play_history:
             play_history_buffer.append(f"{datetime.datetime.now()} - {message}\n")
             play_history.writelines(play_history_buffer[-config.PLAY_HISTORY_LENGTH :])
     except OSError as e:
@@ -593,7 +592,7 @@ def main():
         stats.mail_daemon = None
 
     try:
-        with open("version.json", "r") as version_file:
+        with open("version.json", "r", encoding="utf-8") as version_file:
             version_file_json = json.load(version_file)
             stats.newest_version = version_file_json["version"]
     except (FileNotFoundError, json.JSONDecodeError):
@@ -649,14 +648,14 @@ def main():
             play_index_contents = []
 
             try:
-                with open(config.PLAY_INDEX_FILE, "r") as index_file:
+                with open(config.PLAY_INDEX_FILE, "r", encoding="utf-8") as index_file:
                     play_index_contents = index_file.readlines()
             except FileNotFoundError:
                 print2(
                     "notice",
                     f"Play index reset due to {config.PLAY_INDEX_FILE} not found. Generating new file.",
                 )
-                with open(config.PLAY_INDEX_FILE, "w+") as index_file:
+                with open(config.PLAY_INDEX_FILE, "w+", encoding="utf-8") as index_file:
                     index_file.write("0\n0")
                     play_index = 0
                     stats.elapsed_time = 0
@@ -1114,7 +1113,7 @@ def main():
                                         f"Incrementing play index: {play_index}",
                                     )
 
-                                with open(config.PLAY_INDEX_FILE, "w") as index_file:
+                                with open(config.PLAY_INDEX_FILE, "w", encoding="utf-8") as index_file:
                                     index_file.write(str(play_index) + "\n0")
 
                                 break
@@ -1197,7 +1196,7 @@ def main():
                         play_index += 1
                         print2("verbose", f"Incrementing play index: {play_index}")
 
-                    with open(config.PLAY_INDEX_FILE, "w") as index_file:
+                    with open(config.PLAY_INDEX_FILE, "w", encoding="utf-8") as index_file:
                         index_file.write(str(play_index) + "\n0")
 
                     continue
@@ -1218,7 +1217,7 @@ def main():
                 f"Stream stopped due to exception: {type(e).__name__}: {str(e)}"
             )
             stats.exceptions.append((e, datetime.datetime.now()))
-            stats.last_exception_time = datetime.datetime.now(datetime.timezone.utc)
+            stats.last_exception_time(datetime.datetime.now(datetime.timezone.utc))
 
             # Do not send an e-mail on connection check failure.
             if (
