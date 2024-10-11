@@ -51,9 +51,19 @@ class EMailDaemon:
         while self.running:
             try:
                 msg, alert_type, bypass_interval = self.queue.get(timeout=1).item
-                self._send_email_if_allowed(msg, alert_type, bypass_interval)
+                if not self._send_email_if_allowed(msg, alert_type, bypass_interval):
+                    # If an e-mail could not be sent, reinsert it into the queue with
+                    # retry priority and try again.
+                    # TODO: Implement backoff
+                    with self._lock:
+                        self.queue.put_nowait(
+                            PrioritizedItem(
+                                1, (msg, alert_type, bypass_interval)
+                            )
+                        )
             except queue.Empty:
                 pass
+
             time.sleep(1)
 
     def clear_queue(self):
@@ -82,7 +92,16 @@ class EMailDaemon:
         except Exception as e:
             raise e
 
-    def _send_email_if_allowed(self, msg, alert_type, bypass_interval):
+    def _send_email_if_allowed(self, msg: MIMEMultipart, alert_type: str, bypass_interval: bool):
+        """Sends an e-mail message.
+        
+        Messages of a given type are sent only once every 60 minutes
+        and further messages of the same type within that period are
+        discarded, unless `bypass_interval` is True. Returns True if
+        the message is sent successfully or was discarded for that 
+        reason, False otherwise.
+        """
+
         current_time = datetime.datetime.now()
 
         with self._lock:
@@ -94,15 +113,20 @@ class EMailDaemon:
                 if sent:
                     self.last_sent[alert_type] = current_time
                     time.sleep(5)
+                    return True
+                else:
+                    return False
             else:
                 print2(
                     "verbose",
                     f"Alert {alert_type} not sent: Less than 1 hour since last alert was sent ({last_sent_time.strftime('%Y-%m-%d %H:%M:%S')}).",
                 )
+                return True
 
     def _send_email(self, msg: MIMEMultipart, timeout=10):
         """Returns True if the e-mail was sent successfully, False if
-        an error occurred."""
+        an error occurred.
+        """
 
         server = None
 
