@@ -36,7 +36,8 @@ class EMailDaemon:
             ssl.create_default_context() if self.use_ssl or self.use_starttls else None
         )
         self.retries = 3
-        self.retry_delay = 5
+        self.retry_delay = 1
+        self.retry_delay_max = 128
         self.queue = queue.PriorityQueue(maxsize=10)
         self.last_sent = {}
         self._lock = threading.Lock()
@@ -51,16 +52,22 @@ class EMailDaemon:
         while self.running:
             try:
                 msg, alert_type, bypass_interval = self.queue.get(timeout=1).item
-                if not self._send_email_if_allowed(msg, alert_type, bypass_interval):
+                if self._send_email_if_allowed(msg, alert_type, bypass_interval):
+                    self.retry_delay = 1
+                else:
                     # If an e-mail could not be sent, reinsert it into the queue with
                     # retry priority and try again.
-                    # TODO: Implement backoff
+                    print2(
+                        "error",
+                        f"Message \"{msg['Subject']}\" failed to send. Retrying in {self.retry_delay} seconds.",
+                    )
                     with self._lock:
                         self.queue.put_nowait(
-                            PrioritizedItem(
-                                1, (msg, alert_type, bypass_interval)
-                            )
+                            PrioritizedItem(1, (msg, alert_type, bypass_interval))
                         )
+                    time.sleep(self.retry_delay)
+                    self.retry_delay = min(self.retry_delay * 2, self.retry_delay_max)
+                    continue
             except queue.Empty:
                 pass
 
@@ -112,13 +119,12 @@ class EMailDaemon:
                 sent = self._send_email(msg)
                 if sent:
                     self.last_sent[alert_type] = current_time
-                    time.sleep(5)
                     return True
                 else:
                     return False
             else:
                 print2(
-                    "verbose",
+                    "info",
                     f"Alert {alert_type} not sent: Less than 1 hour since last alert was sent ({last_sent_time.strftime('%Y-%m-%d %H:%M:%S')}).",
                 )
                 return True
