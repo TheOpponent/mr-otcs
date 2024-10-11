@@ -245,20 +245,21 @@ def generate_status_report(stats: StreamStats):
 
     message = ""
     current_time = datetime.datetime.now(datetime.timezone.utc)
-    program_runtime = (current_time - stats.program_start_time).total_seconds()
+    program_runtime = int((current_time - stats.program_start_time).total_seconds())
+    stream_runtime = int((current_time - stats.stream_start_time).total_seconds())
 
     message += (
-        f"Report generated on: {current_time.astimezone()}\n"
+        f"Report generated on: {current_time.astimezone().strftime('%Y-%m-%d %H:%M:%S')}\n"
         + f"Mr. OTCS version: {config.SCRIPT_VERSION}\n\n"
-        + f"Program started: {stats.program_start_time}\n"
+        + f"Program started: {stats.program_start_time.astimezone().strftime('%Y-%m-%d %H:%M:%S')}\n"
         + f"Program runtime: {int_to_total_time(program_runtime)}\n"
-        + f"Current stream started: {stats.stream_start_time}\n"
-        + f"Current stream duration: {int_to_time((current_time - stats.stream_start_time).total_seconds())}\n"
+        + f"Current stream started: {stats.stream_start_time.astimezone().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        + f"Current stream duration: {int_to_time(stream_runtime)}\n"
         + f"Number of videos played since last stream restart: {stats.videos_since_restart}\n"
         + f"Total number of videos played: {stats.total_videos}\n\n"
         + f"Stream restarts: {stats.restarts}\n"
         + f"Stream errors: {stats.retries}\n"
-        + f"Stream downtime: {int_to_total_time(stats.stream_downtime)}\n"
+        + f"Stream downtime: {int_to_total_time(stats.stream_downtime, round_down_zero=False)}\n"
         + f"Stream uptime rate: {round((program_runtime - stats.stream_downtime) / program_runtime * 100,2)}%"
     )
 
@@ -516,10 +517,13 @@ def int_to_time(seconds):
     return f"{hr}:{min:02d}:{sec:02d}"
 
 
-def int_to_total_time(seconds):
+def int_to_total_time(seconds, round_down_zero=True):
     """Returns a plain time string containing days, hours, minutes, and
     seconds from an amount of seconds. The argument can be an int,
     float, or `datetime.timedelta` object.
+
+    If `round_down_zero` is True, times of less than 1 second will be 
+    returned as "less than a second". Otherwise, returns "0 seconds".
     """
 
     if isinstance(seconds, datetime.timedelta):
@@ -528,7 +532,7 @@ def int_to_total_time(seconds):
         raise ValueError("Not an int, float, or datetime.timedelta object")
 
     if seconds < 1:
-        return "less than a second"
+        return "less than a second" if round_down_zero else "0 seconds"
 
     days, hr = divmod(int(seconds), 86400)
     hr, min = divmod(hr, 3600)
@@ -1226,7 +1230,7 @@ def main():
                 f"Stream stopped due to exception: {type(e).__name__}: {str(e)}"
             )
             stats.exceptions.append((e, datetime.datetime.now()))
-            stats.last_exception_time(datetime.datetime.now(datetime.timezone.utc))
+            stats.last_exception_time = datetime.datetime.now(datetime.timezone.utc)
 
             # Do not send an e-mail on connection check failure.
             if (
