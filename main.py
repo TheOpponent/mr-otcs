@@ -409,11 +409,15 @@ def encoder_task(
                                     )
                         else:
                             print2("notice", "Retrying version check in 1 hour.")
-                            stats.next_version_check = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
+                            stats.next_version_check = datetime.datetime.now(
+                                datetime.timezone.utc
+                            ) + datetime.timedelta(hours=1)
                     else:
                         print2("verbose", "No new version available.")
                     stats.version_check_future = None
-                    stats.next_version_check = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=config.VERSION_CHECK_INTERVAL)
+                    stats.next_version_check = datetime.datetime.now(
+                        datetime.timezone.utc
+                    ) + datetime.timedelta(days=config.VERSION_CHECK_INTERVAL)
                 elif stats.version_check_future is None:
                     stats.version_check_future = check_new_version(stats)
                     print2("verbose", "Checking for new version.")
