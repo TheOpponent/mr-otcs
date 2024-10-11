@@ -99,13 +99,15 @@ class EMailDaemon:
         except Exception as e:
             raise e
 
-    def _send_email_if_allowed(self, msg: MIMEMultipart, alert_type: str, bypass_interval: bool):
+    def _send_email_if_allowed(
+        self, msg: MIMEMultipart, alert_type: str, bypass_interval: bool
+    ):
         """Sends an e-mail message.
-        
+
         Messages of a given type are sent only once every 60 minutes
         and further messages of the same type within that period are
         discarded, unless `bypass_interval` is True. Returns True if
-        the message is sent successfully or was discarded for that 
+        the message is sent successfully or was discarded for that
         reason, False otherwise.
         """
 

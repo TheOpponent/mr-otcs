@@ -108,7 +108,7 @@ if len(sys.argv) > 1:
         default_ini.read(sys.argv[1])
     except configparser.Error as e:
         print(f"Error reading config file {sys.argv[1]}: {e}")
-        exit(1)
+        sys.exit(1)
 else:
     config_file = os.getenv("MR_OTCS_CONFIG_INI", "config.ini")
     default_ini.read_dict(ini_defaults)
@@ -252,12 +252,8 @@ else:
 
 if default_ini.get("Schedule", "SCHEDULE_EXCLUDE_FILE_PATTERN") != "":
     SCHEDULE_EXCLUDE_FILE_PATTERN = tuple(
-        [
-            i.strip().casefold().replace("\\", "/")
-            for i in default_ini.get("Schedule", "SCHEDULE_EXCLUDE_FILE_PATTERN").split(
-                ","
-            )
-        ]
+        i.strip().casefold().replace("\\", "/")
+        for i in default_ini.get("Schedule", "SCHEDULE_EXCLUDE_FILE_PATTERN").split(",")
     )
 else:
     SCHEDULE_EXCLUDE_FILE_PATTERN = None
@@ -462,12 +458,10 @@ def print2(level: str, message: str):
 
 
 # Basic validation of config file structure.
-for section in ini_defaults:
+for section, options_dict in ini_defaults.items():
     if default_ini.has_section(section):
-        for option in ini_defaults[section]:
-            if default_ini.has_option(section, option):
-                continue
-            else:
+        for option in options_dict:
+            if not default_ini.has_option(section, option):
                 print2(
                     "warn",
                     f"{config_file} is missing option {option} in [{section}] section. Using default value.",
@@ -519,7 +513,7 @@ if STREAM_RESTART_BEFORE_VIDEO is not None:
         if not EXIT_ON_FILE_NOT_FOUND:
             STREAM_RESTART_BEFORE_VIDEO = None
         else:
-            exit(1)
+            sys.exit(1)
 else:
     STREAM_RESTART_BEFORE_VIDEO = None
 
@@ -529,13 +523,13 @@ if STREAM_RESTART_AFTER_VIDEO is not None:
         if not EXIT_ON_FILE_NOT_FOUND:
             STREAM_RESTART_AFTER_VIDEO = None
         else:
-            exit(1)
+            sys.exit(1)
 else:
     STREAM_RESTART_AFTER_VIDEO = None
 
 if REMOTE_ADDRESS is not None and REMOTE_USERNAME is None:
     print2("error", "REMOTE_ADDRESS was specified, but REMOTE_USERNAME is blank.")
-    exit(1)
+    sys.exit(1)
 
 # Enforce a minimum CHECK_INTERVAL time of the number of links provided in
 # CHECK_URL times 5 seconds, and no less than 10 seconds for safety.
@@ -547,14 +541,14 @@ if CHECK_URL is not None:
 
 if SCHEDULE_MAX_VIDEOS < SCHEDULE_MIN_VIDEOS:
     print2("error", "SCHEDULE_MAX_VIDEOS is less than SCHEDULE_MIN_VIDEOS.")
-    exit(1)
+    sys.exit(1)
 
 if SCHEDULE_PREVIOUS_MAX_VIDEOS < SCHEDULE_PREVIOUS_MIN_VIDEOS:
     print2(
         "error",
         "SCHEDULE_PREVIOUS_MAX_VIDEOS is less than SCHEDULE_PREVIOUS_MIN_VIDEOS.",
     )
-    exit(1)
+    sys.exit(1)
 
 if MAIL_ENABLE:
     mail_config_error = False
@@ -630,7 +624,7 @@ if MAIL_ENABLE:
             mail_config_error = True
 
     if mail_config_error:
-        exit(1)
+        sys.exit(1)
 
 if __name__ == "__main__":
     print("Run python3 main.py to start this program.")

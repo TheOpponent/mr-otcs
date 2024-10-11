@@ -5,6 +5,7 @@ import errno
 import itertools
 import json
 import os
+import sys
 import threading
 import time
 from collections import deque
@@ -143,8 +144,7 @@ def check_file(path, line_num=None, no_exit=False):
 
     # If RETRY_ATTEMPTS is -1, don't print number of attempts
     # remaining.
-    if retry_attempts_remaining < 0:
-        retry_attempts_string = ""
+    retry_attempts_string = ""
 
     while not os.path.isfile(path):
         # Print number of attempts remaining.
@@ -156,7 +156,6 @@ def check_file(path, line_num=None, no_exit=False):
             else:
                 retry_attempts_string = "1 attempt remaining."
             retry_attempts_remaining -= 1
-
         elif retry_attempts_remaining == 0:
             if config.EXIT_ON_FILE_NOT_FOUND and not no_exit:
                 if line_num is not None:
@@ -179,8 +178,7 @@ def check_file(path, line_num=None, no_exit=False):
 
         time.sleep(config.RETRY_PERIOD)
 
-    else:
-        return True
+    return True
 
 
 def create_playlist() -> list[Tuple[int, PlaylistEntry]]:
@@ -202,14 +200,14 @@ def create_playlist() -> list[Tuple[int, PlaylistEntry]]:
                 media_playlist = media_playlist_file.read().splitlines()
         except FileNotFoundError:
             print2("fatal", f"Playlist file {config.MEDIA_PLAYLIST} not found.")
-            exit(1)
+            sys.exit(1)
 
     elif isinstance(config.MEDIA_PLAYLIST, list):
         media_playlist = config.MEDIA_PLAYLIST
 
     else:
         print2("error", "MEDIA_PLAYLIST is not a file or Python list.")
-        exit(1)
+        sys.exit(1)
 
     # Change blank lines and comment entries in media_playlist to None.
     media_playlist = [
@@ -295,7 +293,7 @@ def write_schedule(
     playlist: list,
     entry_index: int,
     stats: StreamStats,
-    extra_entries=[],
+    extra_entries=None,
     ignore_previous_files=False,
 ):
     """Write a JSON file containing file names and lengths read from playlist.
@@ -387,20 +385,19 @@ def write_schedule(
     length_offset = -stats.elapsed_time
 
     # Add extra entries before currently playing video.
-    for entry in extra_entries:
-        if entry.type != "extra":
-            continue
-        else:
-            coming_up_next_json.append(
-                {
-                    "type": "extra",
-                    "name": "",
-                    "time": "",
-                    "unixtime": 0,
-                    "length": 0,
-                    "extra_info": entry.info,
-                }
-            )
+    if extra_entries is not None:
+        for entry in extra_entries:
+            if entry.type == "extra":
+                coming_up_next_json.append(
+                    {
+                        "type": "extra",
+                        "name": "",
+                        "time": "",
+                        "unixtime": 0,
+                        "length": 0,
+                        "extra_info": entry.info,
+                    }
+                )
 
     # First entry is the video playing now and is added unconditionally.
     entry = playlist[entry_index]
@@ -692,7 +689,7 @@ def write_schedule(
 
     try:
         print2("verbose", "Writing schedule file.")
-        with open(config.SCHEDULE_PATH, "w+") as schedule_json:
+        with open(config.SCHEDULE_PATH, "w+", encoding="utf-8") as schedule_json:
             schedule_json.write(json.dumps(schedule_json_out))
             print2("verbose", f"Wrote schedule file to {config.SCHEDULE_PATH}.")
     except OSError as e:
@@ -707,8 +704,7 @@ def write_schedule(
         upload_attempts_remaining = config.REMOTE_UPLOAD_ATTEMPTS
         sleep_event = threading.Event()
 
-        if upload_attempts_remaining < 0:
-            upload_attempts_string = ""
+        upload_attempts_string = ""
 
         while upload_attempts_remaining != 0:
             if upload_attempts_remaining > 0:
@@ -775,7 +771,7 @@ def write_index(play_index, stats):
     elapsed time.
     """
 
-    with open(config.PLAY_INDEX_FILE, "w") as index_file:
+    with open(config.PLAY_INDEX_FILE, "w", encoding="utf-8") as index_file:
         index_file.write(f"{play_index}\n{stats.elapsed_time}")
 
 
