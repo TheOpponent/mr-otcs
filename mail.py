@@ -249,6 +249,21 @@ class EMailDaemon:
                 f"Mr. OTCS exited at {exception_time} due to an unrecoverable error: {exception_string}\n\nMr. OTCS ran for {total_time}."
                 + f"\n\n{traceback_string}" if traceback_string != "" else "",
             ),
+            "remote_success_after_error": (
+                0,
+                "Schedule upload succeeded with errors",
+                f"The schedule file upload to {config.REMOTE_ADDRESS} succeeded, but the following errors occurred:\n{message}"
+            ),
+            "remote_error": (
+                0,
+                "Schedule upload failed",
+                f"The following errors occurred while trying to upload the schedule file to {config.REMOTE_ADDRESS}:\n{message}"
+            ),
+            "remote_auth_failed": (
+                0,
+                "Schedule uploads disabled after authentication failure",
+                f"Authentication to {config.REMOTE_ADDRESS} failed, and remote uploading of the schedule file has been disabled. Reason:\n{message}"
+            ),
             "playlist_loop": (
                 10,
                 "Playlist looped",

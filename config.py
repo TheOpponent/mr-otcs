@@ -84,6 +84,7 @@ ini_defaults = {
         "MAIL_ALERT_ON_STREAM_RESUME": True,
         "MAIL_ALERT_ON_STREAM_COMMAND": True,
         "MAIL_ALERT_ON_PROGRAM_ERROR": True,
+        "MAIL_ALERT_ON_REMOTE_ERROR": True,
         "MAIL_ALERT_ON_PLAYLIST_LOOP": False,
         "MAIL_ALERT_ON_PLAYLIST_STOP": True,
         "MAIL_ALERT_ON_PLAYLIST_END": True,
@@ -355,6 +356,9 @@ if default_ini.has_section("Mail"):
     MAIL_ALERT_ON_PROGRAM_ERROR = default_ini.getboolean(
         "Mail", "MAIL_ALERT_ON_PROGRAM_ERROR"
     )
+    MAIL_ALERT_ON_REMOTE_ERROR = default_ini.getboolean(
+        "Mail", "MAIL_ALERT_ON_REMOTE_ERROR"
+    )
     MAIL_ALERT_ON_COMMAND = default_ini.getboolean("Mail", "MAIL_ALERT_ON_COMMAND")
     MAIL_ALERT_ON_PLAYLIST_LOOP = default_ini.getboolean(
         "Mail", "MAIL_ALERT_ON_PLAYLIST_LOOP"
@@ -374,6 +378,27 @@ if default_ini.has_section("Mail"):
     MAIL_ALERT_STATUS_REPORT = default_ini.getint("Mail", "MAIL_ALERT_STATUS_REPORT")
 else:
     MAIL_ENABLE = False
+    MAIL_ENV_CONFIG = False
+    MAIL_ENV_PREFIX = ""
+    MAIL_USE_SSL = False
+    MAIL_USE_STARTTLS = False
+    MAIL_SERVER = ""
+    MAIL_PORT = 0
+    MAIL_LOGIN = ""
+    MAIL_PASSWORD = ""
+    MAIL_FROM_ADDRESS = ""
+    MAIL_TO_ADDRESS = ""
+    MAIL_PROGRAM_NAME = ""
+    MAIL_ALERT_ON_STREAM_DOWN = False
+    MAIL_ALERT_ON_STREAM_RESUME = False
+    MAIL_ALERT_ON_PROGRAM_ERROR = False
+    MAIL_ALERT_ON_REMOTE_ERROR = False
+    MAIL_ALERT_ON_COMMAND = False
+    MAIL_ALERT_ON_PLAYLIST_LOOP = False
+    MAIL_ALERT_ON_PLAYLIST_STOP = False
+    MAIL_ALERT_ON_PLAYLIST_END = False
+    MAIL_ALERT_ON_NEW_VERSION = False
+    MAIL_ALERT_ON_NEW_PRERELEASE_VERSION = False
 
 PLAY_HISTORY_LENGTH = default_ini.getint("Misc", "PLAY_HISTORY_LENGTH")
 VERBOSE = default_ini.get("Misc", "VERBOSE").lower()

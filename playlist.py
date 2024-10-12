@@ -12,6 +12,12 @@ from collections import deque
 from typing import Generator, Tuple
 
 import fabric
+from paramiko.ssh_exception import (
+    AuthenticationException,
+    SSHException,
+    BadAuthenticationType,
+    PasswordRequiredException,
+)
 from pebble import concurrent
 from pymediainfo import MediaInfo
 
@@ -706,6 +712,10 @@ def write_schedule(
 
         upload_attempts_string = ""
 
+        # Log exceptions for e-mail alert. Items are tuples containing the
+        # exception and the timestamp.
+        ssh_exceptions: deque[tuple[Exception,datetime.datetime]] = deque(maxlen=50)
+
         while upload_attempts_remaining != 0:
             if upload_attempts_remaining > 0:
                 upload_attempts_remaining -= 1
@@ -722,12 +732,29 @@ def write_schedule(
                 if err is None:
                     print2("verbose", "SSH upload successful.")
                     break
-                else:
-                    raise err
+                raise err
             except TimeoutError:
                 print2("error", "SSH upload timed out.")
+            except (
+                AuthenticationException,
+                BadAuthenticationType,
+                PasswordRequiredException,
+            ) as e:
+                print2("error", f"SSH authentication failed: {e}")
+                print2("error", "SSH features disabled.")
+                ssh_exceptions.append((e, datetime.datetime.now()))
+                config.REMOTE_ADDRESS = None
+                upload_attempts_remaining = 0
+                break
+            except SSHException as e:
+                print2("error", f"SSH error occurred: {e}")
+                ssh_exceptions.append((e, datetime.datetime.now()))
+            except OSError as e:
+                print2("error", f"SSH file operation error: {e}")
+                ssh_exceptions.append((e, datetime.datetime.now()))
             except Exception as e:
-                print2("error", f"SSH upload failed: {e}")
+                print2("error", f"Remote upload failed: {type(e).__name__}: {e}")
+                ssh_exceptions.append((e, datetime.datetime.now()))
             finally:
                 if err is not None:
                     if upload_attempts_remaining != 0:
@@ -737,11 +764,32 @@ def write_schedule(
                         )
                         sleep_event.wait(timeout=config.REMOTE_RETRY_PERIOD)
                         continue
-                    else:
-                        print2(
-                            "error",
-                            f"SSH upload failed after {config.REMOTE_UPLOAD_ATTEMPTS} attempts. Skipping SSH upload for this video.",
-                        )
+
+                    print2(
+                        "error",
+                        f"SSH upload failed after {config.REMOTE_UPLOAD_ATTEMPTS} attempts. Skipping SSH upload for this video.",
+                    )
+
+        # Send e-mail alert for any exceptions logged.
+        if (
+            len(ssh_exceptions) > 0
+            and stats.mail_daemon is not None
+            and stats.mail_daemon.running
+            and config.MAIL_ALERT_ON_REMOTE_ERROR
+        ):
+            message = ""
+            for exc, timestamp in ssh_exceptions:
+                message += f"{timestamp.strftime('%Y-%m-%d %H:%M:%S')} - {type(exc).__name__}: {exc}\n"
+
+            if len(ssh_exceptions) == 50:
+                message += "(Last 50 errors logged; earlier errors may have been truncated.)"
+
+            if config.REMOTE_ADDRESS is None:
+                stats.mail_daemon.add_alert("remote_auth_failed", message)
+            elif err is None:
+                stats.mail_daemon.add_alert("remote_success_after_error", message)
+            elif err is not None:
+                stats.mail_daemon.add_alert("remote_error", message)
 
 
 @concurrent.thread
