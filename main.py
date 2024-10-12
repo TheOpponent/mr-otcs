@@ -280,7 +280,7 @@ def generate_status_report(stats: StreamStats):
 
 def encoder_task(
     file: str,
-    rtmp_task: subprocess.Popen,
+    rtmp_process: subprocess.Popen,
     stats: StreamStats,
     play_index=None,
     skip_time=0,
@@ -343,7 +343,7 @@ def encoder_task(
     # successfully and RTMP process is still running. If the connection check
     # fails, rewind config.CHECK_INTERVAL seconds.
     # Also write to play_index.txt in config.TIME_RECORD_INTERVAL seconds.
-    while process.poll() is None and rtmp_task.poll() is None:
+    while process.poll() is None and rtmp_process.poll() is None:
         if config.CHECK_URL is not None:
             check_connection_wait -= 1
             if check_connection_wait > 0:
@@ -445,10 +445,10 @@ def encoder_task(
 
         time.sleep(1)
 
-    if rtmp_task.poll() is not None:
+    if rtmp_process.poll() is not None:
         process.kill()
         raise BackgroundProcessError(
-            f"RTMP process ended unexpectedly, exit code {rtmp_task.poll()}"
+            f"RTMP process ended unexpectedly, exit code {rtmp_process.poll()}"
         )
     else:
         return process.poll()
