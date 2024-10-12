@@ -13,6 +13,7 @@ import os
 import random
 import shlex
 import subprocess
+import sys
 import time
 import traceback
 from typing import Dict, Union
@@ -346,10 +347,12 @@ def encoder_task(
         if config.CHECK_URL is not None:
             check_connection_wait -= 1
             if check_connection_wait > 0:
-                if check_connection_future.done():
-                    if check_connection_future.exception() is not None:
-                        process.kill()
-                        raise check_connection_future.exception()
+                if (
+                    check_connection_future.done()
+                    and check_connection_future.exception() is not None
+                ):
+                    process.kill()
+                    raise check_connection_future.exception()
             else:
                 check_connection_wait = config.CHECK_INTERVAL
                 check_connection_future = check_connection(stats)
@@ -522,7 +525,7 @@ def int_to_total_time(seconds, round_down_zero=True):
     seconds from an amount of seconds. The argument can be an int,
     float, or `datetime.timedelta` object.
 
-    If `round_down_zero` is True, times of less than 1 second will be 
+    If `round_down_zero` is True, times of less than 1 second will be
     returned as "less than a second". Otherwise, returns "0 seconds".
     """
 
@@ -1316,7 +1319,7 @@ def main():
                 print2("notice", "Exiting.")
                 if os.name == "posix":
                     os.system("stty sane")
-                exit(130)
+                sys.exit(130)
 
         except Exception as e:
             stop_stream(executor, restart=False)

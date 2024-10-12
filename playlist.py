@@ -121,7 +121,7 @@ def get_length(video) -> int:
     if isinstance(video, PlaylistTestEntry):
         return video.length
 
-    elif isinstance(video, PlaylistEntry):
+    if isinstance(video, PlaylistEntry):
         video = video.path
 
     elif video is None:
@@ -626,7 +626,7 @@ def write_schedule(
             # or number of videos exceeds SCHEDULE_PREVIOUS_MAX_VIDEOS, prune
             # previous_files.
             total_normal_previous_files = sum(
-                [i["type"] == "normal" for i in stats.previous_files]
+                i["type"] == "normal" for i in stats.previous_files
             )
             while total_normal_previous_files > config.SCHEDULE_PREVIOUS_MAX_VIDEOS:
                 while stats.previous_files[0]["type"] != "normal":
@@ -714,7 +714,7 @@ def write_schedule(
 
         # Log exceptions for e-mail alert. Items are tuples containing the
         # exception and the timestamp.
-        ssh_exceptions: deque[tuple[Exception,datetime.datetime]] = deque(maxlen=50)
+        ssh_exceptions: deque[tuple[Exception, datetime.datetime]] = deque(maxlen=50)
 
         while upload_attempts_remaining != 0:
             if upload_attempts_remaining > 0:
@@ -782,7 +782,9 @@ def write_schedule(
                 message += f"{timestamp.strftime('%Y-%m-%d %H:%M:%S')} - {type(exc).__name__}: {exc}\n"
 
             if len(ssh_exceptions) == 50:
-                message += "(Last 50 errors logged; earlier errors may have been truncated.)"
+                message += (
+                    "(Last 50 errors logged; earlier errors may have been truncated.)"
+                )
 
             if config.REMOTE_ADDRESS is None:
                 stats.mail_daemon.add_alert("remote_auth_failed", message)
