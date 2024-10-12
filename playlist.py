@@ -716,6 +716,10 @@ def write_schedule(
         # exception and the timestamp.
         ssh_exceptions: deque[tuple[Exception, datetime.datetime]] = deque(maxlen=50)
 
+        # ssh_result is True if the upload succeeds, False if authentication
+        # fails, and None in all other cases where the upload does not succeed.
+        ssh_result = None
+
         while upload_attempts_remaining != 0:
             if upload_attempts_remaining > 0:
                 upload_attempts_remaining -= 1
@@ -731,10 +735,12 @@ def write_schedule(
                 err = upload_ssh().result(timeout=10)
                 if err is None:
                     print2("verbose", "SSH upload successful.")
+                    ssh_result = True
                     break
                 raise err
-            except TimeoutError:
+            except TimeoutError as e:
                 print2("error", "SSH upload timed out.")
+                ssh_exceptions.append((e, datetime.datetime.now()))
             except (
                 AuthenticationException,
                 BadAuthenticationType,
@@ -743,8 +749,8 @@ def write_schedule(
                 print2("error", f"SSH authentication failed: {e}")
                 print2("error", "SSH features disabled.")
                 ssh_exceptions.append((e, datetime.datetime.now()))
-                config.REMOTE_ADDRESS = None
                 upload_attempts_remaining = 0
+                ssh_result = False
                 break
             except SSHException as e:
                 print2("error", f"SSH error occurred: {e}")
@@ -786,12 +792,12 @@ def write_schedule(
                     "(Last 50 errors logged; earlier errors may have been truncated.)"
                 )
 
-            if config.REMOTE_ADDRESS is None:
-                stats.mail_daemon.add_alert("remote_auth_failed", message)
-            elif err is None:
-                stats.mail_daemon.add_alert("remote_success_after_error", message)
-            elif err is not None:
+            if ssh_result is None:
                 stats.mail_daemon.add_alert("remote_error", message)
+            elif not ssh_result:
+                stats.mail_daemon.add_alert("remote_auth_failed", message)
+            elif ssh_result:
+                stats.mail_daemon.add_alert("remote_success_after_error", message)
 
 
 @concurrent.thread
@@ -799,6 +805,11 @@ def upload_ssh():
     """Upload JSON file to a publicly accessible location using
     fabric.
     """
+
+    if config.REMOTE_KEY_FILE and not os.path.exists(config.REMOTE_KEY_FILE):
+        raise AuthenticationException(
+            f"SSH key file not found: {config.REMOTE_KEY_FILE}"
+        )
 
     with fabric.Connection(
         config.REMOTE_ADDRESS,
