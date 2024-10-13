@@ -24,16 +24,20 @@ class EMailDaemon:
     sending as e-mail alerts."""
 
     def __init__(self):
-        self.smtp_server = config.MAIL_SERVER
-        self.smtp_port = config.MAIL_PORT
-        self.login = config.MAIL_LOGIN
-        self.password = config.MAIL_PASSWORD
-        self.from_address = config.MAIL_FROM_ADDRESS
-        self.to_address = config.MAIL_TO_ADDRESS
-        self.use_ssl = config.MAIL_USE_SSL
-        self.use_starttls = config.MAIL_USE_STARTTLS
+        self.config = {
+            "smtp_server": config.MAIL_SERVER,
+            "smtp_port": config.MAIL_PORT,
+            "login": config.MAIL_LOGIN,
+            "password": config.MAIL_PASSWORD,
+            "from_address": config.MAIL_FROM_ADDRESS,
+            "to_address": config.MAIL_TO_ADDRESS,
+            "use_ssl": config.MAIL_USE_SSL,
+            "use_starttls": config.MAIL_USE_STARTTLS,
+        }
         self.ssl_context = (
-            ssl.create_default_context() if self.use_ssl or self.use_starttls else None
+            ssl.create_default_context()
+            if self.config["use_ssl"] or self.config["use_starttls"]
+            else None
         )
         self.retries = 3
         self.retry_delay = 1
@@ -85,16 +89,23 @@ class EMailDaemon:
 
     def _login(self, server, timeout=10):
         try:
-            if self.use_ssl:
+            if self.config["use_ssl"]:
                 server = smtplib.SMTP_SSL(
-                    self.smtp_server, self.smtp_port, self.ssl_context, timeout=timeout
+                    self.config["smtp_server"],
+                    self.config["smtp_port"],
+                    self.ssl_context,
+                    timeout=timeout,
                 )
             else:
-                server = smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=timeout)
+                server = smtplib.SMTP(
+                    self.config["smtp_server"],
+                    self.config["smtp_port"],
+                    timeout=timeout,
+                )
 
-                if self.use_starttls:
+                if self.config["use_starttls"]:
                     server.starttls(context=self.ssl_context)
-            server.login(self.login, self.password)
+            server.login(self.config["login"], self.config["password"])
             return server
         except Exception as e:
             raise e
@@ -111,10 +122,12 @@ class EMailDaemon:
         reason, False otherwise.
         """
 
-        current_time = datetime.datetime.now()
+        current_time = datetime.datetime.now(datetime.timezone.utc)
 
         with self._lock:
-            last_sent_time = self.last_sent.get(alert_type, datetime.datetime.min)
+            last_sent_time: datetime.datetime = self.last_sent.get(
+                alert_type, datetime.datetime.min
+            )
             if bypass_interval or (
                 current_time - last_sent_time >= datetime.timedelta(hours=1)
             ):
@@ -122,12 +135,11 @@ class EMailDaemon:
                 if sent:
                     self.last_sent[alert_type] = current_time
                     return True
-                else:
-                    return False
+                return False
             else:
                 print2(
-                    "info",
-                    f"Alert {alert_type} not sent: Less than 1 hour since last alert was sent ({last_sent_time.strftime('%Y-%m-%d %H:%M:%S')}).",
+                    "notice",
+                    f"Alert {alert_type} not sent: Less than 1 hour since last alert was sent ({last_sent_time.astimezone().strftime('%Y-%m-%d %H:%M:%S')}).",
                 )
                 return True
 
@@ -148,7 +160,11 @@ class EMailDaemon:
         while retries > 0:
             try:
                 server = self._login(server, timeout)
-                server.sendmail(self.from_address, self.to_address, msg.as_string())
+                server.sendmail(
+                    self.config["from_address"],
+                    self.config["to_address"],
+                    msg.as_string(),
+                )
                 print2("verbose", f"Sent e-mail: \"{msg['Subject']}\"")
                 return True
             except (
@@ -156,7 +172,8 @@ class EMailDaemon:
                 smtplib.SMTPNotSupportedError,
             ) as e:
                 print2(
-                    "error", f"Failed to login to e-mail server {self.smtp_server}: {e}"
+                    "error",
+                    f"Failed to login to e-mail server {self.config['smtp_server']}: {e}",
                 )
                 print2("error", "Mail features disabled.")
                 self.stop()
@@ -189,14 +206,13 @@ class EMailDaemon:
         added to a queue, to be sent 1 hour after the last e-mail of
         the same `alert_type` was sent.
 
-        If `bypass_interval` is True, the alert will be sent as soon as
-        possible, ignoring the last time an alert of the same
-        `alert_type` was sent.
+        If `bypass_interval` is True, the alert will be sent regardless
+        of the last time an alert of the same `alert_type` was sent.
 
         If `urgent` is True, the e-mail is sent immediately, bypassing
         the queue and blocking execution until it is sent.
 
-        For playlist-related messages, the keyword argument `line_num`
+        For playlist-related messages, the keyword arguments `line_num`
         can be given a number.
 
         For exception-related messages, the keyword arguments
@@ -210,7 +226,7 @@ class EMailDaemon:
             print2("verbose", f"Alert {alert_type} not sent: Mail alerts are disabled.")
             return
 
-        current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        local_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         line_num = kwargs.get("line_num")
         total_time = kwargs.get("total_time")
         priority = 0
@@ -238,9 +254,9 @@ class EMailDaemon:
                 10,
                 "Stream resumed",
                 (
-                    f'The stream reconnected at {current_time}. It recovered from the exception "{exception_string}", which occurred at {exception_time}.'
+                    f'The stream reconnected at {local_time}. It recovered from the exception "{exception_string}", which occurred at {exception_time}.'
                     if exception and exception_time
-                    else f"The stream reconnected at {current_time}."
+                    else f"The stream reconnected at {local_time}."
                 ),
             ),
             "program_error": (
@@ -269,22 +285,22 @@ class EMailDaemon:
             "playlist_loop": (
                 10,
                 "Playlist looped",
-                f"The playlist looped at {current_time}.",
+                f"The playlist looped at {local_time}.",
             ),
             "playlist_stop": (
                 0,
                 "Playlist stopped",
-                f"The playlist reached a %STOP command on line {line_num} at {current_time}, and Mr. OTCS has exited.",
+                f"The playlist reached a %STOP command on line {line_num} at {local_time}, and Mr. OTCS has exited.",
             ),
             "playlist_end": (
                 0,
                 "Playlist ended",
-                f"The playlist reached the end at {current_time}, and Mr. OTCS has exited.",
+                f"The playlist reached the end at {local_time}, and Mr. OTCS has exited.",
             ),
             "mail_command": (
                 10,
                 f"%MAIL command: {message[:50]}" if message else "%MAIL command",
-                f"The playlist reached a %MAIL command on line {line_num} at {current_time}."
+                f"The playlist reached a %MAIL command on line {line_num} at {local_time}."
                 + (f" The message is:\n\n{message}" if message else ""),
             ),
             "new_version": (
@@ -307,8 +323,8 @@ class EMailDaemon:
         if alert_type in alert_types:
             priority, subject, body = alert_types[alert_type]
             msg = MIMEMultipart()
-            msg["From"] = self.from_address
-            msg["To"] = self.to_address
+            msg["From"] = self.config["from_address"]
+            msg["To"] = self.config["to_address"]
             msg["Subject"] = f"[{config.MAIL_PROGRAM_NAME}] {subject}"
             msg.attach(MIMEText(body, "plain"))
 
@@ -338,7 +354,9 @@ class EMailDaemon:
                 with self._lock:
                     sent = self._send_email(msg)
                     if sent:
-                        self.last_sent[alert_type] = datetime.datetime.now()
+                        self.last_sent[alert_type] = datetime.datetime.now(
+                            datetime.timezone.utc
+                        )
         else:
             raise ValueError(f"Unrecognized alert type: {alert_type}")
 
@@ -358,7 +376,8 @@ class EMailDaemon:
                 smtplib.SMTPNotSupportedError,
             ) as e:
                 print2(
-                    "error", f"Failed to login to e-mail server {self.smtp_server}: {e}"
+                    "error",
+                    f"Failed to login to e-mail server {self.config['smtp_server']}: {e}",
                 )
                 print2("error", "Mail features disabled.")
                 self.stop()
@@ -380,7 +399,7 @@ class EMailDaemon:
 
         print2(
             "error",
-            f"Login test to e-mail server {self.smtp_server} failed after {self.retries} attempts. Will retry upon next mail alert.",
+            f"Login test to e-mail server {self.config['smtp_server']} failed after {self.retries} attempts. Will retry upon next mail alert.",
         )
         return False
 
