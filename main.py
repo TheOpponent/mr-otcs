@@ -450,8 +450,8 @@ def encoder_task(
         raise BackgroundProcessError(
             f"RTMP process ended unexpectedly, exit code {rtmp_process.poll()}"
         )
-    else:
-        return process.poll()
+    
+    return process.poll()
 
 
 def write_play_history(message):
@@ -493,14 +493,14 @@ def stop_stream(executor, restart=True):
     for proc in psutil.process_iter(["cmdline"]):
         if proc.info["cmdline"] != command:
             continue
-        else:
-            proc.kill()
-            print2("notice", "RTMP process killed.")
+        proc.kill()
+        print2("notice", "RTMP process killed.")
     executor.stop()
     executor.join()
     if restart:
         executor = ProcessPool()
         return executor
+    return None
 
 
 def int_to_time(seconds):
@@ -1243,7 +1243,7 @@ def main():
             ):
                 stats.mail_daemon.last_exception = e
                 stats.mail_daemon.last_exception_time = datetime.datetime.now()
-                if type(e) is not ConnectionCheckError:
+                if not isinstance(e, ConnectionCheckError):
                     stats.mail_daemon.add_alert(
                         "stream_down",
                         exception=e,
