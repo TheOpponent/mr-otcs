@@ -796,6 +796,7 @@ def write_schedule(
                 stats.mail_daemon.add_alert("remote_error", message)
             elif not ssh_result:
                 stats.mail_daemon.add_alert("remote_auth_failed", message)
+                config.REMOTE_ADDRESS = None
             elif ssh_result:
                 stats.mail_daemon.add_alert("remote_success_after_error", message)
 
