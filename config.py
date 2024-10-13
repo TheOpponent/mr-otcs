@@ -310,14 +310,16 @@ if default_ini.has_option("SSH", "REMOTE_UPLOAD_ATTEMPTS"):  # Added in 2.1.0.
     )
 else:
     REMOTE_UPLOAD_ATTEMPTS = 1
-if default_ini.has_option("SSH", "REMOTE_RETRY_PERIOD"):  # Added in 2.1.0.
-    REMOTE_RETRY_PERIOD = (
-        default_ini.getint("SSH", "REMOTE_RETRY_PERIOD")
-        if default_ini.getint("SSH", "REMOTE_RETRY_PERIOD") != 0
-        else 5
-    )
-else:
-    REMOTE_RETRY_PERIOD = 5
+
+# Deprecated in 2.2.0.
+# if default_ini.has_option("SSH", "REMOTE_RETRY_PERIOD"):  # Added in 2.1.0.
+#     REMOTE_RETRY_PERIOD = (
+#         default_ini.getint("SSH", "REMOTE_RETRY_PERIOD")
+#         if default_ini.getint("SSH", "REMOTE_RETRY_PERIOD") != 0
+#         else 5
+#     )
+# else:
+#     REMOTE_RETRY_PERIOD = 5
 
 # Mail options added in 2.2.0.
 if default_ini.has_section("Mail"):
@@ -650,6 +652,14 @@ if MAIL_ENABLE:
 
     if mail_config_error:
         sys.exit(1)
+
+# Deprecated options.
+if default_ini.has_option("SSH", "REMOTE_RETRY_PERIOD"):
+    print2(
+        "info",
+        f"[Mail] option REMOTE_RETRY_PERIOD has been deprecated and can be deleted from {config_file}.",
+    )
+
 
 if __name__ == "__main__":
     print("Run python3 main.py to start this program.")

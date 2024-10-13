@@ -709,6 +709,8 @@ def write_schedule(
         )
         upload_attempts_remaining = config.REMOTE_UPLOAD_ATTEMPTS
         sleep_event = threading.Event()
+        upload_retry_delay = 1
+        upload_retry_max_delay = 64
 
         upload_attempts_string = ""
 
@@ -766,9 +768,10 @@ def write_schedule(
                     if upload_attempts_remaining != 0:
                         print2(
                             "error",
-                            f"{upload_attempts_string} Retrying in {config.REMOTE_RETRY_PERIOD} seconds...",
+                            f"{upload_attempts_string} Retrying in {upload_retry_delay} seconds...",
                         )
-                        sleep_event.wait(timeout=config.REMOTE_RETRY_PERIOD)
+                        sleep_event.wait(timeout=upload_retry_delay)
+                        upload_retry_delay = min(upload_retry_delay * 2, upload_retry_max_delay)
                         continue
 
                     print2(
