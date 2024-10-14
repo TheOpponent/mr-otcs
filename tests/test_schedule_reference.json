@@ -1,0 +1,193 @@
+{
+    "program_start_time": "2024-01-01 00:00:00",
+    "video_start_time": "2024-01-01 00:00:00",
+    "offset_time": 0,
+    "coming_up_next": [
+        {
+            "type": "normal",
+            "name": "Test file 1",
+            "time": "2024-01-01 00:00:00",
+            "unixtime": 1704067200.0,
+            "length": 1000,
+            "extra_info": ""
+        },
+        {
+            "type": "extra",
+            "name": "",
+            "time": "",
+            "unixtime": 0,
+            "length": 0,
+            "extra_info": "Comment 1"
+        },
+        {
+            "type": "normal",
+            "name": "Test file 2",
+            "time": "2024-01-01 00:16:40",
+            "unixtime": 1704068200.0,
+            "length": 360,
+            "extra_info": ""
+        },
+        {
+            "type": "normal",
+            "name": "Test file 3",
+            "time": "2024-01-01 00:22:40",
+            "unixtime": 1704068560.0,
+            "length": 180,
+            "extra_info": "Extra info from inline comment"
+        },
+        {
+            "type": "normal",
+            "name": "Replacement occurs on test file 4",
+            "time": "2024-01-01 00:25:40",
+            "unixtime": 1704068740.0,
+            "length": 270,
+            "extra_info": ""
+        },
+        {
+            "type": "normal",
+            "name": "Test file 5",
+            "time": "2024-01-01 00:30:10",
+            "unixtime": 1704069010.0,
+            "length": 720,
+            "extra_info": ""
+        },
+        {
+            "type": "extra",
+            "name": "",
+            "time": "",
+            "unixtime": 0,
+            "length": 0,
+            "extra_info": "Comment 2"
+        },
+        {
+            "type": "extra",
+            "name": "",
+            "time": "",
+            "unixtime": 0,
+            "length": 0,
+            "extra_info": "Comment 3"
+        },
+        {
+            "type": "normal",
+            "name": "Test file 8",
+            "time": "2024-01-01 00:44:50",
+            "unixtime": 1704069890.0,
+            "length": 180,
+            "extra_info": ""
+        },
+        {
+            "type": "normal",
+            "name": "Test file 9",
+            "time": "2024-01-01 00:47:50",
+            "unixtime": 1704070070.0,
+            "length": 270,
+            "extra_info": ""
+        },
+        {
+            "type": "normal",
+            "name": "Test file 1",
+            "time": "2024-01-01 00:59:20",
+            "unixtime": 1704070760.0,
+            "length": 1000,
+            "extra_info": ""
+        },
+        {
+            "type": "extra",
+            "name": "",
+            "time": "",
+            "unixtime": 0,
+            "length": 0,
+            "extra_info": "Comment 1"
+        },
+        {
+            "type": "normal",
+            "name": "Test file 2",
+            "time": "2024-01-01 01:16:00",
+            "unixtime": 1704071760.0,
+            "length": 360,
+            "extra_info": ""
+        },
+        {
+            "type": "normal",
+            "name": "Test file 3",
+            "time": "2024-01-01 01:22:00",
+            "unixtime": 1704072120.0,
+            "length": 180,
+            "extra_info": "Extra info from inline comment"
+        },
+        {
+            "type": "normal",
+            "name": "Replacement occurs on test file 4",
+            "time": "2024-01-01 01:25:00",
+            "unixtime": 1704072300.0,
+            "length": 270,
+            "extra_info": ""
+        },
+        {
+            "type": "normal",
+            "name": "Test file 5",
+            "time": "2024-01-01 01:29:30",
+            "unixtime": 1704072570.0,
+            "length": 720,
+            "extra_info": ""
+        },
+        {
+            "type": "extra",
+            "name": "",
+            "time": "",
+            "unixtime": 0,
+            "length": 0,
+            "extra_info": "Comment 2"
+        },
+        {
+            "type": "extra",
+            "name": "",
+            "time": "",
+            "unixtime": 0,
+            "length": 0,
+            "extra_info": "Comment 3"
+        },
+        {
+            "type": "normal",
+            "name": "Test file 8",
+            "time": "2024-01-01 01:44:10",
+            "unixtime": 1704073450.0,
+            "length": 180,
+            "extra_info": ""
+        },
+        {
+            "type": "normal",
+            "name": "Test file 9",
+            "time": "2024-01-01 01:47:10",
+            "unixtime": 1704073630.0,
+            "length": 270,
+            "extra_info": ""
+        },
+        {
+            "type": "normal",
+            "name": "Test file 1",
+            "time": "2024-01-01 01:58:40",
+            "unixtime": 1704074320.0,
+            "length": 1000,
+            "extra_info": ""
+        },
+        {
+            "type": "extra",
+            "name": "",
+            "time": "",
+            "unixtime": 0,
+            "length": 0,
+            "extra_info": "Comment 1"
+        },
+        {
+            "type": "normal",
+            "name": "Test file 2",
+            "time": "2024-01-01 02:15:20",
+            "unixtime": 1704075320.0,
+            "length": 360,
+            "extra_info": ""
+        }
+    ],
+    "previous_files": [],
+    "script_version": "2.2.0-beta4"
+}
