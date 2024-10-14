@@ -93,6 +93,7 @@ ini_defaults = {
         "MAIL_ALERT_ON_NEW_VERSION": True,
         "MAIL_ALERT_ON_NEW_PRERELEASE_VERSION": False,
         "MAIL_ALERT_STATUS_REPORT": 7,
+        "MAIL_ALERT_HIGH_PRIORITY_ERROR": True,
     },
     "Misc": {
         "PLAY_HISTORY_LENGTH": 10,
@@ -455,6 +456,9 @@ if default_ini.has_section("Mail"):
         "Mail", "MAIL_ALERT_ON_NEW_PRERELEASE_VERSION"
     )
     MAIL_ALERT_STATUS_REPORT = default_ini.getint("Mail", "MAIL_ALERT_STATUS_REPORT")
+    MAIL_ALERT_HIGH_PRIORITY_ERROR = default_ini.getboolean(
+        "Mail", "MAIL_ALERT_HIGH_PRIORITY_ERROR"
+    )
 else:
     MAIL_ENABLE = False
     MAIL_ENV_CONFIG = False
@@ -479,6 +483,8 @@ else:
     MAIL_ALERT_ON_PLAYLIST_END = False
     MAIL_ALERT_ON_NEW_VERSION = False
     MAIL_ALERT_ON_NEW_PRERELEASE_VERSION = False
+    MAIL_ALERT_STATUS_REPORT = 0
+    MAIL_ALERT_HIGH_PRIORITY_ERROR = False
 
 PLAY_HISTORY_LENGTH = default_ini.getint("Misc", "PLAY_HISTORY_LENGTH")
 

@@ -328,6 +328,17 @@ class EMailDaemon:
             msg["Subject"] = f"[{config.MAIL_PROGRAM_NAME}] {subject}"
             msg.attach(MIMEText(body, "plain"))
 
+            if config.MAIL_ALERT_HIGH_PRIORITY_ERROR and alert_type in [
+                "stream_down",
+                "program_error",
+                "remote_success_after_error",
+                "remote_error",
+                "remote_auth_failed",
+            ]:
+                msg["Importance"] = "High"
+                msg["X-MSMail-Priority"] = "High"
+                msg["X-Priority"] = "1"
+
             if not urgent:
                 print2(
                     "verbose",
