@@ -178,6 +178,15 @@ class StreamStats:
             datetime.datetime.now(datetime.timezone.utc) - self.last_exception_time
         ).total_seconds()
 
+    def mail_daemon_running(self, exp=True):
+        """Returns True if a mail daemon has initialized and is 
+        currently running.
+
+        `exp` can be set to a expression that must also be True.
+        """
+
+        return self.mail_daemon is not None and self.mail_daemon.running and exp
+
 
 if __name__ == "__main__":
     print("Run python3 main.py to start this program.")

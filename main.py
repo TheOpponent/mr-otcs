@@ -405,9 +405,9 @@ def encoder_task(
                             )
                             if all(
                                 (
-                                    stats.mail_daemon is not None,
-                                    stats.mail_daemon.running,
-                                    config.MAIL_ALERT_ON_NEW_VERSION,
+                                    stats.mail_daemon_running(
+                                        config.MAIL_ALERT_ON_NEW_VERSION
+                                    ),
                                     (
                                         (
                                             new_version_info["new_version_prerelease"]
@@ -442,9 +442,7 @@ def encoder_task(
 
         # Send status report during encoder task loop.
         if (
-            stats.mail_daemon is not None
-            and stats.mail_daemon.running
-            and config.MAIL_ALERT_STATUS_REPORT > 0
+            stats.mail_daemon_running(config.MAIL_ALERT_STATUS_REPORT > 0)
             and datetime.datetime.now(datetime.timezone.utc) > stats.next_status_report
         ):
             print2("verbose", "Generating status report.")
@@ -511,7 +509,6 @@ def stop_stream(executor, restart=True):
         executor = ProcessPool()
         return executor
     return None
-
 
 
 def kill_media_player():
@@ -672,11 +669,7 @@ def main():
                                 "error",
                                 f"Update {config.PLAY_INDEX_FILE} manually: Line 1 with index {play_index}, line 2 with 0.",
                             )
-                        if (
-                            stats.mail_daemon is not None
-                            and stats.mail_daemon.running
-                            and config.MAIL_ALERT_ON_PLAYLIST_END
-                        ):
+                        if stats.mail_daemon_running(config.MAIL_ALERT_ON_PLAYLIST_END):
                             stats.mail_daemon.add_alert("playlist_end", urgent=True)
                         print2("notice", "Exiting.")
                         if os.name == "posix":
@@ -685,10 +678,8 @@ def main():
                     else:
                         play_index = 0
                         stats.elapsed_time = 0
-                        if (
-                            stats.mail_daemon is not None
-                            and stats.mail_daemon.running
-                            and config.MAIL_ALERT_ON_PLAYLIST_LOOP
+                        if stats.mail_daemon_running(
+                            config.MAIL_ALERT_ON_PLAYLIST_LOOP
                         ):
                             stats.mail_daemon.add_alert("playlist_loop")
 
@@ -831,10 +822,8 @@ def main():
                                 "error",
                                 f"Update {config.PLAY_INDEX_FILE} manually: Line 1 with index {play_index}, line 2 with 0.",
                             )
-                        if (
-                            stats.mail_daemon is not None
-                            and stats.mail_daemon.running
-                            and config.MAIL_ALERT_ON_PLAYLIST_STOP
+                        if stats.mail_daemon_running(
+                            config.MAIL_ALERT_ON_PLAYLIST_STOP
                         ):
                             stats.mail_daemon.add_alert(
                                 "playlist_stop", urgent=True, line_num=play_index + 1
@@ -844,12 +833,8 @@ def main():
                             os.system("stty sane")
                         exit(0)
 
-                    elif media_playlist[play_index][1].info.startswith("MAIL"):
-                        if (
-                            stats.mail_daemon is not None
-                            and stats.mail_daemon.running
-                            and config.MAIL_ALERT_ON_COMMAND
-                        ):
+                    if media_playlist[play_index][1].info.startswith("MAIL"):
+                        if stats.mail_daemon_running(config.MAIL_ALERT_ON_COMMAND):
                             mail_command = media_playlist[play_index][1].info.split(
                                 " ", 1
                             )
@@ -1032,10 +1017,8 @@ def main():
 
                             # Send an e-mail alert if the stream resumed after an error.
                             if retried:
-                                if (
-                                    stats.mail_daemon is not None
-                                    and stats.mail_daemon.running
-                                    and config.MAIL_ALERT_ON_STREAM_RESUME
+                                if stats.mail_daemon_running(
+                                    config.MAIL_ALERT_ON_STREAM_RESUME
                                 ):
                                     stats.mail_daemon.add_alert(
                                         "stream_resume",
@@ -1196,11 +1179,7 @@ def main():
             stats.last_exception_time = datetime.datetime.now(datetime.timezone.utc)
 
             # Do not send an e-mail on connection check failure.
-            if (
-                stats.mail_daemon is not None
-                and stats.mail_daemon.running
-                and config.MAIL_ALERT_ON_STREAM_DOWN
-            ):
+            if stats.mail_daemon(config.MAIL_ALERT_ON_STREAM_DOWN):
                 stats.mail_daemon.last_exception = e
                 stats.mail_daemon.last_exception_time = datetime.datetime.now()
                 if not isinstance(e, ConnectionCheckError):
@@ -1286,11 +1265,7 @@ def main():
             total_time = int_to_total_time(
                 datetime.datetime.now(datetime.timezone.utc) - stats.program_start_time
             )
-            if (
-                stats.mail_daemon is not None
-                and stats.mail_daemon.running
-                and config.MAIL_ALERT_ON_PROGRAM_ERROR
-            ):
+            if stats.mail_daemon_running(config.MAIL_ALERT_ON_PROGRAM_ERROR):
                 stats.mail_daemon.add_alert(
                     "program_error",
                     exception=e,
