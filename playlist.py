@@ -13,9 +13,9 @@ from typing import Generator, Tuple
 import fabric
 from paramiko.ssh_exception import (
     AuthenticationException,
-    SSHException,
     BadAuthenticationType,
     PasswordRequiredException,
+    SSHException,
 )
 from pebble import concurrent
 from pymediainfo import MediaInfo
@@ -24,6 +24,16 @@ import config
 from config import print2
 from streamstats import StreamStats
 from utils import check_file, int_to_time
+
+
+class PlaylistException(Exception):
+    """Wrapper for exceptions that occurred during the generation of the
+    playlist.
+    """
+
+    def __init__(self, message, original_exception=None):
+        super().__init__(message)
+        self.original_exception = original_exception
 
 
 @dataclass
@@ -382,6 +392,13 @@ def write_schedule(
     sub_playlist = iter_playlist(playlist, entry_index)
     entry = next(sub_playlist)
 
+    # Log exceptions that cause entries to be skipped.
+    # Items in schedule_exceptions are tuples containing a string describing
+    # the error and the timestamp.
+    schedule_exceptions: deque[tuple[PlaylistException, datetime.datetime]] = deque(
+        maxlen=config.MAIL_ALERT_MAX_ERRORS_REPORTED
+    )
+
     skipped_normal_entries = 0
     for entry in sub_playlist:
         # Break when the number of minimum entries is reached and either entry or
@@ -399,7 +416,7 @@ def write_schedule(
                     "SCHEDULE_MAX_VIDEOS reached.",
                 )
                 break
-            elif total_duration > config.SCHEDULE_UPCOMING_LENGTH:
+            if total_duration > config.SCHEDULE_UPCOMING_LENGTH:
                 print2(
                     "verbose",
                     "SCHEDULE_UPCOMING_LENGTH reached.",
@@ -409,39 +426,73 @@ def write_schedule(
         if entry[1].type == "blank":
             continue
 
-        else:
-            # In the event of a stream restart, the value returned by
-            # get_stream_restart_duration() is added to length_offset and added
-            # to the next normal entry.
-            if entry[1].type == "normal":
-                if check_file(entry[1].path, entry[0], no_exit=True):
-                    try:
-                        entry_length = get_length(entry[1])
-                        coming_up_next.append(entry[1])
-                    except FileNotFoundError:
-                        print2(
-                            "error",
-                            f"Line {entry[0]}. {entry[1].path} cannot be found. Not adding to schedule.",
-                        )
-                        continue
-                    except IndexError:
-                        print2(
-                            "error",
-                            f"Line {entry[0]}. {entry[1].path} contains no video tracks. Not adding to schedule.",
-                        )
-                        continue
-                    except Exception as e:
-                        print2(
-                            "error",
-                            f"Line {entry[0]}. {entry[1].path} failed: {e}. Not adding to schedule.",
-                        )
-                        continue
-                else:
+        # In the event of a stream restart, the value returned by
+        # get_stream_restart_duration() is added to length_offset and added
+        # to the next normal entry.
+        if entry[1].type == "normal":
+            if check_file(entry[1].path, entry[0], no_exit=True, stats=stats):
+                try:
+                    entry_length = get_length(entry[1])
+                    coming_up_next.append(entry[1])
+                except FileNotFoundError as e:
                     print2(
                         "error",
                         f"Line {entry[0]}. {entry[1].path} cannot be found. Not adding to schedule.",
                     )
+                    exc = (
+                        PlaylistException(
+                            f"Line {entry[0]}. {entry[1].path} cannot be found: {e}. Not adding to schedule.",
+                            original_exception=e,
+                        ),
+                        datetime.datetime.now(),
+                    )
+                    stats.exceptions.append(exc)
+                    schedule_exceptions.append(exc)
                     continue
+                except IndexError as e:
+                    print2(
+                        "error",
+                        f"Line {entry[0]}. {entry[1].path} contains no video tracks. Not adding to schedule.",
+                    )
+                    exc = (
+                        PlaylistException(
+                            f"Line {entry[0]}. {entry[1].path} contains no video tracks. Not adding to schedule.",
+                            original_exception=e,
+                        ),
+                        datetime.datetime.now(),
+                    )
+                    stats.exceptions.append(exc)
+                    schedule_exceptions.append(exc)
+                    continue
+                except Exception as e:
+                    print2(
+                        "error",
+                        f"Line {entry[0]}. {entry[1].path} failed: {type(e).__name__}: {e}. Not adding to schedule.",
+                    )
+                    exc = (
+                        PlaylistException(
+                            f"Line {entry[0]}. {entry[1].path} failed: {type(e).__name__}: {e}. Not adding to schedule.",
+                            original_exception=e,
+                        ),
+                        datetime.datetime.now(),
+                    )
+                    stats.exceptions.append(exc)
+                    schedule_exceptions.append(exc)
+                    continue
+            else:
+                print2(
+                    "error",
+                    f"Line {entry[0]}. {entry[1].path} cannot be found. Not adding to schedule.",
+                )
+                exc = (
+                    PlaylistException(
+                        f"Line {entry[0]}. {entry[1].path} cannot be found. Not adding to schedule."
+                    ),
+                    datetime.datetime.now(),
+                )
+                stats.exceptions.append(exc)
+                schedule_exceptions.append(exc)
+                continue
 
             # Check for reasons to exclude current entry from schedule.
             skip_reason = ""
@@ -553,6 +604,22 @@ def write_schedule(
 
         else:
             print2("warn", f"Line {entry[0]}: Invalid entry. Skipping.")
+
+    if len(schedule_exceptions) > 0 and stats.mail_daemon_running(
+        config.MAIL_ALERT_ON_SCHEDULE_ERROR
+    ):
+        message = ""
+        for exc, timestamp in schedule_exceptions:
+            message += f"{timestamp.strftime('%Y-%m-%d %H:%M:%S')} - {exc}\n"
+        if config.MAIL_ALERT_MAX_ERRORS_REPORTED == 1:
+            message += "(Only most recent error logged; earlier errors may have been truncated.)"
+            if config.ERROR_LOG is not None:
+                message += f" Check {config.ERROR_LOG}."
+        elif len(schedule_exceptions) == config.MAIL_ALERT_MAX_ERRORS_REPORTED:
+            message += f"(Last {config.MAIL_ALERT_MAX_ERRORS_REPORTED} errors logged; earlier errors may have been truncated."
+            if config.ERROR_LOG is not None:
+                message += f" Check {config.ERROR_LOG}."
+        stats.mail_daemon.add_alert("schedule_error", message)
 
     if (
         stats.previous_files is not None
@@ -676,7 +743,9 @@ def write_schedule(
 
         # Log exceptions for e-mail alert. Items are tuples containing the
         # exception and the timestamp.
-        ssh_exceptions: deque[tuple[Exception, datetime.datetime]] = deque(maxlen=50)
+        ssh_exceptions: deque[tuple[Exception, datetime.datetime]] = deque(
+            maxlen=config.MAIL_ALERT_MAX_ERRORS_REPORTED
+        )
 
         # ssh_result is True if the upload succeeds, False if authentication
         # fails, and None in all other cases where the upload does not succeed.

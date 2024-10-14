@@ -96,7 +96,7 @@ def check_file(path, line_num=None, no_exit=False, stats: StreamStats = None):
         ):
             alert_sent = True
             stats.mail_daemon.add_alert(
-                "playlist_file_retry",
+                "file_retry",
                 message=path,
                 line_num=line_num,
             )

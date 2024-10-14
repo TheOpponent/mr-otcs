@@ -115,7 +115,7 @@ class EMailDaemon:
     ):
         """Sends an e-mail message.
 
-        Messages of a given type are sent only once every 60 minutes
+        Messages of a given `alert_type` are sent only once every hour
         and further messages of the same type within that period are
         discarded, unless `bypass_interval` is True. Returns True if
         the message is sent successfully or was discarded for that
@@ -133,15 +133,28 @@ class EMailDaemon:
             ):
                 sent = self._send_email(msg)
                 if sent:
-                    self.last_sent[alert_type] = current_time
+                    # Add extra delay time for alert_type "schedule_error"
+                    # to reduce the amount of redundant messages when
+                    # multiple schedules are generated in a short time with
+                    # the same faulty files. The extra time is the maximum
+                    # length of a schedule, minus 1 hour, but not less than
+                    # 0.
+                    if alert_type != "schedule_error":
+                        self.last_sent[alert_type] = current_time
+                    else:
+                        self.last_sent["schedule_error"] = (
+                            current_time
+                            + datetime.timedelta(
+                                minutes=max(0, config.SCHEDULE_UPCOMING_LENGTH - 60)
+                            )
+                        )
                     return True
                 return False
-            else:
-                print2(
-                    "notice",
-                    f"Alert {alert_type} not sent: Less than 1 hour since last alert was sent ({last_sent_time.astimezone().strftime('%Y-%m-%d %H:%M:%S')}).",
-                )
-                return True
+            print2(
+                "notice",
+                f"Alert {alert_type} not sent: Less than 1 hour since last alert was sent ({last_sent_time.astimezone().strftime('%Y-%m-%d %H:%M:%S')}).",
+            )
+            return True
 
     def _send_email(self, msg: MIMEMultipart, timeout=10):
         """Returns True if the e-mail was sent successfully, False if
@@ -258,6 +271,21 @@ class EMailDaemon:
                     if exception and exception_time
                     else f"The stream reconnected at {local_time}."
                 ),
+            ),
+            "file_retry": (
+                0,
+                f"Video {message} not found - Now retrying infinitely",
+                f"The video {message} {f'on playlist line {line_num}' if line_num is not None else ''}could not be found at {local_time}. Because RETRY_ATTEMPTS is -1, it is currently retrying before the stream resumes.\n\nWarning: Due to the nature of this error, it is likely that more files in the playlist are also missing. Check {config.BASE_PATH}.",
+            ),
+            "file_not_found": (
+                0,
+                f"Video {message} not found - Skipping in schedule",
+                f"The video {message} {f'on playlist line {line_num}' if line_num is not None else ''}could not be found at {local_time}. The video has been skipped.\n\nWarning: Due to the nature of this error, it is likely that more files in the playlist are also missing. Check {config.BASE_PATH}.",
+                        ),
+            "schedule_error": (
+                0,
+                "Errors generating the schedule",
+                f"The following errors occurred when generating the schedule, causing videos to be skipped:\n{message}",
             ),
             "program_error": (
                 0,

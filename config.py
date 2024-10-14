@@ -86,7 +86,9 @@ ini_defaults = {
         "MAIL_ALERT_ON_STREAM_RESUME": True,
         "MAIL_ALERT_ON_STREAM_COMMAND": True,
         "MAIL_ALERT_ON_PROGRAM_ERROR": True,
+        "MAIL_ALERT_ON_FILE_NOT_FOUND": True,
         "MAIL_ALERT_ON_REMOTE_ERROR": "fail_only",
+        "MAIL_ALERT_ON_SCHEDULE_ERROR": True,
         "MAIL_ALERT_MAX_ERRORS_REPORTED": 50,
         "MAIL_ALERT_ON_PLAYLIST_LOOP": False,
         "MAIL_ALERT_ON_PLAYLIST_STOP": True,
@@ -439,9 +441,15 @@ if default_ini.has_section("Mail"):
     MAIL_ALERT_ON_PROGRAM_ERROR = default_ini.getboolean(
         "Mail", "MAIL_ALERT_ON_PROGRAM_ERROR"
     )
+    MAIL_ALERT_ON_FILE_NOT_FOUND = default_ini.getboolean(
+        "Mail", "MAIL_ALERT_ON_FILE_NOT_FOUND"
+    )
     MAIL_ALERT_ON_REMOTE_ERROR = default_ini.get(
         "Mail", "MAIL_ALERT_ON_REMOTE_ERROR"
     ).lower()
+    MAIL_ALERT_ON_SCHEDULE_ERROR = default_ini.getboolean(
+        "Mail", "MAIL_ALERT_ON_SCHEDULE_ERROR"
+    )
     MAIL_ALERT_MAX_ERRORS_REPORTED = max(
         default_ini.getint("Mail", "MAIL_ALERT_MAX_ERRORS_REPORTED"), 1
     )
@@ -481,7 +489,9 @@ else:
     MAIL_ALERT_ON_STREAM_DOWN = False
     MAIL_ALERT_ON_STREAM_RESUME = False
     MAIL_ALERT_ON_PROGRAM_ERROR = False
+    MAIL_ALERT_ON_FILE_NOT_FOUND = False
     MAIL_ALERT_ON_REMOTE_ERROR = 0
+    MAIL_ALERT_ON_SCHEDULE_ERROR = False
     MAIL_ALERT_MAX_ERRORS_REPORTED = 1
     MAIL_ALERT_ON_COMMAND = False
     MAIL_ALERT_ON_PLAYLIST_LOOP = False

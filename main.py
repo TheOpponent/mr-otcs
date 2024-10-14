@@ -570,6 +570,11 @@ def main():
                         config.STREAM_RESTART_BEFORE_VIDEO
                     )
                     total_elapsed_time += next_video_length + config.VIDEO_PADDING
+                else:
+                    if stats.mail_daemon_running(config.MAIL_ALERT_ON_FILE_NOT_FOUND):
+                        stats.mail_daemon.add_alert(
+                            "file_not_found", message=config.STREAM_RESTART_BEFORE_VIDEO
+                        )
 
             if restarted:
                 print2("info", "Stream restarted.")
@@ -594,6 +599,15 @@ def main():
                             total_elapsed_time += (
                                 playlist.get_length(config.STREAM_RESTART_AFTER_VIDEO)
                                 + config.VIDEO_PADDING
+                            )
+
+                    else:
+                        if stats.mail_daemon_running(
+                            config.MAIL_ALERT_ON_FILE_NOT_FOUND
+                        ):
+                            stats.mail_daemon.add_alert(
+                                "file_not_found",
+                                message=config.STREAM_RESTART_AFTER_VIDEO,
                             )
 
                 restarted = False
@@ -1136,6 +1150,12 @@ def main():
                         continue
 
                 else:
+                    if stats.mail_daemon_running(config.MAIL_ALERT_ON_FILE_NOT_FOUND):
+                        stats.mail_daemon.add_alert(
+                            "file_not_found",
+                            message=video_file.path,
+                            line_num=play_index + 1,
+                        )
                     stats.elapsed_time = 0
                     stats.video_resume_point = 0
                     if play_index > media_playlist_length:
