@@ -67,7 +67,6 @@ ini_defaults = {
         "REMOTE_KEY_FILE_PASSWORD": "",
         "REMOTE_DIRECTORY": "",
         "REMOTE_UPLOAD_ATTEMPTS": 5,
-        "REMOTE_RETRY_PERIOD": 5,
     },
     "Mail": {
         "MAIL_ENABLE": False,
