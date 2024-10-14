@@ -502,8 +502,9 @@ if default_ini.has_option("Misc", "VERSION_CHECK_INTERVAL"):  # Added in 2.2.0.
     elif VERSION_CHECK_INTERVAL == "daily":
         VERSION_CHECK_INTERVAL = 1
     else:
-        print(
-            'VERSION_CHECK_INTERVAL setting not recognized. Using default setting "monthly".'
+        print2(
+            "warn",
+            'VERSION_CHECK_INTERVAL setting not recognized. Using default setting "monthly".',
         )
         VERSION_CHECK_INTERVAL = 30
 else:
