@@ -8,7 +8,7 @@ import sys
 import threading
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Generator, Tuple
+from typing import Generator, Optional, Tuple
 
 import fabric
 from paramiko.ssh_exception import (
@@ -65,7 +65,7 @@ class PlaylistEntry:
     if `self.type` is not "normal".
     """
 
-    entry: str
+    entry: Optional[str]
 
     type: str = field(init=False)
     """One of 'normal', 'extra', 'command', or 'blank'. Normal entries contain
@@ -501,9 +501,7 @@ def write_schedule(
             if config.SCHEDULE_EXCLUDE_FILE_PATTERN is not None and entry[
                 1
             ].name.casefold().startswith(config.SCHEDULE_EXCLUDE_FILE_PATTERN):
-                skip_reason += (
-                    "Name matches SCHEDULE_EXCLUDE_FILE_PATTERN. ",
-                )
+                skip_reason += "Name matches SCHEDULE_EXCLUDE_FILE_PATTERN. "
 
             # Shorter than SCHEDULE_MIN_VIDEO_LENGTH
             if entry_length < config.SCHEDULE_MIN_VIDEO_LENGTH:
