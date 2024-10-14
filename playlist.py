@@ -220,7 +220,7 @@ def create_playlist() -> list[Tuple[int, PlaylistEntry]]:
 
     if entry_count == 0:
         print2("fatal", f"No valid entries found in {config.MEDIA_PLAYLIST}.")
-        exit(1)
+        sys.exit(1)
 
     return playlist
 
