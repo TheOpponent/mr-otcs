@@ -66,8 +66,8 @@ def check_file(path, line_num=None, no_exit=False, stats: StreamStats = None):
 
     If file is found, returns True.
     If `config.EXIT_ON_FILE_NOT_FOUND` is True, throw exception if
-    retry attempts don't succeed. If False, return False and continue.
-    `no_exit` overrides `config.EXIT_ON_FILE_NOT_FOUND`.
+    retry attempts don't succeed. If it is False, return False and 
+    continue. `no_exit` overrides `config.EXIT_ON_FILE_NOT_FOUND`.
 
     `stats` is a StreamStats object that contains a running e-mail
     daemon. If not None, an e-mail alert will be sent immediately
