@@ -771,7 +771,9 @@ def write_schedule(
                             f"{upload_attempts_string} Retrying in {upload_retry_delay} seconds...",
                         )
                         sleep_event.wait(timeout=upload_retry_delay)
-                        upload_retry_delay = min(upload_retry_delay * 2, upload_retry_max_delay)
+                        upload_retry_delay = min(
+                            upload_retry_delay * 2, upload_retry_max_delay
+                        )
                         continue
 
                     print2(
@@ -789,12 +791,14 @@ def write_schedule(
             message = ""
             for exc, timestamp in ssh_exceptions:
                 message += f"{timestamp.strftime('%Y-%m-%d %H:%M:%S')} - {type(exc).__name__}: {exc}\n"
-
-            if len(ssh_exceptions) == 50:
-                message += (
-                    "(Last 50 errors logged; earlier errors may have been truncated.)"
-                )
-
+            if config.MAIL_ALERT_MAX_ERRORS_REPORTED == 1:
+                message += "Only most recent error logged; earlier errors may have been truncated."
+                if config.ERROR_LOG is not None:
+                    message += f" Check {config.ERROR_LOG}."
+            elif len(ssh_exceptions) == config.MAIL_ALERT_MAX_ERRORS_REPORTED:
+                message += f"Last {config.MAIL_ALERT_MAX_ERRORS_REPORTED} errors logged; earlier errors may have been truncated."
+                if config.ERROR_LOG is not None:
+                    message += f" Check {config.ERROR_LOG}."
             if ssh_result is None:
                 stats.mail_daemon.add_alert("remote_error", message)
             elif not ssh_result:

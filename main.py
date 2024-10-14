@@ -119,6 +119,8 @@ def _check_connection(stats: StreamStats, skip=False, exception=True):
                 print2("warn", f"Could not establish connection to {link}: {e}")
                 continue
 
+    return False
+
 
 @concurrent.thread
 def check_connection(stats: StreamStats, skip=False):
@@ -250,7 +252,7 @@ def generate_status_report(stats: StreamStats):
     stream_runtime = int((current_time - stats.stream_start_time).total_seconds())
 
     message += (
-        f"Report generated on: {current_time.astimezone().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        f"Report generated: {current_time.astimezone().strftime('%Y-%m-%d %H:%M:%S')}\n"
         + f"Mr. OTCS version: {config.SCRIPT_VERSION}\n\n"
         + f"Program started: {stats.program_start_time.astimezone().strftime('%Y-%m-%d %H:%M:%S')}\n"
         + f"Program runtime: {int_to_total_time(program_runtime)}\n"
@@ -272,8 +274,15 @@ def generate_status_report(stats: StreamStats):
         )
         for exc, timestamp in stats.exceptions:
             message += f"{timestamp.strftime('%Y-%m-%d %H:%M:%S')} - {type(exc).__name__}: {str(exc)}\n"
-
-        stats.exceptions = []
+        if config.MAIL_ALERT_MAX_ERRORS_REPORTED == 1:
+            message += "(Only most recent error logged; earlier errors may have been truncated.)"
+            if config.ERROR_LOG is not None:
+                message += f" Check {config.ERROR_LOG}."
+        elif exception_count == config.MAIL_ALERT_MAX_ERRORS_REPORTED:
+            message += f"(Last {config.MAIL_ALERT_MAX_ERRORS_REPORTED} errors logged; earlier errors may have been truncated."
+            if config.ERROR_LOG is not None:
+                message += f" Check {config.ERROR_LOG}."
+        stats.exceptions.clear()
 
     stats.mail_daemon.add_alert("status_report", message)
 
@@ -450,7 +459,7 @@ def encoder_task(
         raise BackgroundProcessError(
             f"RTMP process ended unexpectedly, exit code {rtmp_process.poll()}"
         )
-    
+
     return process.poll()
 
 

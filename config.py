@@ -20,6 +20,7 @@ ini_defaults = {
         "ALT_NAMES_JSON_PATH": "alt_names.json",
         "MEDIA_PLAYER_LOG": "ffmpeg_media.log",
         "RTMP_STREAMER_LOG": "ffmpeg_rtmp.log",
+        "ERROR_LOG": "error.log",
     },
     "VideoOptions": {
         "STREAM_URL": "rtmp://localhost:1935/live/",
@@ -85,6 +86,7 @@ ini_defaults = {
         "MAIL_ALERT_ON_STREAM_COMMAND": True,
         "MAIL_ALERT_ON_PROGRAM_ERROR": True,
         "MAIL_ALERT_ON_REMOTE_ERROR": True,
+        "MAIL_ALERT_MAX_ERRORS_REPORTED": 50,
         "MAIL_ALERT_ON_PLAYLIST_LOOP": False,
         "MAIL_ALERT_ON_PLAYLIST_STOP": True,
         "MAIL_ALERT_ON_PLAYLIST_END": True,
@@ -151,6 +153,14 @@ if default_ini.has_option("Paths", "RTMP_STREAMER_LOG"):  # Added in 2.2.0.
     )
 else:
     RTMP_STREAMER_LOG = "ffmpeg_rtmp.log"
+if default_ini.has_option("Paths", "ERROR_LOG"):  # Added in 2.2.0.
+    ERROR_LOG = (
+        os.path.expanduser(default_ini.get("Paths", "ERROR_LOG"))
+        if default_ini.get("Paths", "ERROR_LOG") != ""
+        else None
+    )
+else:
+    ERROR_LOG = "error.log"
 
 MEDIA_PLAYLIST = os.path.expanduser(default_ini.get("Paths", "MEDIA_PLAYLIST"))
 
@@ -361,6 +371,9 @@ if default_ini.has_section("Mail"):
     MAIL_ALERT_ON_REMOTE_ERROR = default_ini.getboolean(
         "Mail", "MAIL_ALERT_ON_REMOTE_ERROR"
     )
+    MAIL_ALERT_MAX_ERRORS_REPORTED = max(
+        default_ini.getint("Mail", "MAIL_ALERT_MAX_ERRORS_REPORTED"), 1
+    )
     MAIL_ALERT_ON_COMMAND = default_ini.getboolean("Mail", "MAIL_ALERT_ON_COMMAND")
     MAIL_ALERT_ON_PLAYLIST_LOOP = default_ini.getboolean(
         "Mail", "MAIL_ALERT_ON_PLAYLIST_LOOP"
@@ -395,6 +408,7 @@ else:
     MAIL_ALERT_ON_STREAM_RESUME = False
     MAIL_ALERT_ON_PROGRAM_ERROR = False
     MAIL_ALERT_ON_REMOTE_ERROR = False
+    MAIL_ALERT_MAX_ERRORS_REPORTED = 1
     MAIL_ALERT_ON_COMMAND = False
     MAIL_ALERT_ON_PLAYLIST_LOOP = False
     MAIL_ALERT_ON_PLAYLIST_STOP = False
@@ -456,9 +470,13 @@ else:
 
 
 def print2(level: str, message: str):
-    """Prepend a colored label to a standard print message."""
+    """Prepend a colored label to a standard print message.
+    Also writes messages with severity `warn` or higher to
+    log file.
+    """
 
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    write_log = ""
 
     reset = "\033[0m"
     notice = "\033[96m" + "[Notice]" + reset
@@ -468,10 +486,13 @@ def print2(level: str, message: str):
 
     if level == "fatal" and VERBOSE & 0b10000000:
         print(f"{current_time} {error} {message}")
+        write_log = f"{current_time} [Error] {message}\n"
     elif level == "error" and VERBOSE & 0b1000000:
         print(f"{current_time} {error} {message}")
+        write_log = f"{current_time} [Error] {message}\n"
     elif level == "warn" and VERBOSE & 0b100000:
         print(f"{current_time} {warn} {message}")
+        write_log = f"{current_time} [Warn] {message}\n"
     elif level == "notice" and VERBOSE & 0b10000:
         print(f"{current_time} {notice} {message}")
     elif level == "play" and VERBOSE & 0b1000:
@@ -482,6 +503,10 @@ def print2(level: str, message: str):
         print(f"{current_time} [Info] {message}")
     elif level == "verbose2" and VERBOSE & 0b1:
         print(f"{current_time} [Info] {message}")
+
+    if ERROR_LOG is not None and write_log != "":
+        with open(ERROR_LOG, "a", encoding="utf-8") as log_file:
+            log_file.write(write_log)
 
 
 # Basic validation of config file structure.

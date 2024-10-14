@@ -99,9 +99,9 @@ class StreamStats:
     stream_downtime: int
     """Time in seconds that stream errors have caused downtime."""
 
-    exceptions: list[tuple[Exception, datetime.datetime]]
-    """A list of exceptions caught by the program during the main loop.
-    This is a list containing tuples of the exception and the time
+    exceptions: deque[tuple[Exception, datetime.datetime]]
+    """A deque of exceptions caught by the program during the main loop.
+    This is a deque containing tuples of the exception and the time
     it occurred.
     """
 
@@ -144,7 +144,7 @@ class StreamStats:
         self.restarts = 0
         self.retries = 0
         self.stream_downtime = 0
-        self.exceptions = []
+        self.exceptions = deque(maxlen=config.MAIL_ALERT_MAX_ERRORS_REPORTED)
         self.last_exception_time = current_time
 
     def rewind(self, time):
