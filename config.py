@@ -85,7 +85,7 @@ ini_defaults = {
         "MAIL_ALERT_ON_STREAM_RESUME": True,
         "MAIL_ALERT_ON_STREAM_COMMAND": True,
         "MAIL_ALERT_ON_PROGRAM_ERROR": True,
-        "MAIL_ALERT_ON_REMOTE_ERROR": True,
+        "MAIL_ALERT_ON_REMOTE_ERROR": "fail_only",
         "MAIL_ALERT_MAX_ERRORS_REPORTED": 50,
         "MAIL_ALERT_ON_PLAYLIST_LOOP": False,
         "MAIL_ALERT_ON_PLAYLIST_STOP": True,
@@ -432,9 +432,9 @@ if default_ini.has_section("Mail"):
     MAIL_ALERT_ON_PROGRAM_ERROR = default_ini.getboolean(
         "Mail", "MAIL_ALERT_ON_PROGRAM_ERROR"
     )
-    MAIL_ALERT_ON_REMOTE_ERROR = default_ini.getboolean(
+    MAIL_ALERT_ON_REMOTE_ERROR = default_ini.get(
         "Mail", "MAIL_ALERT_ON_REMOTE_ERROR"
-    )
+    ).lower()
     MAIL_ALERT_MAX_ERRORS_REPORTED = max(
         default_ini.getint("Mail", "MAIL_ALERT_MAX_ERRORS_REPORTED"), 1
     )
@@ -471,7 +471,7 @@ else:
     MAIL_ALERT_ON_STREAM_DOWN = False
     MAIL_ALERT_ON_STREAM_RESUME = False
     MAIL_ALERT_ON_PROGRAM_ERROR = False
-    MAIL_ALERT_ON_REMOTE_ERROR = False
+    MAIL_ALERT_ON_REMOTE_ERROR = 0
     MAIL_ALERT_MAX_ERRORS_REPORTED = 1
     MAIL_ALERT_ON_COMMAND = False
     MAIL_ALERT_ON_PLAYLIST_LOOP = False
@@ -675,6 +675,19 @@ if MAIL_ENABLE:
         if MAIL_TO_ADDRESS is None or MAIL_TO_ADDRESS == "":
             print2("error", "MAIL_TO_ADDRESS is blank.")
             mail_config_error = True
+
+        if MAIL_ALERT_ON_REMOTE_ERROR == "fail_only":
+            MAIL_ALERT_ON_REMOTE_ERROR = 1
+        elif MAIL_ALERT_ON_REMOTE_ERROR == "all":
+            MAIL_ALERT_ON_REMOTE_ERROR = 2
+        elif MAIL_ALERT_ON_REMOTE_ERROR == "off":
+            MAIL_ALERT_ON_REMOTE_ERROR = 0
+        else:
+            print2(
+                "warn",
+                'MAIL_ALERT_ON_REMOTE_ERROR setting not recognized. Using default setting "fail_only".',
+            )
+            MAIL_ALERT_ON_REMOTE_ERROR = 1
 
     if mail_config_error:
         sys.exit(1)

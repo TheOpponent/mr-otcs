@@ -786,7 +786,7 @@ def write_schedule(
             len(ssh_exceptions) > 0
             and stats.mail_daemon is not None
             and stats.mail_daemon.running
-            and config.MAIL_ALERT_ON_REMOTE_ERROR
+            and config.MAIL_ALERT_ON_REMOTE_ERROR > 0
         ):
             message = ""
             for exc, timestamp in ssh_exceptions:
@@ -799,12 +799,12 @@ def write_schedule(
                 message += f"Last {config.MAIL_ALERT_MAX_ERRORS_REPORTED} errors logged; earlier errors may have been truncated."
                 if config.ERROR_LOG is not None:
                     message += f" Check {config.ERROR_LOG}."
-            if ssh_result is None:
+            if ssh_result is None and config.MAIL_ALERT_ON_REMOTE_ERROR >= 1:
                 stats.mail_daemon.add_alert("remote_error", message)
-            elif not ssh_result:
+            elif not ssh_result and config.MAIL_ALERT_ON_REMOTE_ERROR >= 1:
                 stats.mail_daemon.add_alert("remote_auth_failed", message)
                 config.REMOTE_ADDRESS = None
-            elif ssh_result:
+            elif ssh_result and config.MAIL_ALERT_ON_REMOTE_ERROR >= 2:
                 stats.mail_daemon.add_alert("remote_success_after_error", message)
 
 
