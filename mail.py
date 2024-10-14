@@ -126,7 +126,7 @@ class EMailDaemon:
 
         with self._lock:
             last_sent_time: datetime.datetime = self.last_sent.get(
-                alert_type, datetime.datetime.min
+                alert_type, datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
             )
             if bypass_interval or (
                 current_time - last_sent_time >= datetime.timedelta(hours=1)
