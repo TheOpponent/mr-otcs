@@ -338,7 +338,9 @@ else:
     SCHEDULE_EXCLUDE_FILE_PATTERN = None
 
 if default_ini.has_option("Schedule", "SCHEDULE_MIN_VIDEO_LENGTH"):  # Added in 2.2.0.
-    SCHEDULE_MIN_VIDEO_LENGTH = default_ini.getint("Schedule", "SCHEDULE_MIN_VIDEO_LENGTH")
+    SCHEDULE_MIN_VIDEO_LENGTH = default_ini.getint(
+        "Schedule", "SCHEDULE_MIN_VIDEO_LENGTH"
+    )
 else:
     SCHEDULE_MIN_VIDEO_LENGTH = 0
 
@@ -614,10 +616,7 @@ if REMOTE_ADDRESS is not None and REMOTE_USERNAME is None:
 # Enforce a minimum CHECK_INTERVAL time of the number of links provided in
 # CHECK_URL times 5 seconds, and no less than 10 seconds for safety.
 if CHECK_URL is not None:
-    if CHECK_INTERVAL < (len(CHECK_URL) * 5):
-        CHECK_INTERVAL = len(CHECK_URL) * 5
-    if CHECK_INTERVAL < 10:
-        CHECK_INTERVAL = 10
+    CHECK_INTERVAL = max(CHECK_INTERVAL, 10, len(CHECK_URL) * 5)
 
 if SCHEDULE_MAX_VIDEOS < SCHEDULE_MIN_VIDEOS:
     print2("error", "SCHEDULE_MAX_VIDEOS is less than SCHEDULE_MIN_VIDEOS.")
@@ -723,7 +722,7 @@ if MAIL_ENABLE:
 if default_ini.has_option("SSH", "REMOTE_RETRY_PERIOD"):
     print2(
         "info",
-        f"[Mail] option REMOTE_RETRY_PERIOD has been deprecated and can be deleted from {config_file}.",
+        f"[SSH] option REMOTE_RETRY_PERIOD has been deprecated and can be deleted from {config_file}.",
     )
 
 

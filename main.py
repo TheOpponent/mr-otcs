@@ -681,7 +681,7 @@ def main():
                         print2("notice", "Exiting.")
                         if os.name == "posix":
                             os.system("stty sane")
-                        exit(0)
+                        sys.exit(0)
                     else:
                         play_index = 0
                         stats.elapsed_time = 0
@@ -705,7 +705,7 @@ def main():
                     play_index += 1
                     continue
 
-                elif media_playlist[play_index][1].type == "extra":
+                if media_playlist[play_index][1].type == "extra":
                     print2(
                         "verbose",
                         f"{media_playlist[play_index][0]}. Extra: {media_playlist[play_index][1].info}",
@@ -715,7 +715,7 @@ def main():
                     continue
 
                 # Execute directives for PlaylistEntry type "command".
-                elif media_playlist[play_index][1].type == "command":
+                if media_playlist[play_index][1].type == "command":
                     if media_playlist[play_index][1].info == "RESTART":
                         if total_elapsed_time > config.STREAM_RESTART_MINIMUM_TIME:
                             restarted = True
@@ -758,15 +758,14 @@ def main():
                             )
                             break
 
-                        else:
-                            print2(
-                                "notice",
-                                f"{media_playlist[play_index][0]}. RESTART command found, but not executing as less than {config.STREAM_RESTART_MINIMUM_TIME} minutes have passed.",
-                            )
-                            play_index += 1
-                            continue
+                        print2(
+                            "notice",
+                            f"{media_playlist[play_index][0]}. RESTART command found, but not executing as less than {config.STREAM_RESTART_MINIMUM_TIME} minutes have passed.",
+                        )
+                        play_index += 1
+                        continue
 
-                    elif media_playlist[play_index][1].info == "INSTANT_RESTART":
+                    if media_playlist[play_index][1].info == "INSTANT_RESTART":
                         if total_elapsed_time > config.STREAM_RESTART_MINIMUM_TIME:
                             instant_restarted = True
                             stats.restarts += 1
@@ -791,15 +790,14 @@ def main():
                                 datetime.timezone.utc
                             )
                             break
-                        else:
-                            print2(
-                                "notice",
-                                f"{media_playlist[play_index][0]}. INSTANT_RESTART command found, but not executing as less than {config.STREAM_RESTART_MINIMUM_TIME} minutes have passed.",
-                            )
-                            play_index += 1
-                            continue
+                        print2(
+                            "notice",
+                            f"{media_playlist[play_index][0]}. INSTANT_RESTART command found, but not executing as less than {config.STREAM_RESTART_MINIMUM_TIME} minutes have passed.",
+                        )
+                        play_index += 1
+                        continue
 
-                    elif media_playlist[play_index][1].info == "STOP":
+                    if media_playlist[play_index][1].info == "STOP":
                         print2(
                             "notice",
                             f"{media_playlist[play_index][0]}. Executing STOP command.",
@@ -838,7 +836,7 @@ def main():
                         print2("notice", "Exiting.")
                         if os.name == "posix":
                             os.system("stty sane")
-                        exit(0)
+                        sys.exit(0)
 
                     if media_playlist[play_index][1].info.startswith("MAIL"):
                         if stats.mail_daemon_running(config.MAIL_ALERT_ON_COMMAND):
@@ -873,7 +871,7 @@ def main():
                         play_index += 1
                         continue
 
-                    elif media_playlist[play_index][1].info.startswith("EXCEPTION"):
+                    if media_playlist[play_index][1].info.startswith("EXCEPTION"):
                         print2(
                             "notice",
                             f"{media_playlist[play_index][0]}. Executing EXCEPTION command.",
@@ -1083,37 +1081,36 @@ def main():
                                 break
 
                             # Retry if encoder process fails.
-                            else:
-                                retried = True
-                                stats.retries += 1
-                                if stats.stream_time_remaining > (
-                                    next_video_length - exit_time
+                            retried = True
+                            stats.retries += 1
+                            if stats.stream_time_remaining > (
+                                next_video_length - exit_time
+                            ):
+                                if (
+                                    stats.elapsed_time - config.REWIND_LENGTH
+                                    > stats.video_resume_point
                                 ):
-                                    if (
-                                        stats.elapsed_time - config.REWIND_LENGTH
-                                        > stats.video_resume_point
-                                    ):
-                                        stats.rewind(config.REWIND_LENGTH)
-                                        stats.video_resume_point = stats.elapsed_time
-                                    print2(
-                                        "warn",
-                                        f"Encoding failed. Retrying from {int_to_time(stats.elapsed_time)}.",
-                                    )
-                                    print2(
-                                        "info",
-                                        f"{int_to_time(stats.stream_time_remaining - (next_video_length - stats.elapsed_time))} left before restart.",
-                                    )
-                                else:
-                                    # If the remaining length of the video is greater than
-                                    # stats.stream_time_remaining, force a restart by breaking
-                                    # this loop and causing the next iteration to go to restart.
-                                    print2(
-                                        "warn",
-                                        "Encoding failed. Insufficient time remaining to retry. Restarting stream.",
-                                    )
-                                    stats.stream_time_remaining = 0
-                                    stats.videos_since_restart += 1
-                                    break
+                                    stats.rewind(config.REWIND_LENGTH)
+                                    stats.video_resume_point = stats.elapsed_time
+                                print2(
+                                    "warn",
+                                    f"Encoding failed. Retrying from {int_to_time(stats.elapsed_time)}.",
+                                )
+                                print2(
+                                    "info",
+                                    f"{int_to_time(stats.stream_time_remaining - (next_video_length - stats.elapsed_time))} left before restart.",
+                                )
+                            else:
+                                # If the remaining length of the video is greater than
+                                # stats.stream_time_remaining, force a restart by breaking
+                                # this loop and causing the next iteration to go to restart.
+                                print2(
+                                    "warn",
+                                    "Encoding failed. Insufficient time remaining to retry. Restarting stream.",
+                                )
+                                stats.stream_time_remaining = 0
+                                stats.videos_since_restart += 1
+                                break
 
                     else:
                         print2("notice", "STREAM_TIME_BEFORE_RESTART limit reached.")
