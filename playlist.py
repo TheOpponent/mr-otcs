@@ -1,13 +1,11 @@
 """Functions for handling the playlist and schedule files."""
 
 import datetime
-import errno
 import itertools
 import json
 import os
 import sys
 import threading
-import time
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Generator, Tuple
@@ -25,6 +23,7 @@ from pymediainfo import MediaInfo
 import config
 from config import print2
 from streamstats import StreamStats
+from utils import check_file, int_to_time
 
 
 @dataclass
@@ -131,59 +130,6 @@ def get_length(video) -> int:
         return int(float(mediainfo.video_tracks[0].duration) // 1000)
 
     raise ValueError("Expected PlaylistEntry, path, or None.")
-
-
-def check_file(path, line_num=None, no_exit=False):
-    """Retry opening nonexistent files up to `config.RETRY_ATTEMPTS`.
-
-    If file is found, returns True.
-    If `EXIT_ON_FILE_NOT_FOUND` is True, throw exception if retry
-    attempts don't succeed. If False, return False and continue.
-    no_exit overrides `EXIT_ON_FILE_NOT_FOUND`.
-    """
-
-    if path is None:
-        return True
-
-    retry_attempts_remaining = config.RETRY_ATTEMPTS
-
-    # If RETRY_ATTEMPTS is -1, don't print number of attempts
-    # remaining.
-    retry_attempts_string = ""
-
-    while not os.path.isfile(path):
-        # Print number of attempts remaining.
-        if retry_attempts_remaining > 0:
-            if retry_attempts_remaining > 1:
-                retry_attempts_string = (
-                    f"{retry_attempts_remaining} attempts remaining."
-                )
-            else:
-                retry_attempts_string = "1 attempt remaining."
-            retry_attempts_remaining -= 1
-        elif retry_attempts_remaining == 0:
-            if config.EXIT_ON_FILE_NOT_FOUND and not no_exit:
-                if line_num is not None:
-                    print2("fatal", f"Line {line_num}: {path} not found.")
-                else:
-                    print2("error", f"{path} not found.")
-                raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
-            else:
-                if line_num is not None:
-                    print2("error", f"Line {line_num}: {path} not found. Continuing.")
-                else:
-                    print2("error", f"{path} not found. Continuing.")
-                return False
-
-        print2("error", f"File not found: {path}.")
-        print2(
-            "error",
-            f"{retry_attempts_string} Retrying in {config.RETRY_PERIOD} seconds...",
-        )
-
-        time.sleep(config.RETRY_PERIOD)
-
-    return True
 
 
 def create_playlist() -> list[Tuple[int, PlaylistEntry]]:

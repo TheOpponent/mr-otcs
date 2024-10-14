@@ -27,7 +27,7 @@ import mail
 import playlist
 from config import print2
 from streamstats import StreamStats
-from utils import int_to_time, int_to_total_time
+from utils import check_file, int_to_time, int_to_total_time
 
 
 class BackgroundProcessError(Exception):
@@ -575,7 +575,7 @@ def main():
             # If config.STREAM_RESTART_BEFORE_VIDEO is defined, add its
             # length to total_elapsed_time ahead of time.
             if config.STREAM_RESTART_BEFORE_VIDEO is not None:
-                if playlist.check_file(config.STREAM_RESTART_BEFORE_VIDEO):
+                if check_file(config.STREAM_RESTART_BEFORE_VIDEO):
                     next_video_length = playlist.get_length(
                         config.STREAM_RESTART_BEFORE_VIDEO
                     )
@@ -585,7 +585,7 @@ def main():
                 print2("info", "Stream restarted.")
                 write_play_history("Stream restarted.")
                 if config.STREAM_RESTART_AFTER_VIDEO is not None:
-                    if playlist.check_file(config.STREAM_RESTART_AFTER_VIDEO):
+                    if check_file(config.STREAM_RESTART_AFTER_VIDEO):
                         next_video_length = playlist.get_length(
                             config.STREAM_RESTART_AFTER_VIDEO
                         )
@@ -904,7 +904,7 @@ def main():
             if media_playlist[play_index][1].type == "normal":
                 video_file = media_playlist[play_index][1]
                 video_start_time = datetime.datetime.now()
-                result = playlist.check_file(video_file.path)
+                result = check_file(video_file.path)
 
                 if result:
                     next_video_length = playlist.get_length(video_file.path)
