@@ -9,6 +9,7 @@ import sys
 import threading
 import time
 from collections import deque
+from dataclasses import dataclass, field
 from typing import Generator, Tuple
 
 import fabric
@@ -26,6 +27,7 @@ from config import print2
 from streamstats import StreamStats
 
 
+@dataclass
 class PlaylistEntry:
     """Definition for playlist entries, parsed from a list or text file
     containing formatted playlist entry strings.
@@ -54,43 +56,38 @@ class PlaylistEntry:
     if `self.type` is not "normal".
     """
 
-    type: str
+    entry: str
+
+    type: str = field(init=False)
     """One of 'normal', 'extra', 'command', or 'blank'. Normal entries contain
     information on a video file.
     """
 
-    name: str
+    name: str = field(init=False, default=None)
     """For normal entries, the name of this video as displayed in the schedule.
     This can be overwritten with an alternate name.
     """
 
-    path: str
+    path: str = field(init=False, default=None)
     "The full path to this video file."
 
-    info: str
+    info: str = field(init=False, default=None)
     """For normal and extra entries, any metadata attached to this entry.
     For command entries, the directive to run.
     """
 
-    def __init__(self, entry):
-        if entry is None:
+    def __post_init__(self):
+        if self.entry is None:
             self.type = "blank"
-            self.name = None
-            self.path = None
-            self.info = None
-        elif entry.startswith(":"):
+        elif self.entry.startswith(":"):
             self.type = "extra"
-            self.name = None
-            self.path = None
-            self.info = entry[1:]
-        elif entry.startswith("%"):
+            self.info = self.entry[1:]
+        elif self.entry.startswith("%"):
             self.type = "command"
-            self.name = None
-            self.path = None
-            self.info = entry[1:]
+            self.info = self.entry[1:]
         else:
             self.type = "normal"
-            split_name = entry.split(" :", 1)
+            split_name = self.entry.split(" :", 1)
             self.name = os.path.splitext(split_name[0])[0]
             self.path = (
                 os.path.join(config.BASE_PATH, "".join(split_name[0]))
@@ -103,16 +100,18 @@ class PlaylistEntry:
                 self.info = ""
 
 
+@dataclass
 class PlaylistTestEntry(PlaylistEntry):
     """A `PlaylistEntry` intended for use in unit tests. It has an extra
     attribute, `length`, that will always be returned by `get_length()`.
     """
 
-    def __init__(self, entry, length=60):
-        super().__init__(entry)
+    length: int = 60
+
+    def __post_init__(self):
+        super().__post_init__()
         if self.type == "normal":
             self.path = None
-            self.length = length
 
 
 def get_length(video) -> int:
