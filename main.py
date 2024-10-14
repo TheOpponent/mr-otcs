@@ -524,13 +524,6 @@ def kill_media_player():
 def main():
     video_file: playlist.PlaylistEntry
 
-    if config.STREAM_URL == "":
-        print2(
-            "error",
-            f"STREAM_URL in {config.config_file} is blank. Enter a valid stream location and run main.py again.",
-        )
-        exit(1)
-
     restarted: bool = False
     retried: bool = False
     instant_restarted: bool = False

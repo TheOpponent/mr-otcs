@@ -23,7 +23,7 @@ ini_defaults = {
         "ERROR_LOG": "error.log",
     },
     "VideoOptions": {
-        "STREAM_URL": "rtmp://localhost:1935/live/",
+        "STREAM_URL": "",
         "CHECK_URL": "https://google.com, https://twitch.tv, https://github.com, https://amazon.com, https://canhazip.com, https://one.one.one.one, https://8.8.8.8",
         "CHECK_INTERVAL": 60,
         "CHECK_STRICT": True,
@@ -545,6 +545,10 @@ for section, options_dict in ini_defaults.items():
         break
 
 # Validate config settings.
+if STREAM_URL == "":
+    print2("fatal", "STREAM_URL is blank.")
+    sys.exit(1)
+
 if ALT_NAMES_JSON_PATH is not None:
     try:
         with open(ALT_NAMES_JSON_PATH, "r", encoding="utf8") as alt_names_json:
