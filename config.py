@@ -117,6 +117,70 @@ else:
     default_ini.read_dict(ini_defaults)
     default_ini.read(config_file)
 
+VERBOSE = default_ini.get("Misc", "VERBOSE").lower()
+
+if VERBOSE == "silent":
+    VERBOSE = 0
+elif VERBOSE == "fatal":
+    VERBOSE = 0b10000000
+elif VERBOSE == "error":
+    VERBOSE = 0b11000000
+elif VERBOSE == "warn":
+    VERBOSE = 0b11100000
+elif VERBOSE == "notice":
+    VERBOSE = 0b11110000
+elif VERBOSE == "play":
+    VERBOSE = 0b11111000
+elif VERBOSE == "info":
+    VERBOSE = 0b11111100
+elif VERBOSE == "verbose":
+    VERBOSE = 0b11111110
+elif VERBOSE == "verbose2":
+    VERBOSE = 0b11111111
+else:
+    print('VERBOSE setting not recognized. Using default setting "info".')
+    VERBOSE = 0b11111100
+
+
+def print2(level: str, message: str):
+    """Prepend a colored label to a standard print message.
+    Also writes messages with severity `warn` or higher to
+    log file.
+    """
+
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    write_log = ""
+
+    reset = "\033[0m"
+    notice = "\033[96m" + "[Notice]" + reset
+    warn = "\033[93m" + "[Warn]" + reset
+    error = "\033[31m" + "[Error]" + reset
+    play = "\033[92m" + "[Play]" + reset
+
+    if level == "fatal" and VERBOSE & 0b10000000:
+        print(f"{current_time} {error} {message}")
+        write_log = f"{current_time} [Error] {message}\n"
+    elif level == "error" and VERBOSE & 0b1000000:
+        print(f"{current_time} {error} {message}")
+        write_log = f"{current_time} [Error] {message}\n"
+    elif level == "warn" and VERBOSE & 0b100000:
+        print(f"{current_time} {warn} {message}")
+        write_log = f"{current_time} [Warn] {message}\n"
+    elif level == "notice" and VERBOSE & 0b10000:
+        print(f"{current_time} {notice} {message}")
+    elif level == "play" and VERBOSE & 0b1000:
+        print(f"{current_time} {play} {message}")
+    elif level == "info" and VERBOSE & 0b100:
+        print(f"{current_time} [Info] {message}")
+    elif level == "verbose" and VERBOSE & 0b10:
+        print(f"{current_time} [Info] {message}")
+    elif level == "verbose2" and VERBOSE & 0b1:
+        print(f"{current_time} [Info] {message}")
+
+    if ERROR_LOG is not None and write_log != "":
+        with open(ERROR_LOG, "a", encoding="utf-8") as log_file:
+            log_file.write(write_log)
+
 
 MEDIA_PLAYER_PATH = default_ini.get("Paths", "MEDIA_PLAYER_PATH")
 RTMP_STREAMER_PATH = default_ini.get("Paths", "RTMP_STREAMER_PATH")
@@ -417,29 +481,6 @@ else:
     MAIL_ALERT_ON_NEW_PRERELEASE_VERSION = False
 
 PLAY_HISTORY_LENGTH = default_ini.getint("Misc", "PLAY_HISTORY_LENGTH")
-VERBOSE = default_ini.get("Misc", "VERBOSE").lower()
-
-if VERBOSE == "silent":
-    VERBOSE = 0
-elif VERBOSE == "fatal":
-    VERBOSE = 0b10000000
-elif VERBOSE == "error":
-    VERBOSE = 0b11000000
-elif VERBOSE == "warn":
-    VERBOSE = 0b11100000
-elif VERBOSE == "notice":
-    VERBOSE = 0b11110000
-elif VERBOSE == "play":
-    VERBOSE = 0b11111000
-elif VERBOSE == "info":
-    VERBOSE = 0b11111100
-elif VERBOSE == "verbose":
-    VERBOSE = 0b11111110
-elif VERBOSE == "verbose2":
-    VERBOSE = 0b11111111
-else:
-    print('VERBOSE setting not recognized. Using default setting "info".')
-    VERBOSE = 0b11111100
 
 if default_ini.has_option("Misc", "STREAM_MANUAL_RESTART_DELAY"):  # Added in 2.2.0.
     STREAM_MANUAL_RESTART_DELAY = default_ini.getint(
@@ -467,46 +508,6 @@ if default_ini.has_option("Misc", "VERSION_CHECK_INTERVAL"):  # Added in 2.2.0.
         VERSION_CHECK_INTERVAL = 30
 else:
     VERSION_CHECK_INTERVAL = 30
-
-
-def print2(level: str, message: str):
-    """Prepend a colored label to a standard print message.
-    Also writes messages with severity `warn` or higher to
-    log file.
-    """
-
-    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    write_log = ""
-
-    reset = "\033[0m"
-    notice = "\033[96m" + "[Notice]" + reset
-    warn = "\033[93m" + "[Warn]" + reset
-    error = "\033[31m" + "[Error]" + reset
-    play = "\033[92m" + "[Play]" + reset
-
-    if level == "fatal" and VERBOSE & 0b10000000:
-        print(f"{current_time} {error} {message}")
-        write_log = f"{current_time} [Error] {message}\n"
-    elif level == "error" and VERBOSE & 0b1000000:
-        print(f"{current_time} {error} {message}")
-        write_log = f"{current_time} [Error] {message}\n"
-    elif level == "warn" and VERBOSE & 0b100000:
-        print(f"{current_time} {warn} {message}")
-        write_log = f"{current_time} [Warn] {message}\n"
-    elif level == "notice" and VERBOSE & 0b10000:
-        print(f"{current_time} {notice} {message}")
-    elif level == "play" and VERBOSE & 0b1000:
-        print(f"{current_time} {play} {message}")
-    elif level == "info" and VERBOSE & 0b100:
-        print(f"{current_time} [Info] {message}")
-    elif level == "verbose" and VERBOSE & 0b10:
-        print(f"{current_time} [Info] {message}")
-    elif level == "verbose2" and VERBOSE & 0b1:
-        print(f"{current_time} [Info] {message}")
-
-    if ERROR_LOG is not None and write_log != "":
-        with open(ERROR_LOG, "a", encoding="utf-8") as log_file:
-            log_file.write(write_log)
 
 
 # Basic validation of config file structure.
