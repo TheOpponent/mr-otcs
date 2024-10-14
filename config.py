@@ -50,6 +50,7 @@ ini_defaults = {
         "SCHEDULE_PREVIOUS_LENGTH": 30,
         "SCHEDULE_PREVIOUS_PRUNE_TIGHT": False,
         "SCHEDULE_EXCLUDE_FILE_PATTERN": "",
+        "SCHEDULE_MIN_VIDEO_LENGTH": 0,
         "SCHEDULE_OFFSET": 0,
     },
     "Retry": {
@@ -333,6 +334,11 @@ if default_ini.get("Schedule", "SCHEDULE_EXCLUDE_FILE_PATTERN") != "":
     )
 else:
     SCHEDULE_EXCLUDE_FILE_PATTERN = None
+
+if default_ini.has_option("Schedule", "SCHEDULE_MIN_VIDEO_LENGTH"):  # Added in 2.2.0.
+    SCHEDULE_MIN_VIDEO_LENGTH = default_ini.getint("Schedule", "SCHEDULE_MIN_VIDEO_LENGTH")
+else:
+    SCHEDULE_MIN_VIDEO_LENGTH = 0
 
 RETRY_ATTEMPTS = default_ini.getint("Retry", "RETRY_ATTEMPTS")
 RETRY_PERIOD = (

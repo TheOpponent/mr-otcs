@@ -308,7 +308,7 @@ def write_schedule(
     # Time is retrieved in UTC, to be converted to user's local time
     # when they load the schedule in their browser.
     start_time = datetime.datetime.now(datetime.timezone.utc)
-    current_time = datetime.datetime.now(datetime.timezone.utc)
+    current_schedule_time = datetime.datetime.now(datetime.timezone.utc)
 
     # total_duration is the cumulative duration of all videos added so
     # far and is checked against config.SCHEDULE_UPCOMING_LENGTH.
@@ -375,7 +375,9 @@ def write_schedule(
     stream_duration += entry_length
 
     # Advance timestamp for next entry by combined length and offset of previous file.
-    current_time = current_time + datetime.timedelta(seconds=entry_length)
+    current_schedule_time = current_schedule_time + datetime.timedelta(
+        seconds=entry_length
+    )
 
     sub_playlist = iter_playlist(playlist, entry_index)
     entry = next(sub_playlist)
@@ -441,103 +443,116 @@ def write_schedule(
                     )
                     continue
 
-                # If name begins with any strings in SCHEDULE_EXCLUDE_FILE_PATTERN,
-                # do not add them to the schedule, but calculate their lengths and
-                # add to length_offset.
-                if config.SCHEDULE_EXCLUDE_FILE_PATTERN is not None and entry[
-                    1
-                ].name.casefold().startswith(config.SCHEDULE_EXCLUDE_FILE_PATTERN):
-                    print2(
-                        "verbose",
-                        f"Not adding entry {entry[0]}. {entry[1].name} to schedule: Name matches SCHEDULE_EXCLUDE_FILE_PATTERN.",
-                    )
-                    entry_length += config.VIDEO_PADDING
-                    length_offset += entry_length
-                    total_duration += entry_length
-                    stream_duration += entry_length
+            # Check for reasons to exclude current entry from schedule.
+            skip_reason = ""
 
-                    # Advance timestamp for next entry by length of excluded file.
-                    current_time = current_time + datetime.timedelta(
-                        seconds=length_offset
-                    )
-                    skipped_normal_entries += 1
-                    continue
-
-                # If this video would run over config.STREAM_TIME_BEFORE_RESTART,
-                # simulate a stream restart and add its length to length_offset before
-                # calculating next timestamp.
-                if (
-                    stream_duration + entry_length + config.VIDEO_PADDING
-                    >= config.STREAM_TIME_BEFORE_RESTART
-                ):
-                    length_offset = get_stream_restart_duration()
-                    stream_duration = 0
-                else:
-                    length_offset = 0
-                current_time = current_time + datetime.timedelta(seconds=length_offset)
-
-                coming_up_next_json.append(
-                    {
-                        "type": "normal",
-                        "name": entry[1].name,
-                        "time": current_time.strftime("%Y-%m-%d %H:%M:%S"),
-                        "unixtime": current_time.timestamp(),
-                        "length": entry_length,
-                        "extra_info": entry[1].info,
-                    }
-                )
-                print2(
-                    "verbose",
-                    f"Added normal entry {entry[0]}. {entry[1].name} to the schedule file.",
+            # Name begins with any strings in SCHEDULE_EXCLUDE_FILE_PATTERN
+            if config.SCHEDULE_EXCLUDE_FILE_PATTERN is not None and entry[
+                1
+            ].name.casefold().startswith(config.SCHEDULE_EXCLUDE_FILE_PATTERN):
+                skip_reason += (
+                    "Name matches SCHEDULE_EXCLUDE_FILE_PATTERN. ",
                 )
 
+            # Shorter than SCHEDULE_MIN_VIDEO_LENGTH
+            if entry_length < config.SCHEDULE_MIN_VIDEO_LENGTH:
+                skip_reason += f"Length of video ({int_to_time(entry_length)}) is shorter than SCHEDULE_MIN_VIDEO_LENGTH. "
+
+            # If a video is to be skipped in the schedule, calculate the length
+            # and add to length_offset.
+            if skip_reason != "":
+                print2("verbose", f"Not adding entry {entry[0]}. {entry[1].name} to schedule: {skip_reason}")
                 entry_length += config.VIDEO_PADDING
+                length_offset += entry_length
                 total_duration += entry_length
                 stream_duration += entry_length
 
-                current_time = current_time + datetime.timedelta(seconds=entry_length)
-
-            elif entry[1].type == "extra":
-                coming_up_next.append(entry[1])
-                coming_up_next_json.append(
-                    {
-                        "type": "extra",
-                        "name": "",
-                        "time": "",
-                        "unixtime": 0,
-                        "length": 0,
-                        "extra_info": entry[1].info,
-                    }
+                # Advance timestamp for next entry by length of excluded file.
+                current_schedule_time = current_schedule_time + datetime.timedelta(
+                    seconds=length_offset
                 )
-                print2(
-                    "verbose",
-                    f"Added extra entry {entry[0]}. {entry[1].name} to the schedule file.",
-                )
+                skipped_normal_entries += 1
+                continue
 
-            elif entry[1].type == "command":
-                coming_up_next.append(entry[1])
-                if entry[1].info == "RESTART":
-                    length_offset = get_stream_restart_duration()
-                elif entry[1].info == "INSTANT_RESTART":
-                    length_offset = config.STREAM_RESTART_WAIT
-                elif (
-                    entry[1].info.startswith("MAIL")
-                    and entry[1].info.split(" ")[0] == "MAIL"
-                ):
-                    continue
-                elif entry[1].info == "STOP":
-                    break
-                elif entry[1].info == "EXCEPTION":
-                    continue
-                else:
-                    print2(
-                        "error",
-                        f"Line {entry[0]}: Playlist directive {entry[1].info} not recognized.",
-                    )
-                    raise ValueError("Unrecognized command entry.")
-
+            # If this video would run over config.STREAM_TIME_BEFORE_RESTART,
+            # simulate a stream restart and add its length to length_offset before
+            # calculating next timestamp.
+            if (
+                stream_duration + entry_length + config.VIDEO_PADDING
+                >= config.STREAM_TIME_BEFORE_RESTART
+            ):
+                length_offset = get_stream_restart_duration()
+                stream_duration = 0
             else:
-                print2("warn", f"Line {entry[0]}: Invalid entry. Skipping.")
+                length_offset = 0
+            current_schedule_time = current_schedule_time + datetime.timedelta(
+                seconds=length_offset
+            )
+
+            coming_up_next_json.append(
+                {
+                    "type": "normal",
+                    "name": entry[1].name,
+                    "time": current_schedule_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "unixtime": current_schedule_time.timestamp(),
+                    "length": entry_length,
+                    "extra_info": entry[1].info,
+                }
+            )
+            print2(
+                "verbose",
+                f"Added normal entry {entry[0]}. {entry[1].name} to the schedule file.",
+            )
+
+            entry_length += config.VIDEO_PADDING
+            total_duration += entry_length
+            stream_duration += entry_length
+
+            current_schedule_time = current_schedule_time + datetime.timedelta(
+                seconds=entry_length
+            )
+
+        elif entry[1].type == "extra":
+            coming_up_next.append(entry[1])
+            coming_up_next_json.append(
+                {
+                    "type": "extra",
+                    "name": "",
+                    "time": "",
+                    "unixtime": 0,
+                    "length": 0,
+                    "extra_info": entry[1].info,
+                }
+            )
+            print2(
+                "verbose",
+                f"Added extra entry {entry[0]}. {entry[1].name} to the schedule file.",
+            )
+
+        elif entry[1].type == "command":
+            coming_up_next.append(entry[1])
+            if entry[1].info == "RESTART":
+                length_offset = get_stream_restart_duration()
+            elif entry[1].info == "INSTANT_RESTART":
+                length_offset = config.STREAM_RESTART_WAIT
+            elif (
+                entry[1].info.startswith("MAIL")
+                and entry[1].info.split(" ")[0] == "MAIL"
+            ):
+                continue
+            elif entry[1].info == "STOP":
+                break
+            elif entry[1].info == "EXCEPTION":
+                continue
+            else:
+                print2(
+                    "error",
+                    f"Line {entry[0]}: Playlist directive {entry[1].info} not recognized.",
+                )
+                raise ValueError("Unrecognized command entry.")
+
+        else:
+            print2("warn", f"Line {entry[0]}: Invalid entry. Skipping.")
 
     if (
         stats.previous_files is not None
