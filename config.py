@@ -6,7 +6,7 @@ import os
 import sys
 import configparser
 
-SCRIPT_VERSION = "2.2.0-beta3"
+SCRIPT_VERSION = "2.2.0-beta4"
 
 ini_defaults = {
     "Paths": {
