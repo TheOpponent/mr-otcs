@@ -361,16 +361,16 @@ def write_schedule(
                 )
 
     # First entry is the video playing now and is added unconditionally.
-    entry = playlist[entry_index]
-    entry_length = get_length(entry[1])
+    _, entry = playlist[entry_index]
+    entry_length = get_length(entry)
     coming_up_next_json.append(
         {
             "type": "normal",
-            "name": entry[1].name,
+            "name": entry.name,
             "time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
             "unixtime": start_time.timestamp(),
             "length": entry_length,
-            "extra_info": entry[1].info,
+            "extra_info": entry.info,
         }
     )
 
@@ -400,7 +400,7 @@ def write_schedule(
     )
 
     skipped_normal_entries = 0
-    for entry in sub_playlist:
+    for playlist_line_num, entry in sub_playlist:
         # Break when the number of minimum entries is reached and either entry or
         # duration limit is reached. Entries that were skipped for matching
         # SCHEDULE_EXCLUDE_FILE_PATTERN are not counted.
@@ -423,25 +423,25 @@ def write_schedule(
                 )
                 break
 
-        if entry[1].type == "blank":
+        if entry.type == "blank":
             continue
 
         # In the event of a stream restart, the value returned by
         # get_stream_restart_duration() is added to length_offset and added
         # to the next normal entry.
-        if entry[1].type == "normal":
-            if check_file(entry[1].path, entry[0], no_exit=True, stats=stats):
+        if entry.type == "normal":
+            if check_file(entry.path, playlist_line_num, no_exit=True, stats=stats):
                 try:
-                    entry_length = get_length(entry[1])
-                    coming_up_next.append(entry[1])
+                    entry_length = get_length(entry)
+                    coming_up_next.append(entry)
                 except FileNotFoundError as e:
                     print2(
                         "error",
-                        f"Line {entry[0]}. {entry[1].path} cannot be found. Not adding to schedule.",
+                        f"Line {playlist_line_num}. {entry.path} cannot be found. Not adding to schedule.",
                     )
                     exc = (
                         PlaylistException(
-                            f"Line {entry[0]}. {entry[1].path} cannot be found: {e}. Not adding to schedule.",
+                            f"Line {playlist_line_num}. {entry.path} cannot be found: {e}. Not adding to schedule.",
                             original_exception=e,
                         ),
                         datetime.datetime.now(),
@@ -452,11 +452,11 @@ def write_schedule(
                 except IndexError as e:
                     print2(
                         "error",
-                        f"Line {entry[0]}. {entry[1].path} contains no video tracks. Not adding to schedule.",
+                        f"Line {playlist_line_num}. {entry.path} contains no video tracks. Not adding to schedule.",
                     )
                     exc = (
                         PlaylistException(
-                            f"Line {entry[0]}. {entry[1].path} contains no video tracks. Not adding to schedule.",
+                            f"Line {playlist_line_num}. {entry.path} contains no video tracks. Not adding to schedule.",
                             original_exception=e,
                         ),
                         datetime.datetime.now(),
@@ -467,11 +467,11 @@ def write_schedule(
                 except Exception as e:
                     print2(
                         "error",
-                        f"Line {entry[0]}. {entry[1].path} failed: {type(e).__name__}: {e}. Not adding to schedule.",
+                        f"Line {playlist_line_num}. {entry.path} failed: {type(e).__name__}: {e}. Not adding to schedule.",
                     )
                     exc = (
                         PlaylistException(
-                            f"Line {entry[0]}. {entry[1].path} failed: {type(e).__name__}: {e}. Not adding to schedule.",
+                            f"Line {playlist_line_num}. {entry.path} failed: {type(e).__name__}: {e}. Not adding to schedule.",
                             original_exception=e,
                         ),
                         datetime.datetime.now(),
@@ -482,11 +482,11 @@ def write_schedule(
             else:
                 print2(
                     "error",
-                    f"Line {entry[0]}. {entry[1].path} cannot be found. Not adding to schedule.",
+                    f"Line {playlist_line_num}. {entry.path} cannot be found. Not adding to schedule.",
                 )
                 exc = (
                     PlaylistException(
-                        f"Line {entry[0]}. {entry[1].path} cannot be found. Not adding to schedule."
+                        f"Line {playlist_line_num}. {entry.path} cannot be found. Not adding to schedule."
                     ),
                     datetime.datetime.now(),
                 )
@@ -498,9 +498,12 @@ def write_schedule(
             skip_reason = ""
 
             # Name begins with any strings in SCHEDULE_EXCLUDE_FILE_PATTERN
-            if config.SCHEDULE_EXCLUDE_FILE_PATTERN is not None and entry[
-                1
-            ].name.casefold().startswith(config.SCHEDULE_EXCLUDE_FILE_PATTERN):
+            if (
+                config.SCHEDULE_EXCLUDE_FILE_PATTERN is not None
+                and entry.name.casefold().startswith(
+                    config.SCHEDULE_EXCLUDE_FILE_PATTERN
+                )
+            ):
                 skip_reason += "Name matches SCHEDULE_EXCLUDE_FILE_PATTERN. "
 
             # Shorter than SCHEDULE_MIN_VIDEO_LENGTH
@@ -510,7 +513,10 @@ def write_schedule(
             # If a video is to be skipped in the schedule, calculate the length
             # and add to length_offset.
             if skip_reason != "":
-                print2("verbose", f"Not adding entry {entry[0]}. {entry[1].name} to schedule: {skip_reason}")
+                print2(
+                    "verbose",
+                    f"Not adding entry {playlist_line_num}. {entry.name} to schedule: {skip_reason}",
+                )
                 entry_length += config.VIDEO_PADDING
                 length_offset += entry_length
                 total_duration += entry_length
@@ -541,16 +547,16 @@ def write_schedule(
             coming_up_next_json.append(
                 {
                     "type": "normal",
-                    "name": entry[1].name,
+                    "name": entry.name,
                     "time": current_schedule_time.strftime("%Y-%m-%d %H:%M:%S"),
                     "unixtime": current_schedule_time.timestamp(),
                     "length": entry_length,
-                    "extra_info": entry[1].info,
+                    "extra_info": entry.info,
                 }
             )
             print2(
                 "verbose",
-                f"Added normal entry {entry[0]}. {entry[1].name} to the schedule file.",
+                f"Added normal entry {playlist_line_num}. {entry.name} to the schedule file.",
             )
 
             entry_length += config.VIDEO_PADDING
@@ -561,8 +567,8 @@ def write_schedule(
                 seconds=entry_length
             )
 
-        elif entry[1].type == "extra":
-            coming_up_next.append(entry[1])
+        elif entry.type == "extra":
+            coming_up_next.append(entry)
             coming_up_next_json.append(
                 {
                     "type": "extra",
@@ -570,38 +576,35 @@ def write_schedule(
                     "time": "",
                     "unixtime": 0,
                     "length": 0,
-                    "extra_info": entry[1].info,
+                    "extra_info": entry.info,
                 }
             )
             print2(
                 "verbose",
-                f"Added extra entry {entry[0]}. {entry[1].name} to the schedule file.",
+                f"Added extra entry {playlist_line_num}. {entry.name} to the schedule file.",
             )
 
-        elif entry[1].type == "command":
-            coming_up_next.append(entry[1])
-            if entry[1].info == "RESTART":
+        elif entry.type == "command":
+            coming_up_next.append(entry)
+            if entry.info == "RESTART":
                 length_offset = get_stream_restart_duration()
-            elif entry[1].info == "INSTANT_RESTART":
+            elif entry.info == "INSTANT_RESTART":
                 length_offset = config.STREAM_RESTART_WAIT
-            elif (
-                entry[1].info.startswith("MAIL")
-                and entry[1].info.split(" ")[0] == "MAIL"
-            ):
+            elif entry.info.startswith("MAIL") and entry.info.split(" ")[0] == "MAIL":
                 continue
-            elif entry[1].info == "STOP":
+            elif entry.info == "STOP":
                 break
-            elif entry[1].info == "EXCEPTION":
+            elif entry.info == "EXCEPTION":
                 continue
             else:
                 print2(
                     "error",
-                    f"Line {entry[0]}: Playlist directive {entry[1].info} not recognized.",
+                    f"Line {playlist_line_num}: Playlist directive {entry.info} not recognized.",
                 )
                 raise ValueError("Unrecognized command entry.")
 
         else:
-            print2("warn", f"Line {entry[0]}: Invalid entry. Skipping.")
+            print2("warn", f"Line {playlist_line_num}: Invalid entry. Skipping.")
 
     if len(schedule_exceptions) > 0 and stats.mail_daemon_running(
         config.MAIL_ALERT_ON_SCHEDULE_ERROR
@@ -861,7 +864,7 @@ def upload_ssh():
 
 
 @concurrent.thread
-def write_index(play_index, stats):
+def write_index(play_index, stats: StreamStats):
     """Write play_index and elapsed time to play_index.txt at the period set by
     `config.TIME_RECORD_INTERVAL`. A `StreamStats` object is used to track
     elapsed time.

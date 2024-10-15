@@ -647,6 +647,8 @@ def main():
                 stats.elapsed_time = 0
 
             # Get next item in media_playlist that is a PlaylistEntry of type "normal".
+            playlist_line_num: int = None
+            entry: playlist.PlaylistEntry = None
             while True:
                 # Reset index to 0 if it overruns the playlist and STOP_AFTER_LAST_VIDEO is not true.
                 if play_index >= media_playlist_length:
@@ -690,44 +692,44 @@ def main():
                         ):
                             stats.mail_daemon.add_alert("playlist_loop")
 
-                if media_playlist[play_index][1].type == "normal":
+                playlist_line_num, entry = media_playlist[play_index]
+
+                if entry.type == "normal":
                     break
 
                 # If the program starts on a non-normal entry, ignore the elapsed time in play_index.txt.
                 if stats.videos_since_restart == 0:
                     stats.elapsed_time = 0
 
-                if media_playlist[play_index][1].type == "blank":
+                if entry.type == "blank":
                     print2(
                         "verbose",
-                        f"{media_playlist[play_index][0]}. Non-video file entry. Skipping.",
+                        f"{playlist_line_num}. Non-video file entry. Skipping.",
                     )
                     play_index += 1
                     continue
 
-                if media_playlist[play_index][1].type == "extra":
+                if entry.type == "extra":
                     print2(
                         "verbose",
-                        f"{media_playlist[play_index][0]}. Extra: {media_playlist[play_index][1].info}",
+                        f"{playlist_line_num}. Extra: {entry.info}",
                     )
-                    extra_entries.append(media_playlist[play_index][1])
+                    extra_entries.append(entry)
                     play_index += 1
                     continue
 
                 # Execute directives for PlaylistEntry type "command".
-                if media_playlist[play_index][1].type == "command":
-                    if media_playlist[play_index][1].info == "RESTART":
+                if entry.type == "command":
+                    if entry.info == "RESTART":
                         if total_elapsed_time > config.STREAM_RESTART_MINIMUM_TIME:
                             restarted = True
                             stats.restarts += 1
 
                             print2(
                                 "play",
-                                f"{media_playlist[play_index][0]}. Executing RESTART command.",
+                                f"{playlist_line_num}. Executing RESTART command.",
                             )
-                            write_play_history(
-                                f"{media_playlist[play_index][0]}. %RESTART"
-                            )
+                            write_play_history(f"{playlist_line_num}. %RESTART")
 
                             if config.STREAM_RESTART_BEFORE_VIDEO is not None:
                                 print2(
@@ -760,22 +762,20 @@ def main():
 
                         print2(
                             "notice",
-                            f"{media_playlist[play_index][0]}. RESTART command found, but not executing as less than {config.STREAM_RESTART_MINIMUM_TIME} minutes have passed.",
+                            f"{playlist_line_num}. RESTART command found, but not executing as less than {config.STREAM_RESTART_MINIMUM_TIME} minutes have passed.",
                         )
                         play_index += 1
                         continue
 
-                    if media_playlist[play_index][1].info == "INSTANT_RESTART":
+                    if entry.info == "INSTANT_RESTART":
                         if total_elapsed_time > config.STREAM_RESTART_MINIMUM_TIME:
                             instant_restarted = True
                             stats.restarts += 1
                             print2(
                                 "play",
-                                f"{media_playlist[play_index][0]}. Executing INSTANT_RESTART command.",
+                                f"{playlist_line_num}. Executing INSTANT_RESTART command.",
                             )
-                            write_play_history(
-                                f"{media_playlist[play_index][0]}. %INSTANT_RESTART"
-                            )
+                            write_play_history(f"{playlist_line_num}. %INSTANT_RESTART")
                             stop_stream(executor)
                             stats.videos_since_restart = 0
                             total_elapsed_time = 0
@@ -792,17 +792,17 @@ def main():
                             break
                         print2(
                             "notice",
-                            f"{media_playlist[play_index][0]}. INSTANT_RESTART command found, but not executing as less than {config.STREAM_RESTART_MINIMUM_TIME} minutes have passed.",
+                            f"{playlist_line_num}. INSTANT_RESTART command found, but not executing as less than {config.STREAM_RESTART_MINIMUM_TIME} minutes have passed.",
                         )
                         play_index += 1
                         continue
 
-                    if media_playlist[play_index][1].info == "STOP":
+                    if entry.info == "STOP":
                         print2(
                             "notice",
-                            f"{media_playlist[play_index][0]}. Executing STOP command.",
+                            f"{playlist_line_num}. Executing STOP command.",
                         )
-                        write_play_history(f"{media_playlist[play_index][0]}. %STOP")
+                        write_play_history(f"{playlist_line_num}. %STOP")
                         play_index += 1
                         stop_stream(executor, restart=False)
                         total_time = int_to_total_time(
@@ -838,11 +838,9 @@ def main():
                             os.system("stty sane")
                         sys.exit(0)
 
-                    if media_playlist[play_index][1].info.startswith("MAIL"):
+                    if entry.info.startswith("MAIL"):
                         if stats.mail_daemon_running(config.MAIL_ALERT_ON_COMMAND):
-                            mail_command = media_playlist[play_index][1].info.split(
-                                " ", 1
-                            )
+                            mail_command = entry.info.split(" ", 1)
                             if len(mail_command) > 1 and not mail_command[1].isspace():
                                 stats.mail_daemon.add_alert(
                                     "mail_command",
@@ -871,10 +869,10 @@ def main():
                         play_index += 1
                         continue
 
-                    if media_playlist[play_index][1].info.startswith("EXCEPTION"):
+                    if entry.info.startswith("EXCEPTION"):
                         print2(
                             "notice",
-                            f"{media_playlist[play_index][0]}. Executing EXCEPTION command.",
+                            f"{playlist_line_num}. Executing EXCEPTION command.",
                         )
                         play_index += 1
                         playlist.write_index(play_index, stats)
@@ -891,8 +889,8 @@ def main():
             # regardless of stream time limits.
             if play_index >= media_playlist_length:
                 play_index = 0
-            if media_playlist[play_index][1].type == "normal":
-                video_file = media_playlist[play_index][1]
+            if entry.type == "normal":
+                video_file = entry
                 video_start_time = datetime.datetime.now()
                 result = check_file(video_file.path)
 
@@ -910,7 +908,7 @@ def main():
                     ):
                         print2(
                             "play",
-                            f"{media_playlist[play_index][0]}. {video_file.path} - Length: {int_to_time(next_video_length)}.",
+                            f"{playlist_line_num}. {video_file.path} - Length: {int_to_time(next_video_length)}.",
                         )
 
                         # If the second line of play_index.txt is greater than
@@ -960,7 +958,7 @@ def main():
                                 f"Writing play history file to {config.PLAY_HISTORY_FILE}.",
                             )
                             write_play_history(
-                                f"{media_playlist[play_index][0]}. {video_file.path}"
+                                f"{playlist_line_num}. {video_file.path}"
                             )
 
                         # Always start video no earlier than stats.elapsed_time, which is read from
@@ -1171,9 +1169,7 @@ def main():
                     continue
 
             else:
-                print2(
-                    "warn", f"{media_playlist[play_index][0]}. Unrecognized entry type."
-                )
+                print2("warn", f"{playlist_line_num}. Unrecognized entry type.")
                 play_index += 1
 
         except (ProcessExpired, BackgroundProcessError, ConnectionCheckError) as e:
