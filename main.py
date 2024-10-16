@@ -254,8 +254,7 @@ def generate_status_report(stats: StreamStats):
     stream_runtime = int((current_time - stats.stream_start_time).total_seconds())
 
     message += (
-        f"Report generated: {current_time.astimezone().strftime('%Y-%m-%d %H:%M:%S')}\n"
-        + f"Mr. OTCS version: {config.SCRIPT_VERSION}\n\n"
+        f"Report generated: {current_time.astimezone().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         + f"Program started: {stats.program_start_time.astimezone().strftime('%Y-%m-%d %H:%M:%S')}\n"
         + f"Program runtime: {int_to_total_time(program_runtime)}\n"
         + f"Current stream started: {stats.stream_start_time.astimezone().strftime('%Y-%m-%d %H:%M:%S')}\n"
