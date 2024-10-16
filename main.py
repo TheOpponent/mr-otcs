@@ -638,12 +638,13 @@ def main():
 
             try:
                 play_index = int(play_index_contents[0])
-            except (IndexError, ValueError):
-                play_index = 0
-
-            try:
                 stats.elapsed_time = int(play_index_contents[1])
             except (IndexError, ValueError):
+                print2(
+                    "notice",
+                    f"Play index reset due to invalid values in {config.PLAY_INDEX_FILE}.",
+                )
+                play_index = 0
                 stats.elapsed_time = 0
 
             # Get next item in media_playlist that is a PlaylistEntry of type "normal".
