@@ -1051,6 +1051,7 @@ def main():
                                 stats.elapsed_time = 0
                                 stats.video_resume_point = 0
                                 stats.videos_since_restart += 1
+                                stats.videos_since_exception += 1
                                 stats.total_videos += 1
                                 print2(
                                     "info",
@@ -1104,6 +1105,7 @@ def main():
                                 )
                                 stats.stream_time_remaining = 0
                                 stats.videos_since_restart += 1
+                                stats.videos_since_exception += 1
                                 break
 
                     else:
@@ -1177,6 +1179,7 @@ def main():
             write_play_history(
                 f"Stream stopped due to exception: {type(e).__name__}: {str(e)}"
             )
+            previous_stream_duration = int_to_total_time(datetime.datetime.now(datetime.timezone.utc) - stats.last_exception_time)
             stats.exceptions.append((e, datetime.datetime.now()))
             stats.last_exception_time = datetime.datetime.now(datetime.timezone.utc)
 
@@ -1191,6 +1194,8 @@ def main():
                         exception_time=stats.mail_daemon.last_exception_time,
                         bypass_interval=True,
                         urgent=True,
+                        total_time=previous_stream_duration,
+                        total_videos=stats.videos_since_exception
                     )
             print2("error", "Stream interrupted. Restarting.")
             print2(
@@ -1199,6 +1204,7 @@ def main():
             )
             retried = True
             stats.retries += 1
+            stats.videos_since_exception = 0
             if stats.elapsed_time - config.REWIND_LENGTH > stats.video_resume_point:
                 stats.rewind(config.REWIND_LENGTH)
                 stats.video_resume_point = stats.elapsed_time

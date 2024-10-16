@@ -233,8 +233,9 @@ class EMailDaemon:
         For exception-related messages, the keyword arguments
         `exception`, `exception_time`, and `traceback` can be given an
         Exception object, a datetime object, and a string containing
-        traceback information respectively. The keyword argument
-        `total_time` can be given a string.
+        traceback information respectively. The keyword arguments
+        `total_time` and `total_videos` can be given a string and int
+        respectively.
         """
 
         if not self.running:
@@ -244,6 +245,7 @@ class EMailDaemon:
         local_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         line_num = kwargs.get("line_num")
         total_time = kwargs.get("total_time")
+        total_videos = kwargs.get("total_videos")
         priority = 0
 
         if exception := kwargs.get("exception"):
@@ -263,13 +265,13 @@ class EMailDaemon:
             "stream_down": (
                 0,
                 "Stream offline",
-                f'The stream went offline due to exception "{exception_string}" at {exception_time}.',
+                f'The stream went offline due to the error "{exception_string}" at {exception_time}.\n\nBefore this error, not including restarts, the stream ran for {total_time}{f" and played {total_videos} videos" if total_videos is not None else ""}.',
             ),
             "stream_resume": (
                 10,
                 "Stream resumed",
                 (
-                    f'The stream reconnected at {local_time}. It recovered from the exception "{exception_string}", which occurred at {exception_time}.'
+                    f'The stream reconnected at {local_time}. It recovered from the error "{exception_string}", which occurred at {exception_time}.'
                     if exception and exception_time
                     else f"The stream reconnected at {local_time}."
                 ),
@@ -292,7 +294,7 @@ class EMailDaemon:
             "program_error": (
                 0,
                 "Program error",
-                f"Mr. OTCS exited at {exception_time} due to an unrecoverable error: {exception_string}\n\nMr. OTCS ran for {total_time}."
+                f"Mr. OTCS exited at {exception_time} due to an unrecoverable error: {exception_string}\n\nMr. OTCS ran for {total_time}{f' and played {total_videos} videos' if total_videos is not None else ''}."
                 + f"\n\n{traceback_string}"
                 if traceback_string != ""
                 else "",
@@ -320,12 +322,12 @@ class EMailDaemon:
             "playlist_stop": (
                 0,
                 "Playlist stopped",
-                f"The playlist reached a %STOP command on line {line_num} at {local_time}, and Mr. OTCS has exited.",
+                f"The playlist reached a %STOP command on line {line_num} at {local_time}, and Mr. OTCS has exited.\n\nMr. OTCS ran for {total_time}{f' and played {total_videos} videos' if total_videos is not None else ''}.",
             ),
             "playlist_end": (
                 0,
                 "Playlist ended",
-                f"The playlist reached the end at {local_time}, and Mr. OTCS has exited.",
+                f"The playlist reached the end at {local_time}, and Mr. OTCS has exited.\n\nMr. OTCS ran for {total_time}{f' and played {total_videos} videos' if total_videos is not None else ''}.",
             ),
             "mail_command": (
                 10,

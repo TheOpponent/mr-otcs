@@ -15,13 +15,13 @@ class StreamStats:
     """
 
     recent_playlist: deque
-    """A copy of the dict objects that were written as JSON objects on the
-    most recent call to `write_schedule()`.
+    """A copy of the dict objects that were written as JSON objects on
+    the most recent call to `write_schedule()`.
     """
 
     previous_files: deque
-    """Entries from `recent_playlist` are popped from the left and appended to
-    this deque.
+    """Entries from `recent_playlist` are popped from the left and 
+    appended to this deque.
     """
 
     program_start_time: datetime.datetime
@@ -31,8 +31,15 @@ class StreamStats:
     """Seconds the current video has been playing."""
 
     videos_since_restart: int
-    """Number of videos played since program start or last restart of RTMP
-    process. Does not include `config.STREAM_RESTART_BEFORE_VIDEO` or
+    """Number of videos played since program start or last restart of
+    RTMP process. Does not include `config.STREAM_RESTART_BEFORE_VIDEO`
+    or `config.STREAM_RESTART_AFTER_VIDEO`.
+    """
+
+    videos_since_exception: int
+    """Number of videos played since the last error occurred that caused
+    an unexpected stream restart. Does not include 
+    `config.STREAM_RESTART_BEFORE_VIDEO` or 
     `config.STREAM_RESTART_AFTER_VIDEO`.
     """
 
@@ -51,32 +58,35 @@ class StreamStats:
     """Seconds before automatic stream restart."""
 
     video_resume_point: int
-    """If video encoding is aborted, this is set to `elapsed_time`. This is the
-    earliest time the video will be allowed to start from. After successful
-    encoding, this is set to 0.
+    """If video encoding is aborted, this is set to `elapsed_time`. 
+    This is the earliest time the video will be allowed to start from.
+    After successful encoding, this is set to 0.
     """
 
     check_connection_future: futures.Future
-    """A Future for the `check_connection()` function, to ensure only one check
-    is run at a time.
+    """A Future for the `check_connection()` function, to ensure only
+    one check is run at a time.
     """
 
     schedule_future: futures.Future
-    """A Future for the `write_schedule()` function, to ensure only one schedule
-    is written at a time. If a `write_schedule` does not complete before the
-    next video in the playlist starts, the current future is cancelled.
+    """A Future for the `write_schedule()` function, to ensure only one
+    schedule is written at a time. If a `write_schedule` does not 
+    complete before the next video in the playlist starts, the current
+    future is cancelled.
     """
 
     last_connection_check: datetime.datetime
-    """The most recent internet connection check, used to help ensure checks
-    are not done more often than `config.CHECK_INTERVAL`.
+    """The most recent internet connection check, used to help ensure 
+    checks are not done more often than `config.CHECK_INTERVAL`.
     """
 
     mail_daemon: mail.EMailDaemon
     """An e-mail daemon that will send e-mail alerts."""
 
     newest_version: str
-    """The most recent version available since the last version check."""
+    """The most recent version available since the last version 
+    check.
+    """
 
     next_version_check: datetime.datetime
     """Time for the next version check, in UTC."""
@@ -89,8 +99,8 @@ class StreamStats:
 
     restarts: int
     """Number of times the stream restarted normally, including stream
-    duration timeouts in `config.STREAM_TIME_BEFORE_RESTART`, `%RESTART`
-    and `%INSTANT_RESTART` commands, and pressing Ctrl-C.
+    duration timeouts in `config.STREAM_TIME_BEFORE_RESTART`,
+    `%RESTART` and `%INSTANT_RESTART` commands, and pressing Ctrl-C.
     """
 
     retries: int
@@ -102,9 +112,9 @@ class StreamStats:
     """Time in seconds that stream errors have caused downtime."""
 
     exceptions: deque[tuple[Exception, datetime.datetime]]
-    """A deque of exceptions caught by the program during the main loop.
-    This is a deque containing tuples of the exception and the time
-    it occurred.
+    """A deque of exceptions caught by the program during the main 
+    loop. This is a deque containing tuples of the exception and the 
+    time it occurred.
     """
 
     last_exception_time: datetime.datetime
@@ -127,6 +137,7 @@ class StreamStats:
         self.program_start_time = current_time
         self.elapsed_time = 0
         self.videos_since_restart = 0
+        self.videos_since_exception = 0
         self.total_videos = 0
         self.stream_start_time = current_time
         self.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
@@ -150,8 +161,8 @@ class StreamStats:
         self.last_exception_time = current_time
 
     def rewind(self, time):
-        """Subtract this many seconds from `elapsed_time`, without going
-        below 0.
+        """Subtract this many seconds from `elapsed_time`, without
+        going below 0.
         """
 
         self.elapsed_time = max(0, self.elapsed_time - time)
@@ -181,7 +192,7 @@ class StreamStats:
         ).total_seconds()
 
     def mail_daemon_running(self, exp=True):
-        """Returns True if a mail daemon has initialized and is 
+        """Returns True if a mail daemon has initialized and is
         currently running.
 
         `exp` can be set to a expression that must also be True.
