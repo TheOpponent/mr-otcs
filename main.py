@@ -16,7 +16,7 @@ import subprocess
 import sys
 import time
 import traceback
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 
 import psutil
 import requests
@@ -167,7 +167,8 @@ def check_new_version(
     is available, returns a dictionary containing the following keys:
 
     - \"new_version_name\": The release name.
-    - \"new_version_prerelease\": True if the release is marked as a prerelease, False otherwise.
+    - \"new_version_prerelease\": True if the release is marked as a
+      pre-release, False otherwise.
     - \"new_version_number\": The tag name.
     - \"new_version_notes\": The release notes, defined in the body.
     - \"new_version_url\": URL for the release page.
@@ -177,10 +178,10 @@ def check_new_version(
         return None
 
     saved_major, saved_minor, saved_patch = stats.newest_version.split(".")
-    url = "https://api.github.com/repos/theopponent/mr-otcs/releases"
+    URL = "https://api.github.com/repos/theopponent/mr-otcs/releases"
 
     try:
-        response = requests.get(url, timeout=5)
+        response = requests.get(URL, timeout=5)
         if response.status_code == 200:
             version_json = response.json()
             latest_version = None
@@ -292,7 +293,7 @@ def encoder_task(
     file: str,
     rtmp_process: subprocess.Popen,
     stats: StreamStats,
-    play_index=None,
+    play_index: Optional[int] = None,
     skip_time=0,
 ):
     """Task for encoding a video file from a playlist.
@@ -354,6 +355,7 @@ def encoder_task(
     # fails, rewind config.CHECK_INTERVAL seconds.
     # Also write to play_index.txt in config.TIME_RECORD_INTERVAL seconds.
     while process.poll() is None and rtmp_process.poll() is None:
+        # Connection check.
         if config.CHECK_URL is not None:
             check_connection_wait -= 1
             if check_connection_wait > 0:
@@ -368,6 +370,7 @@ def encoder_task(
                 check_connection_future = check_connection(stats)
                 print2("verbose2", "Checking connection.")
 
+        # Writing play_index.txt.
         if play_index is not None:
             write_index_wait -= 1
             if write_index_wait <= 0:
@@ -384,7 +387,7 @@ def encoder_task(
                 stats.elapsed_time += config.TIME_RECORD_INTERVAL
                 write_index_wait = config.TIME_RECORD_INTERVAL
 
-        # Check for new version during encoder task loop.
+        # Check for new version.
         if config.VERSION_CHECK_INTERVAL is not None:
             if datetime.datetime.now(datetime.timezone.utc) > stats.next_version_check:
                 if (
@@ -403,21 +406,14 @@ def encoder_task(
                                 "notice",
                                 f"Download: {new_version_info['new_version_url']}",
                             )
-                            if all(
+                            if stats.mail_daemon_running(
+                                config.MAIL_ALERT_ON_NEW_VERSION
+                            ) and (
                                 (
-                                    stats.mail_daemon_running(
-                                        config.MAIL_ALERT_ON_NEW_VERSION
-                                    ),
-                                    (
-                                        (
-                                            new_version_info["new_version_prerelease"]
-                                            and config.MAIL_ALERT_ON_NEW_PRERELEASE_VERSION
-                                        )
-                                        or not new_version_info[
-                                            "new_version_prerelease"
-                                        ]
-                                    ),
-                                ),
+                                    new_version_info["new_version_prerelease"]
+                                    and config.MAIL_ALERT_ON_NEW_PRERELEASE_VERSION
+                                )
+                                or not new_version_info["new_version_prerelease"]
                             ):
                                 stats.mail_daemon.add_alert(
                                     "new_version",
@@ -440,7 +436,7 @@ def encoder_task(
                     stats.version_check_future = check_new_version(stats)
                     print2("verbose", "Checking for new version.")
 
-        # Send status report during encoder task loop.
+        # Send status report.
         if (
             stats.mail_daemon_running(config.MAIL_ALERT_STATUS_REPORT > 0)
             and datetime.datetime.now(datetime.timezone.utc) > stats.next_status_report

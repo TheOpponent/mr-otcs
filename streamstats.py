@@ -1,3 +1,5 @@
+"""Module containing the StreamStats class."""
+
 import datetime
 from collections import deque
 from concurrent import futures

@@ -1,10 +1,10 @@
 """Functions and variables for reading INI files."""
 
+import configparser
 import datetime
 import json
 import os
 import sys
-import configparser
 
 SCRIPT_VERSION = "2.2.0-beta4"
 
