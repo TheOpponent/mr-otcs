@@ -6,9 +6,11 @@ A script to play a list of video files in a continuous loop, transcode it to RTM
 
 - Stream any number of video files supported by ffmpeg in sequence, looping forever
 - Playlist information is generated in a JSON file as every video begins, to be uploaded to a web server that shows your channel's schedule
-- The stream can be restarted within a certain amount of elapsed time, to prevent an interruption in the middle of a video
+- Customize the display of any video title in the playlist, overriding the default display of the video's file name
+- The stream can be restarted within a certain amount of elapsed time, to prevent an interruption in the middle of a video (e.g. Twitch 48 hour stream length limit)
 - Separate bumper videos can be defined before and after the stream would be restarted, to inform viewers of the break
 - Attempts to detect internet connection issues and suspends encoding until the internet connection is re-established, resuming from where it left off
+- E-mail alerts for stream events, such as the stream going down, new program versions, and manual notifications at any point in the playlist
 
 The playlist is a text file with filenames:
 
@@ -22,8 +24,9 @@ Series Name/Episode 1.mp4
 Series Name/Episode 2.mp4 
 Series Name/Episode 3.mp4 :Entries can have metadata that will display differently
 
-# Videos starting with certain words can be played but not included in the schedule
+# Videos starting with certain keywords or below a certain length can be played but not included in the schedule
 Commercial 1.mp4
+Station Ident.mp4
 
 :Lines beginning with a colon are treated as special lines that act as separators
 Video Name 4.mp4 :(Rerun)
