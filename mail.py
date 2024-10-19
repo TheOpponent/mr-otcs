@@ -279,12 +279,12 @@ class EMailDaemon:
             "file_retry": (
                 0,
                 f"Video {message} not found - Now retrying infinitely",
-                f"The video {message} {f'on playlist line {line_num}' if line_num is not None else ''}could not be found at {local_time}. Because RETRY_ATTEMPTS is -1, it is currently retrying before the stream resumes.\n\nWarning: Due to the nature of this error, it is likely that more files in the playlist are also missing. Check {config.BASE_PATH}.",
+                f"The video {message} {f'on playlist line {line_num} ' if line_num is not None else ''}could not be found at {local_time}. Because RETRY_ATTEMPTS is -1, it is currently retrying before the stream resumes.\n\nWarning: Due to the nature of this error, it is likely that more files in the playlist are also missing. Check {config.BASE_PATH}.",
             ),
             "file_not_found": (
                 0,
                 f"Video {message} not found - Skipping in schedule",
-                f"The video {message} {f'on playlist line {line_num}' if line_num is not None else ''}could not be found at {local_time}. The video has been skipped.\n\nWarning: Due to the nature of this error, it is likely that more files in the playlist are also missing. Check {config.BASE_PATH}.",
+                f"The video {message} {f'on playlist line {line_num} ' if line_num is not None else ''}could not be found at {local_time}. The video has been skipped.\n\nWarning: Due to the nature of this error, it is likely that more files in the playlist are also missing. Check {config.BASE_PATH}.",
             ),
             "schedule_error": (
                 0,
