@@ -13,6 +13,7 @@ from typing import Any
 
 import config
 from config import print2
+from utils import int_to_total_time
 
 
 @dataclass(order=True)
@@ -249,13 +250,19 @@ class EMailDaemon:
         priority = 0
 
         if exception := kwargs.get("exception"):
-            exception_string = f"{type(exception).__name__}: {str(exception)}"
+            exception_name = type(exception).__name__
+            exception_string = f"{exception_name}: {str(exception)}"
             traceback_string = kwargs.get("traceback", "")
         else:
+            exception_name = ""
             exception_string = ""
             traceback_string = ""
         if exception_time := kwargs.get("exception_time"):
-            exception_time = kwargs.get("exception_time").strftime("%Y-%m-%d %H:%M:%S")
+            exception_timestamp = exception_time.strftime("%Y-%m-%d %H:%M:%S")
+            downtime_length = int_to_total_time(datetime.datetime.now(datetime.timezone.utc) - exception_time)
+        else:
+            exception_timestamp = ""
+            downtime_length = ""
 
         # Priority list:
         # 0: Urgent, send before all other messages
@@ -265,15 +272,15 @@ class EMailDaemon:
             "stream_down": (
                 0,
                 "Stream offline",
-                f'The stream went offline due to the error "{exception_string}" at {exception_time}.\n\nBefore this error, not including restarts, the stream ran for {total_time}{f" and played {total_videos} videos" if total_videos is not None else ""}.',
+                f'The stream went offline due to the error "{exception_name}" at {exception_timestamp}.\n\nBefore this error, not including restarts, the stream ran for {total_time}{f" and played {total_videos} videos" if total_videos is not None else ""}.\n\nException details:\n{exception_string}',
             ),
             "stream_resume": (
                 10,
                 "Stream resumed",
                 (
-                    f'The stream reconnected at {local_time}. It recovered from the error "{exception_string}", which occurred at {exception_time}.'
+                    f'The stream reconnected at {local_time}. It recovered from the error "{exception_name}", which occurred at {exception_timestamp}. The stream was offline for {downtime_length}.\n\nException details:\n{exception_string}'
                     if exception and exception_time
-                    else f"The stream reconnected at {local_time}."
+                    else f"The stream reconnected at {local_time}. It was offline for {downtime_length}."
                 ),
             ),
             "file_retry": (
@@ -294,7 +301,7 @@ class EMailDaemon:
             "program_error": (
                 0,
                 "Program error",
-                f"Mr. OTCS exited at {exception_time} due to an unrecoverable error: {exception_string}\n\nMr. OTCS ran for {total_time}{f' and played {total_videos} videos' if total_videos is not None else ''}."
+                f"Mr. OTCS exited at {exception_timestamp} due to an unrecoverable error: {exception_string}\n\nMr. OTCS ran for {total_time}{f' and played {total_videos} videos' if total_videos is not None else ''}."
                 + f"\n\n{traceback_string}"
                 if traceback_string != ""
                 else "",
