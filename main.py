@@ -243,7 +243,7 @@ def check_new_version(
     return output
 
 
-def generate_status_report(stats: StreamStats):
+def generate_status_report(stats: StreamStats) -> str:
     """Create a regular status report based on information in a
     `StreamStats` object, and add it to the e-mail daemon queue.
     """
@@ -285,7 +285,7 @@ def generate_status_report(stats: StreamStats):
                 message += f" Check {config.ERROR_LOG}."
         stats.exceptions.clear()
 
-    stats.mail_daemon.add_alert("status_report", message)
+    return message
 
 
 def encoder_task(
@@ -441,7 +441,8 @@ def encoder_task(
             and datetime.datetime.now(datetime.timezone.utc) > stats.next_status_report
         ):
             print2("verbose", "Generating status report.")
-            generate_status_report(stats)
+            status_report = generate_status_report(stats)
+            stats.mail_daemon.add_alert("status_report", status_report)
             stats.next_status_report = datetime.datetime.now(
                 datetime.timezone.utc
             ) + datetime.timedelta(days=config.MAIL_ALERT_STATUS_REPORT)
