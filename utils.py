@@ -7,7 +7,6 @@ import time
 
 import config
 from config import print2
-from streamstats import StreamStats
 
 
 def int_to_time(seconds):
@@ -61,7 +60,7 @@ def int_to_total_time(seconds, round_down_zero=True):
     return ", ".join(string)
 
 
-def check_file(path, line_num=None, no_exit=False, stats: StreamStats = None):
+def check_file(path, line_num=None, no_exit=False, stats=None):
     """Retry opening nonexistent files up to `config.RETRY_ATTEMPTS`.
 
     If file is found, returns True.
