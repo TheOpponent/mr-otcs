@@ -28,7 +28,7 @@ def test_write_schedule(monkeypatch):
         (1, PlaylistTestEntry("Test file 1.mp4", length=1000)),
         (2, PlaylistTestEntry(":Comment 1")),
         (3, PlaylistTestEntry("Test file 2.mp4", length=360)),
-        (4,PlaylistTestEntry("Test file 3.mp4 :Extra info from inline comment", length=180)),
+        (4, PlaylistTestEntry("Test file 3.mp4 :Extra info from inline comment", length=180)),
         (5, PlaylistTestEntry("Test file 4.mp4", length=270)),
         (6, PlaylistTestEntry("Test file 5.mp4", length=720)),
         (7, PlaylistTestEntry(":Comment 2")),
