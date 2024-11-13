@@ -67,7 +67,7 @@ def rtmp_task(stats: StreamStats) -> subprocess.Popen:
                 print2("verbose2", "Connection check succeeded.")
                 break
             else:
-                print2("error", "Connection check failed. Retrying in 5 seconds.")
+                print2("warn", "Connection check failed. Retrying in 5 seconds.")
                 time.sleep(5)
 
     try:
