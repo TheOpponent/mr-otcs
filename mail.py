@@ -51,7 +51,7 @@ class EMailDaemon:
         self.running = True
         self.logged_in = False
         self.last_exception = None
-        self.last_exception_time = datetime.datetime.now()
+        self.last_exception_time = datetime.datetime.now(datetime.timezone.utc)
         self.thread = threading.Thread(target=self.run, daemon=True)
         self.thread.start()
 

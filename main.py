@@ -1187,7 +1187,7 @@ def main():
             # Do not send an e-mail on connection check failure.
             if stats.mail_daemon_running(config.MAIL_ALERT_ON_STREAM_DOWN):
                 stats.mail_daemon.last_exception = e
-                stats.mail_daemon.last_exception_time = datetime.datetime.now()
+                stats.mail_daemon.last_exception_time = datetime.datetime.now(datetime.timezone.utc)
                 if not isinstance(e, ConnectionCheckError):
                     stats.mail_daemon.add_alert(
                         "stream_down",
