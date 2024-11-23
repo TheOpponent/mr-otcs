@@ -522,6 +522,7 @@ def main():
 
     restarted: bool = False
     retried: bool = False
+    manual_retried: bool = False
     instant_restarted: bool = False
     media_playlist = playlist.create_playlist()
     media_playlist_length = len(media_playlist)
@@ -608,12 +609,14 @@ def main():
 
                 restarted = False
                 retried = False
+                manual_retried = False
 
             if instant_restarted:
                 print2("info", "Stream restarted.")
                 write_play_history("Stream restarted.")
                 instant_restarted = False
                 retried = False
+                manual_retried = False
 
             # Keep playlist index and elapsed time of current video and store
             # in file play_index.txt. Create it if it does not exist.
@@ -1015,18 +1018,18 @@ def main():
                                         f"Not writing schedule for {video_file.name}: Name matches SCHEDULE_EXCLUDE_FILE_PATTERN.",
                                     )
 
-                            # Send an e-mail alert if the stream resumed after an error.
-                            if retried:
-                                if stats.mail_daemon_running(
-                                    config.MAIL_ALERT_ON_STREAM_RESUME
-                                ):
-                                    stats.mail_daemon.add_alert(
-                                        "stream_resume",
-                                        bypass_interval=True,
-                                        exception=stats.mail_daemon.last_exception,
-                                        exception_time=stats.mail_daemon.last_exception_time,
-                                    )
-                                    stats.update_stream_downtime()
+                            # Send an e-mail alert if the stream resumed after an error,
+                            # but not on a manual retry.
+                            if retried and not manual_retried and stats.mail_daemon_running(
+                                config.MAIL_ALERT_ON_STREAM_RESUME
+                            ):
+                                stats.mail_daemon.add_alert(
+                                    "stream_resume",
+                                    bypass_interval=True,
+                                    exception=stats.mail_daemon.last_exception,
+                                    exception_time=stats.mail_daemon.last_exception_time,
+                                )
+                                stats.update_stream_downtime()
 
                             print2("info", "Encoding started.")
                             encoder_result = encoder_task(
@@ -1048,6 +1051,7 @@ def main():
                             # Increment play_index if encode succeeded.
                             if encoder_result == 0:
                                 retried = False
+                                manual_retried = False
                                 print2("info", "Video encoded successfully.")
                                 stats.elapsed_time = 0
                                 stats.video_resume_point = 0
@@ -1180,14 +1184,18 @@ def main():
             write_play_history(
                 f"Stream stopped due to exception: {type(e).__name__}: {str(e)}"
             )
-            previous_stream_duration = int_to_total_time(datetime.datetime.now(datetime.timezone.utc) - stats.last_exception_time)
+            previous_stream_duration = int_to_total_time(
+                datetime.datetime.now(datetime.timezone.utc) - stats.last_exception_time
+            )
             stats.exceptions.append((e, datetime.datetime.now()))
             stats.last_exception_time = datetime.datetime.now(datetime.timezone.utc)
 
             # Do not send an e-mail on connection check failure.
             if stats.mail_daemon_running(config.MAIL_ALERT_ON_STREAM_DOWN):
                 stats.mail_daemon.last_exception = e
-                stats.mail_daemon.last_exception_time = datetime.datetime.now(datetime.timezone.utc)
+                stats.mail_daemon.last_exception_time = datetime.datetime.now(
+                    datetime.timezone.utc
+                )
                 if not isinstance(e, ConnectionCheckError):
                     stats.mail_daemon.add_alert(
                         "stream_down",
@@ -1196,7 +1204,7 @@ def main():
                         bypass_interval=True,
                         urgent=True,
                         total_time=previous_stream_duration,
-                        total_videos=stats.videos_since_exception
+                        total_videos=stats.videos_since_exception,
                     )
             print2("error", "Stream interrupted. Restarting.")
             print2(
@@ -1230,6 +1238,7 @@ def main():
                         f"{stats.videos_since_restart} video(s) played since last restart.",
                     )
                     retried = True
+                    manual_retried = True
                     stats.restarts += 1
                     if (
                         stats.elapsed_time - config.REWIND_LENGTH
