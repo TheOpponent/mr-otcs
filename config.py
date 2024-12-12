@@ -590,7 +590,7 @@ if CHECK_URL == [""]:
 # as existing once at startup.
 if STREAM_RESTART_BEFORE_VIDEO is not None:
     if not os.path.isfile(STREAM_RESTART_BEFORE_VIDEO):
-        print2("error", "STREAM_RESTART_BEFORE_VIDEO not found.")
+        print2("fatal", "STREAM_RESTART_BEFORE_VIDEO not found.")
         if not EXIT_ON_FILE_NOT_FOUND:
             STREAM_RESTART_BEFORE_VIDEO = None
         else:
@@ -600,7 +600,7 @@ else:
 
 if STREAM_RESTART_AFTER_VIDEO is not None:
     if not os.path.isfile(STREAM_RESTART_AFTER_VIDEO):
-        print2("error", "STREAM_RESTART_AFTER_VIDEO not found.")
+        print2("fatal", "STREAM_RESTART_AFTER_VIDEO not found.")
         if not EXIT_ON_FILE_NOT_FOUND:
             STREAM_RESTART_AFTER_VIDEO = None
         else:
@@ -618,12 +618,12 @@ if CHECK_URL is not None:
     CHECK_INTERVAL = max(CHECK_INTERVAL, 10, len(CHECK_URL) * 5)
 
 if SCHEDULE_MAX_VIDEOS < SCHEDULE_MIN_VIDEOS:
-    print2("error", "SCHEDULE_MAX_VIDEOS is less than SCHEDULE_MIN_VIDEOS.")
+    print2("fatal", "SCHEDULE_MAX_VIDEOS is less than SCHEDULE_MIN_VIDEOS.")
     sys.exit(1)
 
 if SCHEDULE_PREVIOUS_MAX_VIDEOS < SCHEDULE_PREVIOUS_MIN_VIDEOS:
     print2(
-        "error",
+        "fatal",
         "SCHEDULE_PREVIOUS_MAX_VIDEOS is less than SCHEDULE_PREVIOUS_MIN_VIDEOS.",
     )
     sys.exit(1)
@@ -638,7 +638,7 @@ if MAIL_ENABLE:
                 raise ValueError
         except ValueError:
             print2(
-                "error",
+                "fatal",
                 f"Environment variable {MAIL_ENV_PREFIX}MAIL_PORT is not a valid port number.",
             )
             mail_config_error = True
@@ -648,74 +648,78 @@ if MAIL_ENABLE:
                 globals()[i] = bool(int(globals()[i]))
             except ValueError:
                 print2(
-                    "error", f"Environment variable {MAIL_ENV_PREFIX}{i} is invalid."
+                    "fatal", f"Environment variable {MAIL_ENV_PREFIX}{i} is invalid."
                 )
                 mail_config_error = True
 
         if MAIL_USE_SSL and MAIL_USE_STARTTLS:
             print2(
-                "error",
+                "fatal",
                 f"Environment variables {MAIL_ENV_PREFIX}MAIL_USE_SSL and {MAIL_ENV_PREFIX}MAIL_USE_STARTTLS cannot both be enabled.",
             )
             mail_config_error = True
 
         if MAIL_SERVER is None or MAIL_SERVER == "":
             print2(
-                "error", f"Environment variable {MAIL_ENV_PREFIX}MAIL_SERVER is blank."
+                "fatal", f"Environment variable {MAIL_ENV_PREFIX}MAIL_SERVER is blank."
             )
             mail_config_error = True
 
         if MAIL_FROM_ADDRESS is None or MAIL_FROM_ADDRESS == "":
             print2(
-                "error",
+                "fatal",
                 f"Environment variable {MAIL_ENV_PREFIX}MAIL_FROM_ADDRESS is blank.",
             )
             mail_config_error = True
 
         if MAIL_TO_ADDRESS is None or MAIL_TO_ADDRESS == "":
             print2(
-                "error",
+                "fatal",
                 f"Environment variable {MAIL_ENV_PREFIX}MAIL_TO_ADDRESS is blank.",
             )
             mail_config_error = True
     else:
         if not (0 < MAIL_PORT <= 65535):
-            print2("error", "MAIL_PORT is not a valid port number.")
+            print2("fatal", "MAIL_PORT is not a valid port number.")
             mail_config_error = True
 
         if MAIL_USE_SSL and MAIL_USE_STARTTLS:
             print2(
-                "error", "MAIL_USE_SSL and MAIL_USE_STARTTLS cannot both be enabled."
+                "fatal", "MAIL_USE_SSL and MAIL_USE_STARTTLS cannot both be enabled."
             )
             mail_config_error = True
 
         if MAIL_SERVER is None or MAIL_SERVER == "":
-            print2("error", "MAIL_SERVER is blank.")
+            print2("fatal", "MAIL_SERVER is blank.")
             mail_config_error = True
 
         if MAIL_FROM_ADDRESS is None or MAIL_FROM_ADDRESS == "":
-            print2("error", "MAIL_FROM_ADDRESS is blank.")
+            print2("fatal", "MAIL_FROM_ADDRESS is blank.")
             mail_config_error = True
 
         if MAIL_TO_ADDRESS is None or MAIL_TO_ADDRESS == "":
-            print2("error", "MAIL_TO_ADDRESS is blank.")
+            print2("fatal", "MAIL_TO_ADDRESS is blank.")
             mail_config_error = True
 
-        if MAIL_ALERT_ON_REMOTE_ERROR == "fail_only":
-            MAIL_ALERT_ON_REMOTE_ERROR = 1
-        elif MAIL_ALERT_ON_REMOTE_ERROR == "all":
-            MAIL_ALERT_ON_REMOTE_ERROR = 2
-        elif MAIL_ALERT_ON_REMOTE_ERROR == "off":
-            MAIL_ALERT_ON_REMOTE_ERROR = 0
-        else:
-            print2(
-                "warn",
-                'MAIL_ALERT_ON_REMOTE_ERROR setting not recognized. Using default setting "fail_only".',
-            )
-            MAIL_ALERT_ON_REMOTE_ERROR = 1
-
     if mail_config_error:
+        print2("fatal", "Correct the above mail configuration errors and restart Mr. OTCS.")
         sys.exit(1)
+
+    if MAIL_ALERT_ON_REMOTE_ERROR == "fail_only":
+        MAIL_ALERT_ON_REMOTE_ERROR = 1
+    elif MAIL_ALERT_ON_REMOTE_ERROR == "all":
+        MAIL_ALERT_ON_REMOTE_ERROR = 2
+    elif MAIL_ALERT_ON_REMOTE_ERROR == "off":
+        MAIL_ALERT_ON_REMOTE_ERROR = 0
+    else:
+        print2(
+            "warn",
+            'MAIL_ALERT_ON_REMOTE_ERROR setting not recognized. Using default setting "fail_only".',
+        )
+        MAIL_ALERT_ON_REMOTE_ERROR = 1
+
+
+
 
 # Deprecated options.
 if default_ini.has_option("SSH", "REMOTE_RETRY_PERIOD"):
