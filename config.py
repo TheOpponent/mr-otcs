@@ -95,6 +95,7 @@ ini_defaults = {
         "MAIL_ALERT_ON_NEW_VERSION": True,
         "MAIL_ALERT_ON_NEW_PRERELEASE_VERSION": False,
         "MAIL_ALERT_STATUS_REPORT": 7,
+        "MAIL_ALERT_STATUS_REPORT_TIME_STR": "",  # The value in MAIL_ALERT_STATUS_REPORT_TIME_STR is parsed and written to MAIL_ALERT_STATUS_REPORT_TIME.
         "MAIL_ALERT_HIGH_PRIORITY_ERROR": True,
     },
     "Misc": {
@@ -471,6 +472,9 @@ if default_ini.has_section("Mail"):
         "Mail", "MAIL_ALERT_ON_NEW_PRERELEASE_VERSION"
     )
     MAIL_ALERT_STATUS_REPORT = default_ini.getint("Mail", "MAIL_ALERT_STATUS_REPORT")
+    MAIL_ALERT_STATUS_REPORT_TIME_STR = default_ini.get(  # Added in 2.2.1.
+        "Mail", "MAIL_ALERT_STATUS_REPORT_TIME"
+    )
     MAIL_ALERT_HIGH_PRIORITY_ERROR = default_ini.getboolean(
         "Mail", "MAIL_ALERT_HIGH_PRIORITY_ERROR"
     )
@@ -501,6 +505,7 @@ else:
     MAIL_ALERT_ON_NEW_VERSION = False
     MAIL_ALERT_ON_NEW_PRERELEASE_VERSION = False
     MAIL_ALERT_STATUS_REPORT = 0
+    MAIL_ALERT_STATUS_REPORT_TIME_STR = ""
     MAIL_ALERT_HIGH_PRIORITY_ERROR = False
 
 PLAY_HISTORY_LENGTH = default_ini.getint("Misc", "PLAY_HISTORY_LENGTH")
@@ -702,7 +707,9 @@ if MAIL_ENABLE:
             mail_config_error = True
 
     if mail_config_error:
-        print2("fatal", "Correct the above mail configuration errors and restart Mr. OTCS.")
+        print2(
+            "fatal", "Correct the above mail configuration errors and restart Mr. OTCS."
+        )
         sys.exit(1)
 
     if MAIL_ALERT_ON_REMOTE_ERROR == "fail_only":
@@ -718,7 +725,27 @@ if MAIL_ENABLE:
         )
         MAIL_ALERT_ON_REMOTE_ERROR = 1
 
+    if MAIL_ALERT_STATUS_REPORT:
+        try:
+            report_hr, report_min = map(int, MAIL_ALERT_STATUS_REPORT_TIME_STR.split(":"))
+            if 0 <= report_hr <= 23 and 0 <= report_min <= 59:
+                MAIL_ALERT_STATUS_REPORT_TIME = (report_hr, report_min)
+            else:
+                raise ValueError("Invalid time string")
+        except ValueError:
+            report_now = datetime.datetime.now()
+            MAIL_ALERT_STATUS_REPORT_TIME = (report_now.hour, report_now.minute)
+            print2(
+                "warn",
+                "Unable to parse MAIL_ALERT_STATUS_REPORT_TIME setting. Using current time.",
+            )
 
+        print2(
+            "verbose",
+            f"Status reports will be mailed every {'day' if MAIL_ALERT_STATUS_REPORT == 1 else f'{MAIL_ALERT_STATUS_REPORT} days'} at {MAIL_ALERT_STATUS_REPORT_TIME[0]:02}:{MAIL_ALERT_STATUS_REPORT_TIME[1]:02}.",
+        )
+    else:
+        MAIL_ALERT_STATUS_REPORT_TIME = (0, 0)
 
 
 # Deprecated options.
