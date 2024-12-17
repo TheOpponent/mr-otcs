@@ -726,20 +726,23 @@ if MAIL_ENABLE:
         MAIL_ALERT_ON_REMOTE_ERROR = 1
 
     if MAIL_ALERT_STATUS_REPORT:
-        try:
-            report_hr, report_min = map(int, MAIL_ALERT_STATUS_REPORT_TIME_STR.split(":"))
-            if 0 <= report_hr <= 23 and 0 <= report_min <= 59:
-                MAIL_ALERT_STATUS_REPORT_TIME = (report_hr, report_min)
-            else:
-                raise ValueError("Invalid time string")
-        except ValueError:
+        if MAIL_ALERT_STATUS_REPORT_TIME_STR != "":
+            try:
+                report_hr, report_min = map(int, MAIL_ALERT_STATUS_REPORT_TIME_STR.split(":"))
+                if 0 <= report_hr <= 23 and 0 <= report_min <= 59:
+                    MAIL_ALERT_STATUS_REPORT_TIME = (report_hr, report_min)
+                else:
+                    raise ValueError("Invalid time string")
+            except ValueError:
+                report_now = datetime.datetime.now()
+                MAIL_ALERT_STATUS_REPORT_TIME = (report_now.hour, report_now.minute)
+                print2(
+                    "warn",
+                    "Unable to parse MAIL_ALERT_STATUS_REPORT_TIME setting. Using current time.",
+                )
+        else:
             report_now = datetime.datetime.now()
             MAIL_ALERT_STATUS_REPORT_TIME = (report_now.hour, report_now.minute)
-            print2(
-                "warn",
-                "Unable to parse MAIL_ALERT_STATUS_REPORT_TIME setting. Using current time.",
-            )
-
         print2(
             "verbose",
             f"Status reports will be mailed every {'day' if MAIL_ALERT_STATUS_REPORT == 1 else f'{MAIL_ALERT_STATUS_REPORT} days'} at {MAIL_ALERT_STATUS_REPORT_TIME[0]:02}:{MAIL_ALERT_STATUS_REPORT_TIME[1]:02}.",
@@ -751,7 +754,7 @@ if MAIL_ENABLE:
 # Deprecated options.
 if default_ini.has_option("SSH", "REMOTE_RETRY_PERIOD"):
     print2(
-        "info",
+        "notice",
         f"[SSH] option REMOTE_RETRY_PERIOD has been deprecated and can be deleted from {config_file}.",
     )
 
