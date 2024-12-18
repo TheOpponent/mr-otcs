@@ -26,13 +26,17 @@ def int_to_time(seconds):
     return f"{hr}:{min:02d}:{sec:02d}"
 
 
-def int_to_total_time(seconds, round_down_zero=True):
+def int_to_total_time(seconds, round_down_zero=True, include_seconds=True):
     """Returns a plain time string containing days, hours, minutes, and
     seconds from an amount of seconds. The argument can be an int,
     float, or `datetime.timedelta` object.
 
     If `round_down_zero` is True, times of less than 1 second will be
     returned as "less than a second". Otherwise, returns "0 seconds".
+
+    If `include_seconds` is True, the returned string includes seconds
+    if it is over 1 minute. If False, seconds are truncated, not
+    rounded to the next minute.
     """
 
     if isinstance(seconds, datetime.timedelta):
@@ -54,7 +58,7 @@ def int_to_total_time(seconds, round_down_zero=True):
         string.append(f"{hr} hours" if hr != 1 else f"{hr} hour")
     if min > 0:
         string.append(f"{min} minutes" if min != 1 else f"{min} minute")
-    if sec > 0:
+    if (include_seconds or (days == 0 and hr == 0 and min == 0)) and sec > 0:
         string.append(f"{sec} seconds" if sec != 1 else f"{sec} second")
 
     return ", ".join(string)

@@ -256,7 +256,7 @@ def generate_status_report(stats: StreamStats) -> str:
     message += (
         f"Report generated: {current_time.astimezone().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         + f"Program started: {stats.program_start_time.astimezone().strftime('%Y-%m-%d %H:%M:%S')}\n"
-        + f"Program runtime: {int_to_total_time(program_runtime)}\n"
+        + f"Program runtime: {int_to_total_time(program_runtime,include_seconds=False)}\n"
         + f"Current stream started: {stats.stream_start_time.astimezone().strftime('%Y-%m-%d %H:%M:%S')}\n"
         + f"Current stream duration: {int_to_time(stream_runtime)}\n"
         + f"Number of videos played since last stream restart: {stats.videos_since_restart}\n"
@@ -1180,14 +1180,18 @@ def main():
             write_play_history(
                 f"Stream stopped due to exception: {type(e).__name__}: {str(e)}"
             )
-            previous_stream_duration = int_to_total_time(datetime.datetime.now(datetime.timezone.utc) - stats.last_exception_time)
+            previous_stream_duration = int_to_total_time(
+                datetime.datetime.now(datetime.timezone.utc) - stats.last_exception_time
+            )
             stats.exceptions.append((e, datetime.datetime.now()))
             stats.last_exception_time = datetime.datetime.now(datetime.timezone.utc)
 
             # Do not send an e-mail on connection check failure.
             if stats.mail_daemon_running(config.MAIL_ALERT_ON_STREAM_DOWN):
                 stats.mail_daemon.last_exception = e
-                stats.mail_daemon.last_exception_time = datetime.datetime.now(datetime.timezone.utc)
+                stats.mail_daemon.last_exception_time = datetime.datetime.now(
+                    datetime.timezone.utc
+                )
                 if not isinstance(e, ConnectionCheckError):
                     stats.mail_daemon.add_alert(
                         "stream_down",
@@ -1196,7 +1200,7 @@ def main():
                         bypass_interval=True,
                         urgent=True,
                         total_time=previous_stream_duration,
-                        total_videos=stats.videos_since_exception
+                        total_videos=stats.videos_since_exception,
                     )
             print2("error", "Stream interrupted. Restarting.")
             print2(
