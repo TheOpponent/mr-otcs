@@ -124,7 +124,7 @@ class StreamStats:
 
     def __init__(self):
         current_time = datetime.datetime.now(datetime.timezone.utc)
-
+        offset = datetime.datetime.now().astimezone().utcoffset()
         self.recent_playlist = deque()
         if (
             config.SCHEDULE_PREVIOUS_MIN_VIDEOS >= 1
@@ -151,11 +151,11 @@ class StreamStats:
         self.newest_version = config.SCRIPT_VERSION
         self.next_version_check = current_time
         self.version_check_future = None
-        self.next_status_report = datetime.datetime.now().replace(
+        self.next_status_report = current_time.replace(
             hour=config.MAIL_ALERT_STATUS_REPORT_TIME[0],
             minute=config.MAIL_ALERT_STATUS_REPORT_TIME[1],
-            tzinfo=datetime.timezone.utc,
-        ) + datetime.timedelta(days=config.MAIL_ALERT_STATUS_REPORT)
+            second=0
+        ) - offset + datetime.timedelta(days=config.MAIL_ALERT_STATUS_REPORT - 1)
         self.restarts = 0
         self.retries = 0
         self.stream_downtime = 0
