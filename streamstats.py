@@ -151,11 +151,26 @@ class StreamStats:
         self.newest_version = config.SCRIPT_VERSION
         self.next_version_check = current_time
         self.version_check_future = None
-        self.next_status_report = current_time.replace(
-            hour=config.MAIL_ALERT_STATUS_REPORT_TIME[0],
-            minute=config.MAIL_ALERT_STATUS_REPORT_TIME[1],
-            second=0
-        ) - offset + datetime.timedelta(days=config.MAIL_ALERT_STATUS_REPORT - 1)
+        self.next_status_report = (
+            current_time.replace(
+                hour=config.MAIL_ALERT_STATUS_REPORT_TIME[0],
+                minute=config.MAIL_ALERT_STATUS_REPORT_TIME[1],
+                second=0,
+            )
+            - offset
+            + datetime.timedelta(days=config.MAIL_ALERT_STATUS_REPORT)
+        )
+        if self.next_status_report < current_time:
+            self.next_status_report = self.next_status_report + datetime.timedelta(
+                days=1
+            )
+        elif self.next_status_report > current_time + datetime.timedelta(
+            days=config.MAIL_ALERT_STATUS_REPORT
+        ):
+            self.next_status_report = self.next_status_report - datetime.timedelta(
+                days=1
+            )
+
         self.restarts = 0
         self.retries = 0
         self.stream_downtime = 0
