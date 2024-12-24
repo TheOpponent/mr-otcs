@@ -146,44 +146,37 @@ else:
     VERBOSE = 0b11111100
 
 
-def print2(level: str, message: str):
+def print2(level: str, message: str, *, force=False):
     """Prepend a colored label to a standard print message.
     Also writes messages with severity `warn` or higher to
     log file.
     """
-
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    write_log = ""
-
     reset = "\033[0m"
-    notice = "\033[96m" + "[Notice]" + reset
-    warn = "\033[93m" + "[Warn]" + reset
-    error = "\033[31m" + "[Error]" + reset
-    play = "\033[92m" + "[Play]" + reset
 
-    if level == "fatal" and VERBOSE & 0b10000000:
-        print(f"{current_time} {error} {message}")
-        write_log = f"{current_time} [Error] {message}\n"
-    elif level == "error" and VERBOSE & 0b1000000:
-        print(f"{current_time} {error} {message}")
-        write_log = f"{current_time} [Error] {message}\n"
-    elif level == "warn" and VERBOSE & 0b100000:
-        print(f"{current_time} {warn} {message}")
-        write_log = f"{current_time} [Warn] {message}\n"
-    elif level == "notice" and VERBOSE & 0b10000:
-        print(f"{current_time} {notice} {message}")
-    elif level == "play" and VERBOSE & 0b1000:
-        print(f"{current_time} {play} {message}")
-    elif level == "info" and VERBOSE & 0b100:
-        print(f"{current_time} [Info] {message}")
-    elif level == "verbose" and VERBOSE & 0b10:
-        print(f"{current_time} [Info] {message}")
-    elif level == "verbose2" and VERBOSE & 0b1:
-        print(f"{current_time} [Info] {message}")
+    levels = {
+        "fatal": (0b10000000, f"\033[31m[Fatal]{reset}", True),
+        "error": (0b1000000, f"\033[31m[Error]{reset}", True),
+        "warn": (0b100000, f"\033[93m[Warn]{reset}", True),
+        "notice": (0b10000, f"\033[96m[Notice]{reset}", False),
+        "play": (0b1000, f"\033[92m[Play]{reset}", False),
+        "info": (0b100, "[Info]", False),
+        "verbose": (0b10, f"\033[90m[Verbose]{reset}", False),
+        "verbose2": (0b1, f"\033[90m[Debug]{reset}", False),
+        "debug": (0b1, f"\033[90m[Debug]{reset}", False),
+    }
 
-    if ERROR_LOG is not None and write_log != "":
-        with open(ERROR_LOG, "a", encoding="utf-8") as log_file:
-            log_file.write(write_log)
+    if level not in levels:
+        raise ValueError(f"Invalid print2 level: {level}")
+
+    bitmask, label, log_to_file = levels[level]
+
+    if force or (VERBOSE & bitmask):
+        print(f"{current_time} {label} {message}")
+
+        if log_to_file and ERROR_LOG is not None:
+            with open(ERROR_LOG, "a", encoding="utf-8") as log_file:
+                log_file.write(f"{current_time} {label} {message}\n")
 
 
 MEDIA_PLAYER_PATH = default_ini.get("Paths", "MEDIA_PLAYER_PATH")
