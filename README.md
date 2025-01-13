@@ -46,7 +46,7 @@ The generated schedule runs up to a user-defined combined length of upcoming vid
 
 ## Installation
 
-The recommended environment is a headless Raspberry Pi 4 or earlier (as Raspberry 5 is [limited to software encoding](https://www.raspberrypi.com/news/introducing-raspberry-pi-5/#comment-1594055)), but conventional Linux systems, including WSL2, can also run Mr. OTCS. See the [wiki](https://github.com/TheOpponent/mr-otcs/wiki) for installation instructions.
+The recommended environment is a headless Raspberry Pi 4 or earlier (as Raspberry Pi 5 is [limited to software encoding](https://www.raspberrypi.com/news/introducing-raspberry-pi-5/#comment-1594055)), but conventional Linux systems, including WSL2, can also run Mr. OTCS. See the [wiki](https://github.com/TheOpponent/mr-otcs/wiki) for installation instructions.
 
 Mr. OTCS reads a text file and starts a video encoder (ffmpeg by default) for each valid video filename within in turn, streaming it to a local RTMP server such as nginx. Another ffmpeg process relays the transcoded video a third-party video streaming service. This is made possible with [**a fork of ffmpeg**](https://github.com/neckro/FFmpeg) by [neckro](https://github.com/neckro) with support for repairing HLS discontinuities. These two processes together create an endless, seamless stream of video content from any number of video files supported by ffmpeg. Because some services automatically terminate streams after a certain amount of time (e.g. Twitch ends streams after 48 consecutive hours), Mr. OTCS tracks the total streaming time and automatically restarts the stream between video files, so no interruption happens in the middle of a video.
 
