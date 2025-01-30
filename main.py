@@ -970,13 +970,13 @@ def main():
                                 )
                                 time.sleep(config.STREAM_WAIT_AFTER_RETRY)
 
-                            # Write schedule only once per video file.
+                                # Write schedule only once per video file, if
+                                # config.SCHEDULE_EXCLUDE_FILE_PATTERN is None or
+                                # video name matches it.
                             if config.SCHEDULE_PATH is not None:
-                                # Check if current video name matches config.SCHEDULE_EXCLUDE_FILE_PATTERN,
-                                # and only generate a schedule file if it does not.
                                 if (
-                                    config.SCHEDULE_EXCLUDE_FILE_PATTERN is not None
-                                    and not video_file.name.casefold().startswith(
+                                        config.SCHEDULE_EXCLUDE_FILE_PATTERN is None
+                                        or not video_file.name.casefold().startswith(
                                         config.SCHEDULE_EXCLUDE_FILE_PATTERN
                                     )
                                 ):
@@ -998,7 +998,7 @@ def main():
                                                 "warn",
                                                 "Failed to cancel schedule future.",
                                             )
-                                    else:
+
                                         stats.schedule_future = playlist.write_schedule(
                                             media_playlist,
                                             play_index,
@@ -1014,6 +1014,9 @@ def main():
                                         "notice",
                                         f"Not writing schedule for {video_file.name}: Name matches SCHEDULE_EXCLUDE_FILE_PATTERN.",
                                     )
+
+                                    # Clear extra_entries after writing schedule.
+                                    extra_entries = []
 
                             # Send an e-mail alert if the stream resumed after an error.
                             if retried:
