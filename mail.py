@@ -9,6 +9,7 @@ import time
 from dataclasses import dataclass, field
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import formatdate
 from typing import Any
 
 import config
@@ -367,6 +368,7 @@ class EMailDaemon:
             msg["From"] = self.config["from_address"]
             msg["To"] = self.config["to_address"]
             msg["Subject"] = f"[{config.MAIL_PROGRAM_NAME}] {subject}"
+            msg["Date"] = formatdate(localtime=True)
             msg.attach(MIMEText(body, "plain"))
 
             if config.MAIL_ALERT_HIGH_PRIORITY_ERROR and alert_type in [
