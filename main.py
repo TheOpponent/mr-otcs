@@ -998,7 +998,7 @@ def main():
                                                 "warn",
                                                 "Failed to cancel schedule future.",
                                             )
-
+                                    else:
                                         stats.schedule_future = playlist.write_schedule(
                                             media_playlist,
                                             play_index,
