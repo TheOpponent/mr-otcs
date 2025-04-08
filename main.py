@@ -256,7 +256,7 @@ def generate_status_report(stats: StreamStats) -> str:
     message += (
         f"Report generated: {current_time.astimezone().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         + f"Program started: {stats.program_start_time.astimezone().strftime('%Y-%m-%d %H:%M:%S')}\n"
-        + f"Program runtime: {int_to_total_time(program_runtime,include_seconds=False)}\n"
+        + f"Program runtime: {int_to_total_time(program_runtime, include_seconds=False)}\n"
         + f"Current stream started: {stats.stream_start_time.astimezone().strftime('%Y-%m-%d %H:%M:%S')}\n"
         + f"Current stream duration: {int_to_time(stream_runtime)}\n"
         + f"Number of videos played since last stream restart: {stats.videos_since_restart}\n"
@@ -264,7 +264,7 @@ def generate_status_report(stats: StreamStats) -> str:
         + f"Stream restarts: {stats.restarts}\n"
         + f"Stream errors: {stats.retries}\n"
         + f"Stream downtime: {int_to_total_time(stats.stream_downtime, round_down_zero=False)}\n"
-        + f"Stream uptime rate: {round((program_runtime - stats.stream_downtime) / program_runtime * 100,2)}%"
+        + f"Stream uptime rate: {round((program_runtime - stats.stream_downtime) / program_runtime * 100, 2)}%"
     )
 
     if (exception_count := len(stats.exceptions)) > 0:
@@ -303,7 +303,7 @@ def encoder_task(
     """
 
     command = shlex.split(
-        f"{config.MEDIA_PLAYER_PATH} {config.MEDIA_PLAYER_ARGUMENTS.format(file=shlex.quote(file),skip_time=skip_time,video_padding=config.VIDEO_PADDING)}"
+        f"{config.MEDIA_PLAYER_PATH} {config.MEDIA_PLAYER_ARGUMENTS.format(file=shlex.quote(file), skip_time=skip_time, video_padding=config.VIDEO_PADDING)}"
     )
 
     # Check if encoding ffmpeg is already running and terminate any processes
@@ -851,7 +851,7 @@ def main():
                                 )
                                 print2(
                                     "notice",
-                                    f"{play_index+1}. Sending manual e-mail alert: {mail_command[1]}",
+                                    f"{play_index + 1}. Sending manual e-mail alert: {mail_command[1]}",
                                 )
                             else:
                                 stats.mail_daemon.add_alert(
@@ -859,12 +859,12 @@ def main():
                                 )
                                 print2(
                                     "notice",
-                                    f"{play_index+1}. Sending manual e-mail alert.",
+                                    f"{play_index + 1}. Sending manual e-mail alert.",
                                 )
                         else:
                             print2(
                                 "verbose",
-                                f"{play_index+1}. Not reading %MAIL command: E-mail alerts are disabled.",
+                                f"{play_index + 1}. Not reading %MAIL command: E-mail alerts are disabled.",
                             )
 
                         play_index += 1
