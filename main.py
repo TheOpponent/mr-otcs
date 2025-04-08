@@ -526,6 +526,7 @@ def main():
     restarted: bool = False
     retried: bool = False
     instant_restarted: bool = False
+    manual_interrupted: bool = False
     media_playlist = playlist.create_playlist()
     media_playlist_length = len(media_playlist)
     stats = StreamStats()
@@ -1021,8 +1022,9 @@ def main():
                                     # Clear extra_entries after writing schedule.
                                     extra_entries = []
 
-                            # Send an e-mail alert if the stream resumed after an error.
-                            if retried:
+                            # Send an e-mail alert if the stream resumed after an error,
+                            # but not after a Ctrl-C manual restart.
+                            if retried and not manual_interrupted:
                                 if stats.mail_daemon_running(
                                     config.MAIL_ALERT_ON_STREAM_RESUME
                                 ):
@@ -1033,6 +1035,8 @@ def main():
                                         exception_time=stats.mail_daemon.last_exception_time,
                                     )
                                     stats.update_stream_downtime()
+
+                            manual_interrupted = False
 
                             print2("info", "Encoding started.")
                             encoder_result = encoder_task(
@@ -1240,6 +1244,7 @@ def main():
                         f"{stats.videos_since_restart} video(s) played since last restart.",
                     )
                     retried = True
+                    manual_interrupted = True
                     stats.restarts += 1
                     if (
                         stats.elapsed_time - config.REWIND_LENGTH
@@ -1251,6 +1256,7 @@ def main():
                     executor = stop_stream(executor)
                     kill_media_player()
                     time.sleep(config.STREAM_MANUAL_RESTART_DELAY)
+                    write_play_history("Stream manually restarted.")
                     stats.videos_since_restart = 0
                     rtmp_process = rtmp_task(stats)
                     stats.stream_start_time = datetime.datetime.now(
