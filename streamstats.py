@@ -124,7 +124,7 @@ class StreamStats:
 
     def __init__(self):
         current_time = datetime.datetime.now(datetime.timezone.utc)
-        offset = datetime.datetime.now().astimezone().utcoffset()
+        self.utcoffset = datetime.datetime.now().astimezone().utcoffset()
         self.recent_playlist = deque()
         if (
             config.SCHEDULE_PREVIOUS_MIN_VIDEOS >= 1
@@ -157,7 +157,7 @@ class StreamStats:
                 minute=config.MAIL_ALERT_STATUS_REPORT_TIME[1],
                 second=0,
             )
-            - offset
+            - self.utcoffset
             + datetime.timedelta(days=config.MAIL_ALERT_STATUS_REPORT)
         )
         if self.next_status_report < current_time:

@@ -445,7 +445,10 @@ def encoder_task(
             stats.mail_daemon.add_alert("status_report", status_report)
             stats.next_status_report = datetime.datetime.now(
                 datetime.timezone.utc
-            ) + datetime.timedelta(days=config.MAIL_ALERT_STATUS_REPORT)
+            ).replace(
+                hour=config.MAIL_ALERT_STATUS_REPORT_TIME[0],
+                minute=config.MAIL_ALERT_STATUS_REPORT_TIME[1],
+            ) - stats.utcoffset + datetime.timedelta(days=config.MAIL_ALERT_STATUS_REPORT)
 
         time.sleep(1)
 
