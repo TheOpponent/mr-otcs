@@ -161,9 +161,9 @@ def print2(level: str, message: str, *, force=False):
         "notice": (0b10000, f"\033[96m[Notice]{reset}", False),
         "play": (0b1000, f"\033[92m[Play]{reset}", False),
         "info": (0b100, "[Info]", False),
-        "verbose": (0b10, f"\033[90m[Verbose]{reset}", False),
-        "verbose2": (0b1, f"\033[90m[Debug]{reset}", False),
-        "debug": (0b1, f"\033[90m[Debug]{reset}", False),
+        "verbose": (0b10, f"[Verbose]{reset}", False),
+        "verbose2": (0b1, f"[Debug]{reset}", False),
+        "debug": (0b1, f"[Debug]{reset}", False),
     }
 
     if level not in levels:
