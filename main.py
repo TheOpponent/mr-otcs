@@ -436,6 +436,8 @@ def encoder_task(
                     print2("verbose", "Checking for new version.")
 
         # Send status report.
+        # TODO: Account for offset possibly forcing an immediate report
+        # on startup.
         if (
             stats.mail_daemon_running(config.MAIL_ALERT_STATUS_REPORT > 0)
             and datetime.datetime.now(datetime.timezone.utc) > stats.next_status_report
@@ -531,6 +533,44 @@ def main():
     media_playlist_length = len(media_playlist)
     stats = StreamStats()
     total_elapsed_time = 0
+
+    if len(sys.argv) > 1:
+        if "--check-playlist" in sys.argv:
+            total_length = 0
+            total_entries = 0
+            entry_length = 0
+            errors = 0
+            video_dict = {}
+            for i in media_playlist:
+                if i[1].type == "normal":
+                    try:
+                        entry_path = i[1].path
+                        if entry_path not in video_dict:
+                            entry_length = playlist.get_length(i[1])
+                            video_dict[entry_path] = entry_length
+                        else:
+                            entry_length = video_dict[entry_path]
+                        total_length += entry_length
+                        total_entries += 1
+                    except Exception as e:
+                        print2("error", f"Unable to parse {i[0]}. {i[1].path}: {e}")
+                        errors += 1
+                        continue
+            if errors > 0:
+                print2(
+                    "fatal",
+                    f"{errors} error(s) found. Review above output and run with --check-playlist again.",
+                )
+            else:
+                print2("info", f"Number of normal entries: {total_entries}")
+                print2(
+                    "info", f"Total playlist length: {int_to_total_time(total_length)}"
+                )
+                print2(
+                    "info",
+                    f"Total playlist length with delays: {int_to_total_time(total_length + (total_entries * 2))}",
+                )
+            sys.exit(0)
 
     # Start RTMP broadcast task, to be stopped when total_elapsed_time
     # will exceed STREAM_TIME_BEFORE_RESTART.
@@ -1193,7 +1233,7 @@ def main():
             previous_stream_duration = int_to_total_time(
                 datetime.datetime.now(datetime.timezone.utc) - stats.last_exception_time
             )
-            stats.exceptions.append((e, datetime.datetime.now()))
+            stats.exceptions.append((e, datetime.datetime.now(datetime.timezone.utc)))
             stats.last_exception_time = datetime.datetime.now(datetime.timezone.utc)
 
             # Do not send an e-mail on connection check failure.
