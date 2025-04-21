@@ -154,12 +154,16 @@ def create_playlist() -> list[Tuple[int, PlaylistEntry]]:
 
     # If config.MEDIA_PLAYLIST is a file, open the file.
     if isinstance(config.MEDIA_PLAYLIST, str):
-        try:
-            with open(
-                config.MEDIA_PLAYLIST, "r", encoding="utf-8-sig"
-            ) as media_playlist_file:
-                media_playlist = media_playlist_file.read().splitlines()
-        except FileNotFoundError:
+        if check_file(config.MEDIA_PLAYLIST, no_exit=True):
+            try:
+                with open(
+                    config.MEDIA_PLAYLIST, "r", encoding="utf-8-sig"
+                ) as media_playlist_file:
+                    media_playlist = media_playlist_file.read().splitlines()
+            except FileNotFoundError:
+                print2("fatal", f"Playlist file {config.MEDIA_PLAYLIST} not found.")
+                sys.exit(1)
+        else:
             print2("fatal", f"Playlist file {config.MEDIA_PLAYLIST} not found.")
             sys.exit(1)
 
