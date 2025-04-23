@@ -274,7 +274,7 @@ def generate_status_report(stats: StreamStats) -> str:
             else "\n\n1 stream error since last report:\n"
         )
         for exc, timestamp in stats.exceptions:
-            message += f"{timestamp.strftime('%Y-%m-%d %H:%M:%S')} - {type(exc).__name__}: {str(exc)}\n"
+            message += f"{timestamp.astimezone().strftime('%Y-%m-%d %H:%M:%S')} - {type(exc).__name__}: {str(exc)}\n"
         if config.MAIL_ALERT_MAX_ERRORS_REPORTED == 1:
             message += "(Only most recent error logged; earlier errors may have been truncated.)"
             if config.ERROR_LOG is not None:
