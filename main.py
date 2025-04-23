@@ -274,7 +274,7 @@ def generate_status_report(stats: StreamStats) -> str:
             else "\n\n1 stream error since last report:\n"
         )
         for exc, timestamp in stats.exceptions:
-            message += f"{timestamp.strftime('%Y-%m-%d %H:%M:%S')} - {type(exc).__name__}: {str(exc)}\n"
+            message += f"{timestamp.astimezone().strftime('%Y-%m-%d %H:%M:%S')} - {type(exc).__name__}: {str(exc)}\n"
         if config.MAIL_ALERT_MAX_ERRORS_REPORTED == 1:
             message += "(Only most recent error logged; earlier errors may have been truncated.)"
             if config.ERROR_LOG is not None:
@@ -1239,9 +1239,7 @@ def main():
             # Do not send an e-mail on connection check failure.
             if stats.mail_daemon_running(config.MAIL_ALERT_ON_STREAM_DOWN):
                 stats.mail_daemon.last_exception = e
-                stats.mail_daemon.last_exception_time = datetime.datetime.now(
-                    datetime.timezone.utc
-                )
+                stats.mail_daemon.last_exception_time = stats.last_exception_time.astimezone()
                 if not isinstance(e, ConnectionCheckError):
                     stats.mail_daemon.add_alert(
                         "stream_down",
