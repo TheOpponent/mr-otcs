@@ -26,6 +26,7 @@ ini_defaults = {
         "STREAM_URL": "",
         "CHECK_URL": "https://google.com, https://twitch.tv, https://github.com, https://amazon.com, https://canhazip.com, https://one.one.one.one, https://8.8.8.8",
         "CHECK_INTERVAL": 60,
+        "CHECK_TIMEOUT": 10,
         "CHECK_STRICT": True,
         "VIDEO_PADDING": 2,
         "MEDIA_PLAYER_ARGUMENTS": '-hide_banner -loglevel fatal -re -ss {skip_time} -i {file} -filter_complex "[0:v]scale=1280x720,fps=30[scaled];[scaled]tpad=stop_duration={video_padding};apad=pad_dur={video_padding}" -c:v h264_v4l2m2m -b:v 4000k -acodec aac -b:a 192k -ar 48000 -f flv -g 60 rtmp://localhost:1935/live/',
@@ -239,6 +240,10 @@ if default_ini.has_option("VideoOptions", "CHECK_INTERVAL"):
     CHECK_INTERVAL = default_ini.getint("VideoOptions", "CHECK_INTERVAL")
 else:
     CHECK_INTERVAL = 60
+if default_ini.has_option("VideoOptions", "CHECK_TIMEOUT"):
+    CHECK_TIMEOUT = default_ini.getint("VideoOptions", "CHECK_TIMEOUT")
+else:
+    CHECK_TIMEOUT = 10
 CHECK_STRICT = default_ini.getboolean("VideoOptions", "CHECK_STRICT")  # Added in 2.2.0.
 STREAM_TIME_BEFORE_RESTART = (
     default_ini.getint("VideoOptions", "STREAM_TIME_BEFORE_RESTART") * 60
