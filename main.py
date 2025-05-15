@@ -101,7 +101,7 @@ def _check_connection(stats: StreamStats, skip=False, exception=True):
 
     for link in config.CHECK_URL:
         try:
-            requests.get(link, timeout=5)
+            requests.get(link, timeout=config.CHECK_TIMEOUT)
             stats.set_connection_check_time()
             print2("verbose2", f"Connection to {link} succeeded.")
             return True
@@ -533,6 +533,8 @@ def main():
     media_playlist_length = len(media_playlist)
     stats = StreamStats()
     total_elapsed_time = 0
+    restart_delay = 1
+    restart_delay_max = 2048
 
     if len(sys.argv) > 1:
         if "--check-playlist" in sys.argv:
@@ -1124,6 +1126,8 @@ def main():
                                 ) as index_file:
                                     index_file.write(str(play_index) + "\n0")
 
+                                restart_delay = 1
+
                                 break
 
                             # Retry if encoder process fails.
@@ -1250,7 +1254,8 @@ def main():
                         total_time=previous_stream_duration,
                         total_videos=stats.videos_since_exception,
                     )
-            print2("error", "Stream interrupted. Restarting.")
+            restart_delay = min(restart_delay_max, restart_delay * 2)
+            print2("error", f"Stream interrupted. Restarting in {restart_delay} seconds.")
             print2(
                 "verbose",
                 f"{stats.videos_since_restart} video(s) played since last restart.",
@@ -1265,6 +1270,7 @@ def main():
             executor = stop_stream(executor)
             kill_media_player()
             stats.videos_since_restart = 0
+            time.sleep(restart_delay)
             rtmp_process = rtmp_task(stats)
             stats.stream_start_time = datetime.datetime.now(datetime.timezone.utc)
             stats.stream_time_remaining = config.STREAM_TIME_BEFORE_RESTART
