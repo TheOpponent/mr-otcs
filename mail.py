@@ -208,7 +208,11 @@ class EMailDaemon:
                 continue
             finally:
                 if server is not None:
-                    server.quit()
+                    # Only disconnect if a connection exists.
+                    try:
+                        server.quit()
+                    except smtplib.SMTPServerDisconnected as e:
+                        print2("error",f"SMTP server error: {e}")
 
         print2(
             "error",
