@@ -260,7 +260,8 @@ def generate_status_report(stats: StreamStats) -> str:
         + f"Current stream started: {stats.stream_start_time.astimezone().strftime('%Y-%m-%d %H:%M:%S')}\n"
         + f"Current stream duration: {int_to_time(stream_runtime)}\n"
         + f"Number of videos played since last stream restart: {stats.videos_since_restart}\n"
-        + f"Total number of videos played: {stats.total_videos}\n\n"
+        + f"Total number of videos played: {stats.total_videos}\n"
+        + f"Current playlist line: {stats.media_playlist_current_line}/{stats.media_playlist_length}\n\n"
         + f"Stream restarts: {stats.restarts}\n"
         + f"Stream errors: {stats.retries}\n"
         + f"Stream downtime: {int_to_total_time(stats.stream_downtime, round_down_zero=False)}\n"
@@ -529,9 +530,10 @@ def main():
     retried: bool = False
     instant_restarted: bool = False
     manual_interrupted: bool = False
+    stats = StreamStats()
     media_playlist = playlist.create_playlist()
     media_playlist_length = len(media_playlist)
-    stats = StreamStats()
+    stats.media_playlist_length = media_playlist_length
     total_elapsed_time = 0
     restart_delay = 1
     restart_delay_max = 2048
@@ -1088,6 +1090,7 @@ def main():
                                 play_index,
                                 stats.elapsed_time,
                             )
+                            stats.media_playlist_current_line = play_index + 1
 
                             # Calculate total time of encoding in seconds and update
                             # total_elapsed_time and stats.stream_time_remaining.

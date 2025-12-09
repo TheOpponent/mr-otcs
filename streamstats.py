@@ -122,6 +122,12 @@ class StreamStats:
     took place.
     """
 
+    media_playlist_length: int
+    """Number of lines in the playlist, including non-media files."""
+
+    media_playlist_current_line: int
+    """Current line written to play_index.txt, plus 1."""
+
     def __init__(self):
         current_time = datetime.datetime.now(datetime.timezone.utc)
         self.utcoffset = datetime.datetime.now().astimezone().utcoffset()
@@ -176,6 +182,8 @@ class StreamStats:
         self.stream_downtime = 0
         self.exceptions = deque(maxlen=config.MAIL_ALERT_MAX_ERRORS_REPORTED)
         self.last_exception_time = current_time
+        self.media_playlist_length = 0
+        self.media_playlist_current_line = 0
 
     def rewind(self, time):
         """Subtract this many seconds from `elapsed_time`, without
