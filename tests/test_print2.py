@@ -13,11 +13,11 @@ def test_print2_functions(monkeypatch,capsys):
 
     print2("debug","Debug message")
     capture = capsys.readouterr()
-    assert capture.out == datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + " " + '\033[90m' + "[Debug]" + '\033[0m' +" Debug message\n"
+    assert capture.out == datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + " " + "[Debug]" + " Debug message\n"
 
     print2("verbose2","Debug message using alias level")
     capture = capsys.readouterr()
-    assert capture.out == datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + " " + '\033[90m' + "[Debug]" + '\033[0m' +" Debug message using alias level\n"
+    assert capture.out == datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + " " + "[Debug]" + " Debug message using alias level\n"
 
     print2("verbose","Verbose message")
     capture = capsys.readouterr()
