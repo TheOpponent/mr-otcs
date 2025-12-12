@@ -16,7 +16,7 @@ import subprocess
 import sys
 import time
 import traceback
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, Tuple
 
 import psutil
 import requests
@@ -295,12 +295,11 @@ def encoder_task(
     stats: StreamStats,
     play_index: Optional[int] = None,
     skip_time=0,
-):
+) -> Tuple[int,str]:
     """Task for encoding a video file from a playlist.
 
-    Monitors the RTMP process id. If it is not running, or if the encoder
-    process exits with a non-zero code, returns False. Otherwise, returns
-    True.
+    After the encoder process exits, returns a tuple containing the
+    return code and stderr, if not empty.
     """
 
     command = shlex.split(
@@ -347,7 +346,7 @@ def encoder_task(
         print2(
             "error", f"Encoder process ended unexpectedly, exit code {e.returncode}."
         )
-        return e.returncode
+        return (e.returncode,e.stderr)
 
     # Poll both encoder and RTMP processes, and check internet connection once
     # per config.CHECK_INTERVAL. Return True if the encode finished
@@ -461,7 +460,7 @@ def encoder_task(
             f"RTMP process ended unexpectedly, exit code {rtmp_process.poll()}"
         )
 
-    return process.poll()
+    return (process.poll(),"")
 
 
 def write_play_history(message):
@@ -639,7 +638,7 @@ def main():
                         encoder = encoder_task(
                             config.STREAM_RESTART_AFTER_VIDEO, rtmp_process, stats
                         )
-                        if encoder == 0:
+                        if encoder[0] == 0:
                             total_elapsed_time += (
                                 playlist.get_length(config.STREAM_RESTART_AFTER_VIDEO)
                                 + config.VIDEO_PADDING
@@ -1101,7 +1100,7 @@ def main():
                             stats.stream_time_remaining -= exit_time
 
                             # Increment play_index if encode succeeded.
-                            if encoder_result == 0:
+                            if encoder_result[0] == 0:
                                 retried = False
                                 print2("info", "Video encoded successfully.")
                                 stats.elapsed_time = 0
@@ -1147,7 +1146,7 @@ def main():
                                     stats.video_resume_point = stats.elapsed_time
                                 print2(
                                     "warn",
-                                    f"Encoding failed. Retrying from {int_to_time(stats.elapsed_time)}.",
+                                    f"Encoding failed, exit code {encoder_result[0]}: {encoder_result[1]}. Retrying from {int_to_time(stats.elapsed_time)}.",
                                 )
                                 print2(
                                     "info",
@@ -1157,14 +1156,20 @@ def main():
                                 # If the remaining length of the video is greater than
                                 # stats.stream_time_remaining, force a restart by breaking
                                 # this loop and causing the next iteration to go to restart.
+                                if config.STREAM_TIME_BEFORE_RESTART > 0:
                                 print2(
                                     "warn",
-                                    "Encoding failed. Insufficient time remaining to retry. Restarting stream.",
+                                        f"Encoding failed, exit code {encoder_result[0]}: {encoder_result[1]}. Insufficient time remaining to retry. Restarting in {restart_delay} seconds.",
+                                    )
+                                else:
+                                    print2(
+                                        "warn",
+                                        f"Encoding failed. Restarting in {restart_delay} seconds.",
                                 )
                                 stats.stream_time_remaining = 0
                                 stats.videos_since_restart += 1
                                 stats.videos_since_exception += 1
-                                break
+                                raise BackgroundProcessError(f"Encoding failed, exit code {encoder_result[0]}: {encoder_result[1]}.")
 
                     else:
                         print2("notice", "STREAM_TIME_BEFORE_RESTART limit reached.")
