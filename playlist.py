@@ -4,6 +4,7 @@ import datetime
 import itertools
 import json
 import os
+import shutil
 import sys
 import threading
 from collections import deque
@@ -24,6 +25,85 @@ import config
 from config import print2
 from streamstats import StreamStats
 from utils import check_file, int_to_time
+
+
+class PlaylistCacheItem:
+    """An item in a `PlaylistCache`."""
+    
+    path: str
+    """The relative path for a normal video entry. A corresponding file is retrieved from `config.SOURCE` as a new base path with the same directory structure."""
+
+    fullpath: str
+    """The absolute path for the destination of a normal video entry including `config.BASE_PATH`."""
+
+    def __init__(self,path):
+        if path.startswith(config.BASE_PATH):
+            self.fullpath = path
+            self.path = path[len(config.BASE_PATH):]
+        else:
+            self.fullpath = os.path.join(config.BASE_PATH,path)
+            self.path = path
+
+        if not os.path.exists(self.fullpath):
+            try:
+                print2("info",f"Copying {config.SOURCE + self.path} to {config.BASE_PATH}.")
+                dst_dir = os.path.dirname(self.fullpath)
+                if dst_dir and not os.path.exists(dst_dir):
+                    os.makedirs(dst_dir, exist_ok=True)
+                shutil.copy(os.path.join(config.SOURCE, self.path), self.fullpath)
+            except OSError as e:
+                print2("error",f"Error copying {config.SOURCE + self.path} to {config.BASE_PATH}: {e}")
+                exit(1)
+
+
+class PlaylistCache:
+    """A large file cache for current and upcoming playlist items.
+    After the cache fills, delete the oldest items from the disk."""
+
+    def __init__(self):
+        self.queue = []
+        self.paths = []
+        self.maxlen = 50
+        self._lock = threading.Lock()
+
+    # TODO: Add directory size check.
+
+    def add(self, path):
+        with self._lock:
+            if len(self.queue) > self.maxlen:
+                self.old = self.queue.pop(0)
+                print2("verbose",f"Removing {self.old.path} from video cache.")
+                self.paths.remove(self.old.path)
+                if self.old.path not in self.paths:
+                    try:
+                        os.remove(self.old.fullpath)        
+                    except FileNotFoundError:
+                        print2("warn",f"{self.old.fullpath} not found, not deleting.")
+            self.queue.append(PlaylistCacheItem(path))
+            self.paths.append(path)
+
+    @concurrent.thread
+    def add_async(self, path):
+        """Non-blocking variant of add() — runs in a background thread and
+        returns a pebble Future when called."""
+
+        with self._lock:
+            if len(self.queue) > self.maxlen:
+                self.old: PlaylistCacheItem = self.queue.pop(0)
+                self.paths.remove(self.old.path)
+                if self.old.path not in self.paths:
+                    try:
+                        os.remove(self.old.fullpath)        
+                    except FileNotFoundError:
+                        print2("warn",f"{self.old.fullpath} not found, not deleting.")
+            self.queue.append(PlaylistCacheItem(path))
+            self.paths.append(path)
+
+    def get_length(self):
+        return len(self.queue)
+    
+    def get_empty_length(self):
+        return self.maxlen - len(self.queue)
 
 
 class PlaylistException(Exception):

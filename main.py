@@ -30,6 +30,7 @@ from streamstats import StreamStats
 from utils import check_file, int_to_time, int_to_total_time
 
 
+
 class BackgroundProcessError(Exception):
     """Raised when the background process closes prematurely for any
     reason. This exception is meant to be caught and used to restart
@@ -524,6 +525,7 @@ def kill_media_player():
 
 def main():
     video_file: playlist.PlaylistEntry
+    video_cache = playlist.PlaylistCache()
 
     restarted: bool = False
     retried: bool = False
@@ -933,9 +935,22 @@ def main():
             # regardless of stream time limits.
             if play_index >= media_playlist_length:
                 play_index = 0
+
+            # Start filling the video_cache.
+            precache_index = play_index
+            while video_cache.get_empty_length() > 0:
+                if precache_index >= media_playlist_length:
+                    precache_index = 0  
+                next_cache_entry = media_playlist[precache_index][1]
+                if next_cache_entry.type == "normal":
+                    video_cache.add(next_cache_entry.path)
+                precache_index += 1
+                continue
+
             if entry.type == "normal":
                 video_file = entry
                 video_start_time = datetime.datetime.now()
+                video_cache.add_async(video_file.path)
                 result = check_file(video_file.path)
 
                 if result:
