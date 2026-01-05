@@ -398,6 +398,12 @@ class EMailDaemon:
                 print2("verbose", body)
                 try:
                     with self._lock:
+                        if self.queue.qsize() >= 10:
+                            print2(
+                                "error",
+                                "E-mail alert queue is full. Discarding previous messages.",
+                            )
+                            self.clear_queue()
                         self.queue.put_nowait(
                             PrioritizedItem(
                                 priority, (msg, alert_type, bypass_interval)
