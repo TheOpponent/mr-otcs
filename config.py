@@ -109,13 +109,16 @@ ini_defaults = {
 
 default_ini = configparser.ConfigParser(defaults=ini_defaults)
 
-if len(sys.argv) > 1:
+if len(sys.argv) > 1 and "--config-file" in sys.argv:
     try:
-        config_file = sys.argv[1]
+        config_file = sys.argv.index("--config-file") + 1
         default_ini.read_dict(ini_defaults)
         default_ini.read(sys.argv[1])
     except configparser.Error as e:
         print(f"Error reading config file {sys.argv[1]}: {e}")
+        sys.exit(1)
+    except IndexError:
+        print("--config-file argument not specified")
         sys.exit(1)
 else:
     config_file = os.getenv("MR_OTCS_CONFIG_INI", "config.ini")
