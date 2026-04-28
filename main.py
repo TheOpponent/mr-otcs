@@ -542,7 +542,7 @@ def main():
             total_length = 0
             total_entries = 0
             entry_length = 0
-            errors = 0
+            errors = []
             video_dict = {}
             for i in media_playlist:
                 if i[1].type == "normal":
@@ -557,12 +557,14 @@ def main():
                         total_entries += 1
                     except Exception as e:
                         print2("error", f"Unable to parse {i[0]}. {i[1].path}: {e}")
-                        errors += 1
+                        errors.append(f"{i[0]}. {i[1].path}: {e}\n")
                         continue
             if errors > 0:
+                with open("errors.txt","w") as output:
+                    output.writelines(errors)
                 print2(
                     "fatal",
-                    f"{errors} error(s) found. Review above output and run with --check-playlist again.",
+                    f"{len(errors)} error(s) found. Review errors.txt and run with --check-playlist again.",
                 )
             else:
                 print2("info", f"Number of normal entries: {total_entries}")
